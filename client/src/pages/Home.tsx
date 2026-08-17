@@ -350,20 +350,20 @@ export default function Home() {
           >
             Join a friend <span>JOIN</span>
           </Link>
-          <a
+          <Link
             className="side-nav-link"
-            href="#leaderboard"
+            href="/leaderboard"
             onClick={() => setMobileMenu(false)}
           >
             Leaderboard <span>TOP</span>
-          </a>
-          <a
+          </Link>
+          <Link
             className="side-nav-link"
-            href="#profile"
+            href="/profile"
             onClick={() => setMobileMenu(false)}
           >
             Player Profile <span>STATS</span>
-          </a>
+          </Link>
         </nav>
         <div className="sidebar-bottom">
           <div className="mini-status">
@@ -692,7 +692,12 @@ export default function Home() {
               </span>
             </div>
             <p className="eyebrow">AUTHORITATIVE RANKINGS</p>
-            <h2>Leaderboard</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "12px" }}>
+              <h2>Leaderboard</h2>
+              <Link href="/leaderboard" style={{ fontFamily: "IBM Plex Mono", fontSize: "11px", color: "var(--orange)", fontWeight: 600 }}>
+                Open Full Standings Page →
+              </Link>
+            </div>
             <p className="section-note">
               Rankings are calculated directly from verified database match
               results using server-authoritative Elo rating. No simulated or
@@ -769,7 +774,12 @@ export default function Home() {
           <div className="profile-header">
             <span className="stamp orange">COMPETITIVE RECORD</span>
             <p className="eyebrow">YOUR ARENA PROFILE</p>
-            <h2>{user ? user.name || "Player Profile" : "Player Profile"}</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "12px" }}>
+              <h2>{user ? user.name || "Player Profile" : "Player Profile"}</h2>
+              <Link href="/profile" style={{ fontFamily: "IBM Plex Mono", fontSize: "11px", color: "var(--orange)", fontWeight: 600 }}>
+                Open Full Profile Page →
+              </Link>
+            </div>
             <p className="section-note">
               Real-time competitive metrics, win streaks, and persisted rating
               transaction history.

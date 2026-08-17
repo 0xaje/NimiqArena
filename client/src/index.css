@@ -2033,14 +2033,26 @@ h1 em,
   font-weight: bold;
   color: var(--orange);
 }
-.rank-badge.top-1 {
+.rank-badge.top-1,
+.rank-badge.gold {
   color: #d97706;
+  background: rgba(217, 119, 6, 0.12);
+  padding: 2px 6px;
+  border-radius: 3px;
 }
-.rank-badge.top-2 {
-  color: #6b7280;
+.rank-badge.top-2,
+.rank-badge.silver {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+  padding: 2px 6px;
+  border-radius: 3px;
 }
-.rank-badge.top-3 {
+.rank-badge.top-3,
+.rank-badge.bronze {
   color: #b45309;
+  background: rgba(180, 83, 9, 0.12);
+  padding: 2px 6px;
+  border-radius: 3px;
 }
 .rating-pill {
   font-family: "IBM Plex Mono", monospace;
@@ -2098,3 +2110,567 @@ h1 em,
   margin: 8px 0 0;
   font-size: 13px;
 }
+
+/* ==========================================================================
+   Dedicated Leaderboard & Profile Pages
+   ========================================================================== */
+
+.leaderboard-main,
+.profile-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Leaderboard Hero */
+.leaderboard-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 24px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.leaderboard-hero h1 {
+  font-size: 36px;
+  font-family: "IBM Plex Serif", serif;
+  margin: 12px 0 8px;
+  color: var(--ink);
+}
+.leaderboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.game-selector .tab-btn {
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 8px 16px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.game-selector .tab-btn.active {
+  background: var(--ink);
+  color: var(--paper-bright);
+  border-color: var(--ink);
+}
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 8px 14px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.refresh-btn:hover {
+  border-color: var(--orange);
+}
+
+/* Podium Cards */
+.podium-section {
+  margin: 12px 0;
+}
+.podium-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr;
+  gap: 16px;
+  align-items: flex-end;
+}
+.podium-card {
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 24px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(18, 40, 63, 0.04);
+}
+.podium-card.gold {
+  border: 2px solid #d97706;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+  padding-top: 36px;
+  transform: translateY(-8px);
+}
+.podium-card.silver {
+  border-top: 3px solid #94a3b8;
+}
+.podium-card.bronze {
+  border-top: 3px solid #d97706;
+}
+.podium-crown {
+  position: absolute;
+  top: -18px;
+  color: #d97706;
+}
+.podium-medal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: bold;
+}
+.podium-card.gold .podium-medal { color: #d97706; }
+.podium-card.silver .podium-medal { color: #64748b; }
+.podium-card.bronze .podium-medal { color: #b45309; }
+.podium-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper-bright);
+  font-weight: bold;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+}
+.podium-avatar.champ {
+  background: #d97706;
+  width: 56px;
+  height: 56px;
+  font-size: 24px;
+}
+.podium-name {
+  font-size: 16px;
+  margin: 0;
+  color: var(--ink);
+}
+.podium-rating {
+  font-family: "IBM Plex Mono", monospace;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.podium-rating strong {
+  font-size: 22px;
+  color: var(--ink);
+}
+.podium-rating span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.podium-stats {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 12px;
+}
+.podium-streak {
+  background: rgba(239, 101, 61, 0.1);
+  color: var(--orange);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Standings Section */
+.standings-section {
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 24px;
+}
+.standings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.standings-header h2 {
+  font-size: 20px;
+  margin: 0;
+  font-family: "IBM Plex Serif", serif;
+}
+.standings-count {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.standings-table-wrap {
+  overflow-x: auto;
+}
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.standings-table th {
+  padding: 12px 14px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  text-transform: uppercase;
+}
+.standings-table td {
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.standings-table tr:hover td {
+  background: rgba(239, 101, 61, 0.02);
+}
+.current-user-row td {
+  background: rgba(239, 101, 61, 0.06) !important;
+}
+.player-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar-mini {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper-bright);
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+}
+.you-pill {
+  background: var(--orange);
+  color: #fff;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+.record-cell .wins { color: #15803d; font-weight: 600; font-family: "IBM Plex Mono", monospace; }
+.record-cell .losses { color: #b91c1c; font-weight: 600; font-family: "IBM Plex Mono", monospace; }
+.record-cell .sep { margin: 0 4px; color: var(--muted); }
+.wr-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+}
+.wr-bar-wrap {
+  width: 60px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.wr-bar {
+  height: 100%;
+  background: var(--orange);
+  border-radius: 3px;
+}
+.streak-badge.fire {
+  color: var(--orange);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   Player Profile Page
+   ========================================================================== */
+
+.profile-hero-card {
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.profile-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper-bright);
+  font-size: 28px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  border: 3px solid var(--orange);
+}
+.profile-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.profile-titles h1 {
+  font-size: 28px;
+  font-family: "IBM Plex Serif", serif;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+.profile-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+}
+.profile-hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quick-switch {
+  display: flex;
+  gap: 8px;
+}
+.quick-switch input {
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  outline: none;
+}
+.quick-switch input:focus {
+  border-color: var(--orange);
+}
+.switch-btn {
+  background: var(--ink);
+  color: var(--paper-bright);
+  border: none;
+  padding: 8px 14px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.quick-players {
+  display: flex;
+  gap: 6px;
+}
+.pill-btn {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 4px 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  cursor: pointer;
+}
+.pill-btn:hover {
+  border-color: var(--orange);
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.stat-value-large {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: "IBM Plex Mono", monospace;
+}
+.stat-value-large strong {
+  font-size: 32px;
+  color: var(--ink);
+}
+.stat-value-large span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.record-inline {
+  font-size: 13px !important;
+  color: var(--ink-soft) !important;
+}
+.stat-meter {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.stat-meter-fill {
+  height: 100%;
+  background: var(--orange);
+  border-radius: 3px;
+}
+.stat-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+/* History Ledger */
+.history-section {
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 24px;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.history-header h2 {
+  font-size: 20px;
+  margin: 0 0 4px;
+  font-family: "IBM Plex Serif", serif;
+}
+.history-header p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+.view-leaderboard-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--orange);
+  text-decoration: none;
+  font-weight: 600;
+}
+.history-table-wrap {
+  overflow-x: auto;
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.history-table th {
+  padding: 12px 14px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  text-transform: uppercase;
+}
+.history-table td {
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.outcome-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.outcome-badge.win {
+  background: rgba(21, 128, 61, 0.12);
+  color: #15803d;
+}
+.outcome-badge.loss {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+.outcome-badge.abandoned {
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+}
+.match-link {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+.rating-num {
+  font-family: "IBM Plex Mono", monospace;
+}
+.rating-num.bold {
+  font-weight: bold;
+}
+.delta-cell {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: bold;
+}
+.delta-cell.positive { color: #15803d; }
+.delta-cell.negative { color: #b91c1c; }
+.delta-cell.zero { color: var(--muted); }
+.date-cell {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.empty-history {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.empty-history h3 {
+  font-size: 18px;
+  color: var(--ink);
+  margin: 0;
+}
+.empty-history p {
+  font-size: 13px;
+  max-width: 420px;
+  margin: 0;
+}
+.history-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .podium-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .podium-card.gold {
+    transform: none;
+    order: -1;
+  }
+  .profile-hero-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+

@@ -7,6 +7,8 @@ import Home from "./pages/Home";
 import LudoDetail from "./pages/LudoDetail";
 import JoinMatch from "./pages/JoinMatch";
 import MatchRoom from "./pages/MatchRoom";
+import Leaderboard from "./pages/Leaderboard";
+import PlayerProfile from "./pages/PlayerProfile";
 import NotFound from "./pages/NotFound";
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/games/ludo-league" component={LudoDetail} />
       <Route path="/matches/:id" component={MatchRoom} />
       <Route path="/join" component={JoinMatch} />
+      <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/profile" component={PlayerProfile} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
