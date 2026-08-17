@@ -115,3 +115,8 @@ The exact replay-status correction was committed as `d31350d` with message `fix:
 The backend integration suite now covers successful Challenge Friend join, expired and full-match rejection, duplicate join idempotency, unauthorized command rejection, successful roll, stale-version conflict, duplicate command replay, and concurrent conflict handling. The authenticated SSE stream at `/api/matches/:id/events` is registered server-side and consumed by the match room, with polling/manual refresh fallback. The gated database integration test `server/match.database.integration.test.ts` verifies exact command replay when run with `RUN_DB_INTEGRATION_TESTS=1` against a dedicated test database; the default verification intentionally skips it to avoid touching a non-dedicated database.
 
 The latest default verification reports 10 test files, 31 passing tests, and 1 intentionally skipped database integration test, with formatting, TypeScript, and production build checks passing. No opponent, online presence, matchmaking result, rating, payout, settlement, or production reconnect guarantee is fabricated.
+
+
+### Final milestone commit
+
+The completed join coverage, exact replay, and authenticated match-state stream milestone was committed as `490baa5` with message `feat: add ludo match state streaming`.
