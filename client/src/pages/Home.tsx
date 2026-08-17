@@ -105,6 +105,7 @@ export default function Home() {
     trpc.payment.markConfirmationPending.useMutation();
   const failIntent = trpc.payment.failIntent.useMutation();
   const submitTransaction = trpc.payment.submitTransaction.useMutation();
+  const verifyPayment = trpc.payment.verify.useMutation();
 
   const seasonQuery = trpc.season.getActive.useQuery();
   const leaderboardQuery = trpc.leaderboard.getTop.useQuery({
@@ -199,7 +200,8 @@ export default function Home() {
     if (
       paymentPhase === "creating" ||
       paymentPhase === "confirming" ||
-      paymentPhase === "submitted"
+      paymentPhase === "submitted" ||
+      paymentPhase === "verifying"
     )
       return;
     if (!nimiqPromise.current || providerState !== "ready") {
@@ -227,11 +229,25 @@ export default function Home() {
         id: intent.id,
         transactionHash: result as string,
       });
-      setPaymentPhase("submitted");
+      setPaymentPhase("verifying");
       toast("Transaction submitted", {
         description:
-          "Arena is waiting for server-side blockchain verification. No balance was credited yet.",
+          "Authoritative server verifier is checking the Nimiq blockchain...",
       });
+
+      const verifyResult = await verifyPayment.mutateAsync({ id: intent.id });
+      if (verifyResult.success) {
+        setPaymentPhase("verified");
+        toast.success("Payment Verified On-Chain!", {
+          description: `Transaction confirmed on Nimiq network. Block ${verifyResult.intent.blockNumber ?? "latest"}.`,
+        });
+      } else {
+        setPaymentPhase(verifyResult.intent.status as PaymentPhase);
+        toast.error(`Verification Rejected: ${verifyResult.intent.status}`, {
+          description:
+            verifyResult.errorMessage || "Server rejected transaction.",
+        });
+      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -672,7 +688,7 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardQuery.data.map(entry => (
+                    {leaderboardQuery.data.map((entry: any) => (
                       <tr key={entry.userId}>
                         <td>
                           <span
@@ -788,7 +804,7 @@ export default function Home() {
                           </tr>
                         </thead>
                         <tbody>
-                          {statsQuery.data.history.map(item => (
+                          {statsQuery.data.history.map((item: any) => (
                             <tr key={item.id}>
                               <td>
                                 <strong>

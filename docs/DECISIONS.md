@@ -47,3 +47,7 @@ Mocked tests are useful contract coverage but are not evidence of real persisted
 ## 2026-08-17 — Elo Rating Model & Seasonal Boundaries
 
 Competitive Ludo rankings use standard competitive Elo calibration with $K=32$, starting rating 1000, and a hard floor of 100. Ratings update strictly inside the atomic database transaction that completes a match. Unique constraints on `rating_history(matchId, userId)` protect against duplicate execution. Seasons partition ratings and leaderboards without wiping historical transaction records.
+
+## 2026-08-17 — Server-Authoritative Nimiq PoS JSON-RPC Verification
+
+Payment verification strictly uses server-to-node JSON-RPC 2.0 (`getTransactionByHash`) against public Nimiq PoS (Albatross) nodes. The client is never trusted to determine payment success, amount received, or recipient validity. Reverted executions (`executionResult === false`), underpaid values (`value < valueLuna`), address mismatches, unconfirmed mempool entries, and duplicate hash replays are authoritatively rejected and audited in `payment_verifications`. Match entry gating strictly requires a verified payment intent. Escrow payouts are intentionally deferred to future milestones.

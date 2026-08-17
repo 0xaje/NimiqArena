@@ -3,11 +3,12 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   applyLudoMatchCommand,
+  claimVerifiedPaymentForMatch,
   createChallengeMatch,
   createPaymentIntent,
   getActiveSeason,
   getGameBySlug,
-  getLeaderboard,
+  getLeaderboardTop,
   getMatchById,
   getMatchPlayer,
   getMatchPlayers,
@@ -16,10 +17,12 @@ import {
   heartbeatMatchPlayer,
   disconnectMatchPlayer,
   getPaymentIntentForUser,
+  getPaymentIntentWithAudit,
   joinMatchByCode,
   refreshMatchLifecycle,
   updatePaymentIntent,
   upsertUser,
+  verifyPaymentIntent,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
@@ -53,23 +56,10 @@ const ludoCommandSchema = z.discriminatedUnion("kind", [
 
 async function requireIntent(id: string, userId: number) {
   const intent = await getPaymentIntentForUser(id, userId);
-  if (!intent)
+  if (!intent) {
     throw new TRPCError({
       code: "NOT_FOUND",
-      message: "Payment intent not found.",
-    });
-  if (
-    intent.expiresAt.getTime() <= Date.now() &&
-    !["verified", "submitted"].includes(intent.status)
-  ) {
-    if (intent.status !== "expired")
-      await updatePaymentIntent(id, userId, {
-        status: "expired",
-        failureCode: "expired",
-      });
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Payment intent has expired.",
+      message: "Payment intent was not found.",
     });
   }
   return intent;
@@ -79,6 +69,59 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    guestLogin: publicProcedure
+      .input(
+        z
+          .object({
+            name: z.string().min(1).max(64).optional(),
+            openId: z.string().min(1).max(64).optional(),
+          })
+          .optional()
+      )
+      .mutation(async ({ ctx, input }) => {
+        const name = input?.name?.trim() || "Player 1";
+        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+        const openId = input?.openId || `guest-${slug}`;
+        await upsertUser({
+          openId,
+          name,
+          loginMethod: "guest",
+          lastSignedIn: new Date(),
+        });
+        const user = await getUserByOpenId(openId);
+        if (!user)
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "User creation failed.",
+          });
+
+        const token = await sdk.createSessionToken(openId, { name });
+        const cookieOpts = getSessionCookieOptions(ctx.req);
+        if (typeof (ctx.res as any).cookie === "function") {
+          (ctx.res as any).cookie(COOKIE_NAME, token, cookieOpts);
+        } else {
+          ctx.res.setHeader(
+            "Set-Cookie",
+            `${COOKIE_NAME}=${token}; ${cookieOpts}`
+          );
+        }
+        return { success: true, user, token };
+      }),
+    logout: publicProcedure.mutation(async ({ ctx }) => {
+      const cookieOpts = getSessionCookieOptions(ctx.req);
+      if (typeof (ctx.res as any).clearCookie === "function") {
+        (ctx.res as any).clearCookie(COOKIE_NAME, {
+          ...cookieOpts,
+          maxAge: -1,
+        });
+      } else {
+        ctx.res.setHeader(
+          "Set-Cookie",
+          `${COOKIE_NAME}=; Max-Age=0; ${cookieOpts}`
+        );
+      }
+      return { success: true };
+    }),
     stats: protectedProcedure
       .input(
         z
@@ -95,44 +138,16 @@ export const appRouter = router({
           seasonId: input?.seasonId,
         });
       }),
-    guestLogin: publicProcedure
-      .input(
-        z
-          .object({
-            name: z.string().min(1).max(50).optional(),
-          })
-          .optional()
-      )
-      .mutation(async ({ ctx, input }) => {
-        const name = input?.name?.trim() || "Player 1";
-        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
-        const openId = `guest-${slug}`;
-        await upsertUser({
-          openId,
-          name,
-          role: "user",
-        });
-        const user = await getUserByOpenId(openId);
-        const token = await sdk.createSessionToken(openId, { name });
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
-        return { user, token };
-      }),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
-    }),
   }),
   season: router({
     getActive: publicProcedure.query(async () => {
-      const active = await getActiveSeason();
-      if (!active)
+      const season = await getActiveSeason();
+      if (!season)
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "No active season found.",
         });
-      return active;
+      return season;
     }),
   }),
   leaderboard: router({
@@ -143,16 +158,14 @@ export const appRouter = router({
             gameSlug: z.string().min(1).max(64).optional(),
             seasonId: z.string().min(1).max(32).optional(),
             limit: z.number().int().min(1).max(100).optional(),
-            offset: z.number().int().min(0).optional(),
           })
           .optional()
       )
       .query(async ({ input }) => {
-        return await getLeaderboard({
+        return await getLeaderboardTop({
           gameSlug: input?.gameSlug,
           seasonId: input?.seasonId,
           limit: input?.limit,
-          offset: input?.offset,
         });
       }),
   }),
@@ -331,16 +344,14 @@ export const appRouter = router({
     getIntent: protectedProcedure
       .input(z.object({ id: intentIdSchema }))
       .query(async ({ ctx, input }) => {
-        const intent = await requireIntent(input.id, ctx.user.id);
-        return {
-          id: intent.id,
-          recipient: intent.recipient,
-          valueLuna: intent.valueLuna,
-          status: intent.status,
-          transactionHash: intent.transactionHash,
-          failureCode: intent.failureCode,
-          expiresAt: intent.expiresAt,
-        };
+        const result = await getPaymentIntentWithAudit(input.id, ctx.user.id);
+        if (!result) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Payment intent was not found.",
+          });
+        }
+        return result;
       }),
     markConfirmationPending: protectedProcedure
       .input(z.object({ id: intentIdSchema }))
@@ -393,7 +404,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const intent = await requireIntent(input.id, ctx.user.id);
-        if (!["created", "confirmation_pending"].includes(intent.status)) {
+        if (!["created", "confirmation_pending", "submitted"].includes(intent.status)) {
           throw new TRPCError({
             code: "CONFLICT",
             message: `Intent cannot accept a hash from ${intent.status}.`,
@@ -411,6 +422,49 @@ export const appRouter = router({
           message:
             "Transaction submitted; settlement is pending server-side verification.",
         };
+      }),
+    verify: protectedProcedure
+      .input(z.object({ id: intentIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const result = await verifyPaymentIntent({
+            id: input.id,
+            userId: ctx.user.id,
+          });
+          return result;
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Payment verification failed.",
+          });
+        }
+      }),
+    claimForMatch: protectedProcedure
+      .input(
+        z.object({
+          matchId: matchIdSchema,
+          paymentIntentId: intentIdSchema,
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await claimVerifiedPaymentForMatch({
+            matchId: input.matchId,
+            userId: ctx.user.id,
+            paymentIntentId: input.paymentIntentId,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Could not claim payment for match entry.",
+          });
+        }
       }),
   }),
 });

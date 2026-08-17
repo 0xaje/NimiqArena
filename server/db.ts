@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertGame,
@@ -10,6 +10,7 @@ import {
   matchPlayers,
   matches,
   paymentIntents,
+  paymentVerifications,
   playerRatings,
   ratingHistory,
   seasons,
@@ -17,6 +18,7 @@ import {
   type Game,
   type Match,
   type PaymentIntent,
+  type PaymentVerification,
   type PlayerRating,
   type RatingHistory,
   type Season,
@@ -33,6 +35,11 @@ import { nanoid } from "nanoid";
 import { ENV } from "./_core/env";
 import { notifyMatchUpdated } from "./match-stream";
 import { calculateElo, STARTING_RATING } from "./rating-engine";
+import {
+  verifyNimiqPayment,
+  normalizeNimiqAddress,
+  type NimiqVerificationResult,
+} from "./nimiq-verifier";
 
 export type LudoServerCommand =
   | Omit<Extract<LudoCommand, { kind: "roll" }>, "matchId" | "playerId">
@@ -492,20 +499,21 @@ export async function settleMatchRating(
   const outcomeWinner = input.outcome ?? "win";
   const outcomeLoser =
     outcomeWinner === "abandoned_win" ? "abandoned_loss" : "loss";
+  const existingHistory = (
+    await tx
+      .select()
+      .from(ratingHistory)
+      .where(
+        and(
+          eq(ratingHistory.matchId, input.matchId),
+          eq(ratingHistory.userId, input.winnerUserId)
+        )
+      )
+      .limit(1)
+  )[0];
+  if (existingHistory) return;
 
-  // Check if rating history already recorded for this match (idempotency guard)
-  const existingHistory = await tx
-    .select()
-    .from(ratingHistory)
-    .where(eq(ratingHistory.matchId, input.matchId))
-    .limit(1);
-
-  if (existingHistory.length > 0) {
-    return; // Already settled
-  }
-
-  // Fetch or default rating for Winner
-  const winnerRatingRow = (
+  let winnerRatingRow = (
     await tx
       .select()
       .from(playerRatings)
@@ -519,8 +527,29 @@ export async function settleMatchRating(
       .limit(1)
   )[0];
 
-  // Fetch or default rating for Loser
-  const loserRatingRow = (
+  if (!winnerRatingRow) {
+    await tx.insert(playerRatings).values({
+      userId: input.winnerUserId,
+      gameSlug: input.gameSlug,
+      seasonId: seasonId,
+      rating: STARTING_RATING,
+    });
+    winnerRatingRow = (
+      await tx
+        .select()
+        .from(playerRatings)
+        .where(
+          and(
+            eq(playerRatings.userId, input.winnerUserId),
+            eq(playerRatings.gameSlug, input.gameSlug),
+            eq(playerRatings.seasonId, seasonId)
+          )
+        )
+        .limit(1)
+    )[0]!;
+  }
+
+  let loserRatingRow = (
     await tx
       .select()
       .from(playerRatings)
@@ -534,96 +563,94 @@ export async function settleMatchRating(
       .limit(1)
   )[0];
 
-  const currentRatingWinner = winnerRatingRow?.rating ?? STARTING_RATING;
-  const currentRatingLoser = loserRatingRow?.rating ?? STARTING_RATING;
-
-  const eloResult = calculateElo({
-    ratingA: currentRatingWinner,
-    ratingB: currentRatingLoser,
-    outcomeA: outcomeWinner,
-  });
-
-  // Update or insert winner player_ratings
-  if (winnerRatingRow) {
-    const nextStreak = winnerRatingRow.currentStreak + 1;
-    await tx
-      .update(playerRatings)
-      .set({
-        rating: eloResult.newRatingA,
-        wins: winnerRatingRow.wins + 1,
-        matchesPlayed: winnerRatingRow.matchesPlayed + 1,
-        currentStreak: nextStreak,
-        bestStreak: Math.max(winnerRatingRow.bestStreak, nextStreak),
-      })
-      .where(eq(playerRatings.id, winnerRatingRow.id));
-  } else {
-    await tx.insert(playerRatings).values({
-      userId: input.winnerUserId,
-      gameSlug: input.gameSlug,
-      seasonId,
-      rating: eloResult.newRatingA,
-      wins: 1,
-      losses: 0,
-      currentStreak: 1,
-      bestStreak: 1,
-      matchesPlayed: 1,
-    });
-  }
-
-  // Update or insert loser player_ratings
-  if (loserRatingRow) {
-    await tx
-      .update(playerRatings)
-      .set({
-        rating: eloResult.newRatingB,
-        losses: loserRatingRow.losses + 1,
-        matchesPlayed: loserRatingRow.matchesPlayed + 1,
-        currentStreak: 0,
-      })
-      .where(eq(playerRatings.id, loserRatingRow.id));
-  } else {
+  if (!loserRatingRow) {
     await tx.insert(playerRatings).values({
       userId: input.loserUserId,
       gameSlug: input.gameSlug,
-      seasonId,
-      rating: eloResult.newRatingB,
-      wins: 0,
-      losses: 1,
-      currentStreak: 0,
-      bestStreak: 0,
-      matchesPlayed: 1,
+      seasonId: seasonId,
+      rating: STARTING_RATING,
     });
+    loserRatingRow = (
+      await tx
+        .select()
+        .from(playerRatings)
+        .where(
+          and(
+            eq(playerRatings.userId, input.loserUserId),
+            eq(playerRatings.gameSlug, input.gameSlug),
+            eq(playerRatings.seasonId, seasonId)
+          )
+        )
+        .limit(1)
+    )[0]!;
   }
 
-  // Record rating history for winner
-  await tx.insert(ratingHistory).values({
-    matchId: input.matchId,
-    userId: input.winnerUserId,
-    seasonId,
-    gameSlug: input.gameSlug,
-    previousRating: currentRatingWinner,
-    ratingChange: eloResult.changeA,
-    newRating: eloResult.newRatingA,
-    opponentUserId: input.loserUserId,
-    opponentRating: currentRatingLoser,
-    outcome: outcomeWinner,
+  const eloResult = calculateElo({
+    ratingA: winnerRatingRow.rating,
+    ratingB: loserRatingRow.rating,
+    outcomeA: "win",
   });
 
-  // Record rating history for loser
-  await tx.insert(ratingHistory).values({
-    matchId: input.matchId,
-    userId: input.loserUserId,
-    seasonId,
-    gameSlug: input.gameSlug,
-    previousRating: currentRatingLoser,
-    ratingChange: eloResult.changeB,
-    newRating: eloResult.newRatingB,
-    opponentUserId: input.winnerUserId,
-    opponentRating: currentRatingWinner,
-    outcome: outcomeLoser,
-  });
+  const newWinnerWins = winnerRatingRow.wins + 1;
+  const newWinnerMatches = winnerRatingRow.matchesPlayed + 1;
+  const newWinnerStreak = winnerRatingRow.currentStreak + 1;
+  const newWinnerBestStreak = Math.max(
+    winnerRatingRow.bestStreak,
+    newWinnerStreak
+  );
 
-  // Update match record with winnerUserId and loserUserId
+  await tx
+    .update(playerRatings)
+    .set({
+      rating: eloResult.newRatingA,
+      wins: newWinnerWins,
+      matchesPlayed: newWinnerMatches,
+      currentStreak: newWinnerStreak,
+      bestStreak: newWinnerBestStreak,
+    })
+    .where(eq(playerRatings.id, winnerRatingRow.id));
+
+  const newLoserLosses = loserRatingRow.losses + 1;
+  const newLoserMatches = loserRatingRow.matchesPlayed + 1;
+  const newLoserStreak = 0;
+
+  await tx
+    .update(playerRatings)
+    .set({
+      rating: eloResult.newRatingB,
+      losses: newLoserLosses,
+      matchesPlayed: newLoserMatches,
+      currentStreak: newLoserStreak,
+    })
+    .where(eq(playerRatings.id, loserRatingRow.id));
+
+  await tx.insert(ratingHistory).values([
+    {
+      matchId: input.matchId,
+      userId: input.winnerUserId,
+      seasonId: seasonId,
+      gameSlug: input.gameSlug,
+      previousRating: eloResult.previousRatingA,
+      ratingChange: eloResult.changeA,
+      newRating: eloResult.newRatingA,
+      opponentUserId: input.loserUserId,
+      opponentRating: eloResult.previousRatingB,
+      outcome: outcomeWinner,
+    },
+    {
+      matchId: input.matchId,
+      userId: input.loserUserId,
+      seasonId: seasonId,
+      gameSlug: input.gameSlug,
+      previousRating: eloResult.previousRatingB,
+      ratingChange: eloResult.changeB,
+      newRating: eloResult.newRatingB,
+      opponentUserId: input.winnerUserId,
+      opponentRating: eloResult.previousRatingA,
+      outcome: outcomeLoser,
+    },
+  ]);
+
   await tx
     .update(matches)
     .set({
@@ -632,159 +659,6 @@ export async function settleMatchRating(
       status: "finished",
     })
     .where(eq(matches.id, input.matchId));
-}
-
-export async function getLeaderboard(input?: {
-  gameSlug?: string;
-  seasonId?: string;
-  limit?: number;
-  offset?: number;
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Leaderboard service is unavailable.");
-  const gameSlug = input?.gameSlug ?? "ludo-league";
-  const seasonId = input?.seasonId ?? "season-1";
-  const limit = Math.min(input?.limit ?? 50, 100);
-  const offset = input?.offset ?? 0;
-
-  const rows = await db
-    .select({
-      id: playerRatings.id,
-      userId: playerRatings.userId,
-      rating: playerRatings.rating,
-      wins: playerRatings.wins,
-      losses: playerRatings.losses,
-      currentStreak: playerRatings.currentStreak,
-      bestStreak: playerRatings.bestStreak,
-      matchesPlayed: playerRatings.matchesPlayed,
-      userName: users.name,
-      userOpenId: users.openId,
-    })
-    .from(playerRatings)
-    .innerJoin(users, eq(playerRatings.userId, users.id))
-    .where(
-      and(
-        eq(playerRatings.gameSlug, gameSlug),
-        eq(playerRatings.seasonId, seasonId)
-      )
-    )
-    .orderBy(desc(playerRatings.rating), desc(playerRatings.wins))
-    .limit(limit)
-    .offset(offset);
-
-  return rows.map((row, index) => {
-    const winRate =
-      row.matchesPlayed > 0
-        ? Math.round((row.wins / row.matchesPlayed) * 100)
-        : 0;
-    return {
-      rank: offset + index + 1,
-      userId: row.userId,
-      userName: row.userName || `Player ${row.userId}`,
-      rating: row.rating,
-      wins: row.wins,
-      losses: row.losses,
-      matchesPlayed: row.matchesPlayed,
-      winRate,
-      currentStreak: row.currentStreak,
-      bestStreak: row.bestStreak,
-    };
-  });
-}
-
-export async function getPlayerStats(input: {
-  userId: number;
-  gameSlug?: string;
-  seasonId?: string;
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Profile service is unavailable.");
-  const gameSlug = input.gameSlug ?? "ludo-league";
-  const seasonId = input.seasonId ?? "season-1";
-
-  const ratingRow = (
-    await db
-      .select()
-      .from(playerRatings)
-      .where(
-        and(
-          eq(playerRatings.userId, input.userId),
-          eq(playerRatings.gameSlug, gameSlug),
-          eq(playerRatings.seasonId, seasonId)
-        )
-      )
-      .limit(1)
-  )[0];
-
-  // Calculate player's current rank position in season
-  let rank: number | null = null;
-  if (ratingRow) {
-    const higher = await db
-      .select({ id: playerRatings.id })
-      .from(playerRatings)
-      .where(
-        and(
-          eq(playerRatings.gameSlug, gameSlug),
-          eq(playerRatings.seasonId, seasonId),
-          gt(playerRatings.rating, ratingRow.rating)
-        )
-      );
-    rank = higher.length + 1;
-  }
-
-  // Fetch recent rating history
-  const history = await db
-    .select({
-      id: ratingHistory.id,
-      matchId: ratingHistory.matchId,
-      previousRating: ratingHistory.previousRating,
-      ratingChange: ratingHistory.ratingChange,
-      newRating: ratingHistory.newRating,
-      outcome: ratingHistory.outcome,
-      opponentUserId: ratingHistory.opponentUserId,
-      opponentRating: ratingHistory.opponentRating,
-      createdAt: ratingHistory.createdAt,
-      opponentName: users.name,
-    })
-    .from(ratingHistory)
-    .leftJoin(users, eq(ratingHistory.opponentUserId, users.id))
-    .where(
-      and(
-        eq(ratingHistory.userId, input.userId),
-        eq(ratingHistory.gameSlug, gameSlug),
-        eq(ratingHistory.seasonId, seasonId)
-      )
-    )
-    .orderBy(desc(ratingHistory.createdAt))
-    .limit(20);
-
-  const wins = ratingRow?.wins ?? 0;
-  const losses = ratingRow?.losses ?? 0;
-  const matchesPlayed = ratingRow?.matchesPlayed ?? 0;
-  const winRate =
-    matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
-
-  return {
-    rating: ratingRow?.rating ?? STARTING_RATING,
-    rank,
-    wins,
-    losses,
-    matchesPlayed,
-    winRate,
-    currentStreak: ratingRow?.currentStreak ?? 0,
-    bestStreak: ratingRow?.bestStreak ?? 0,
-    history: history.map(h => ({
-      id: h.id,
-      matchId: h.matchId,
-      previousRating: h.previousRating,
-      ratingChange: h.ratingChange,
-      newRating: h.newRating,
-      outcome: h.outcome,
-      opponentName: h.opponentName || `Player ${h.opponentUserId}`,
-      opponentRating: h.opponentRating,
-      createdAt: h.createdAt,
-    })),
-  };
 }
 
 export async function applyLudoMatchCommand(input: {
@@ -844,7 +718,9 @@ export async function applyLudoMatchCommand(input: {
       matchId: input.matchId,
       playerId: player.seat as 0 | 1,
     };
-    const engineResult = applyCommand(snapshot, command, () => randomInt(1, 7));
+    const engineResult = applyCommand(snapshot, command, () =>
+      randomInt(1, 7)
+    );
     if (!engineResult.ok)
       throw new Error(`${engineResult.code}: ${engineResult.reason}`);
     const updated = await tx
@@ -907,6 +783,175 @@ export async function applyLudoMatchCommand(input: {
     notifyMatchUpdated(input.matchId);
   }
   return result;
+}
+
+export async function getLeaderboardTop(options?: {
+  gameSlug?: string;
+  seasonId?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const gameSlug = options?.gameSlug ?? "ludo-league";
+  const season = options?.seasonId
+    ? { id: options.seasonId }
+    : await getActiveSeason();
+  const seasonId = season?.id ?? "season-1";
+  const limitCount = options?.limit ?? 50;
+
+  const rows = await db
+    .select({
+      userId: playerRatings.userId,
+      userName: users.name,
+      rating: playerRatings.rating,
+      wins: playerRatings.wins,
+      losses: playerRatings.losses,
+      matchesPlayed: playerRatings.matchesPlayed,
+      currentStreak: playerRatings.currentStreak,
+      bestStreak: playerRatings.bestStreak,
+    })
+    .from(playerRatings)
+    .leftJoin(users, eq(playerRatings.userId, users.id))
+    .where(
+      and(
+        eq(playerRatings.gameSlug, gameSlug),
+        eq(playerRatings.seasonId, seasonId),
+        gt(playerRatings.matchesPlayed, 0)
+      )
+    )
+    .orderBy(desc(playerRatings.rating), desc(playerRatings.wins))
+    .limit(limitCount);
+
+  return rows.map((row, index) => {
+    const winRate =
+      row.matchesPlayed > 0
+        ? Math.round((row.wins / row.matchesPlayed) * 100)
+        : 0;
+    return {
+      rank: index + 1,
+      userId: row.userId,
+      userName: row.userName || `Player ${row.userId}`,
+      rating: row.rating,
+      wins: row.wins,
+      losses: row.losses,
+      matchesPlayed: row.matchesPlayed,
+      winRate,
+      currentStreak: row.currentStreak,
+      bestStreak: row.bestStreak,
+    };
+  });
+}
+
+export const getLeaderboard = getLeaderboardTop;
+
+export async function getPlayerStats(input: {
+  userId: number;
+  gameSlug?: string;
+  seasonId?: string;
+}) {
+  const db = await getDb();
+  if (!db)
+    return {
+      rating: STARTING_RATING,
+      rank: null,
+      wins: 0,
+      losses: 0,
+      matchesPlayed: 0,
+      winRate: 0,
+      currentStreak: 0,
+      bestStreak: 0,
+      history: [],
+    };
+
+  const gameSlug = input.gameSlug ?? "ludo-league";
+  const season = input.seasonId
+    ? { id: input.seasonId }
+    : await getActiveSeason();
+  const seasonId = season?.id ?? "season-1";
+
+  const ratingRow = (
+    await db
+      .select()
+      .from(playerRatings)
+      .where(
+        and(
+          eq(playerRatings.userId, input.userId),
+          eq(playerRatings.gameSlug, gameSlug),
+          eq(playerRatings.seasonId, seasonId)
+        )
+      )
+      .limit(1)
+  )[0];
+
+  let rank: number | null = null;
+  if (ratingRow && ratingRow.matchesPlayed > 0) {
+    const higherRated = await db
+      .select({ id: playerRatings.id })
+      .from(playerRatings)
+      .where(
+        and(
+          eq(playerRatings.gameSlug, gameSlug),
+          eq(playerRatings.seasonId, seasonId),
+          gt(playerRatings.matchesPlayed, 0),
+          gt(playerRatings.rating, ratingRow.rating)
+        )
+      );
+    rank = higherRated.length + 1;
+  }
+
+  const history = await db
+    .select({
+      id: ratingHistory.id,
+      matchId: ratingHistory.matchId,
+      previousRating: ratingHistory.previousRating,
+      ratingChange: ratingHistory.ratingChange,
+      newRating: ratingHistory.newRating,
+      opponentUserId: ratingHistory.opponentUserId,
+      opponentName: users.name,
+      opponentRating: ratingHistory.opponentRating,
+      outcome: ratingHistory.outcome,
+      createdAt: ratingHistory.createdAt,
+    })
+    .from(ratingHistory)
+    .leftJoin(users, eq(ratingHistory.opponentUserId, users.id))
+    .where(
+      and(
+        eq(ratingHistory.userId, input.userId),
+        eq(ratingHistory.gameSlug, gameSlug),
+        eq(ratingHistory.seasonId, seasonId)
+      )
+    )
+    .orderBy(desc(ratingHistory.createdAt))
+    .limit(20);
+
+  const wins = ratingRow?.wins ?? 0;
+  const losses = ratingRow?.losses ?? 0;
+  const matchesPlayed = ratingRow?.matchesPlayed ?? 0;
+  const winRate =
+    matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
+
+  return {
+    rating: ratingRow?.rating ?? STARTING_RATING,
+    rank,
+    wins,
+    losses,
+    matchesPlayed,
+    winRate,
+    currentStreak: ratingRow?.currentStreak ?? 0,
+    bestStreak: ratingRow?.bestStreak ?? 0,
+    history: history.map(h => ({
+      id: h.id,
+      matchId: h.matchId,
+      previousRating: h.previousRating,
+      ratingChange: h.ratingChange,
+      newRating: h.newRating,
+      outcome: h.outcome,
+      opponentName: h.opponentName || `Player ${h.opponentUserId}`,
+      opponentRating: h.opponentRating,
+      createdAt: h.createdAt,
+    })),
+  };
 }
 
 export async function createPaymentIntent(input: {
@@ -973,7 +1018,17 @@ export async function updatePaymentIntent(
   id: string,
   userId: number,
   values: Partial<
-    Pick<PaymentIntent, "status" | "transactionHash" | "failureCode">
+    Pick<
+      PaymentIntent,
+      | "status"
+      | "transactionHash"
+      | "failureCode"
+      | "senderAddress"
+      | "blockNumber"
+      | "confirmations"
+      | "networkId"
+      | "verifiedAt"
+    >
   >
 ) {
   const db = await getDb();
@@ -983,4 +1038,315 @@ export async function updatePaymentIntent(
     .set(values)
     .where(and(eq(paymentIntents.id, id), eq(paymentIntents.userId, userId)));
   return getPaymentIntentForUser(id, userId);
+}
+
+/**
+ * Authoritatively verifies a payment intent against the Nimiq blockchain.
+ * Updates state machine, checks duplicate consumption, and records an audit log.
+ */
+export async function verifyPaymentIntent(input: {
+  id: string;
+  userId: number;
+  rpcUrl?: string;
+}): Promise<{
+  success: boolean;
+  intent: PaymentIntent;
+  verification?: PaymentVerification;
+  failureReason?: string;
+  errorMessage?: string;
+}> {
+  const db = await getDb();
+  if (!db) throw new Error("Payment service is unavailable.");
+
+  const intent = await getPaymentIntentForUser(input.id, input.userId);
+  if (!intent) throw new Error("Payment intent not found.");
+
+  // Idempotency: If already verified, return directly with latest audit log
+  if (intent.status === "verified") {
+    const latestAudit = (
+      await db
+        .select()
+        .from(paymentVerifications)
+        .where(eq(paymentVerifications.paymentIntentId, intent.id))
+        .orderBy(desc(paymentVerifications.createdAt))
+        .limit(1)
+    )[0];
+    return {
+      success: true,
+      intent,
+      verification: latestAudit,
+    };
+  }
+
+  if (intent.expiresAt.getTime() <= Date.now()) {
+    await updatePaymentIntent(intent.id, input.userId, {
+      status: "expired",
+      failureCode: "Payment intent expired before verification",
+    });
+    const updated = (await getPaymentIntentForUser(intent.id, input.userId))!;
+    return {
+      success: false,
+      intent: updated,
+      failureReason: "expired",
+      errorMessage: "Payment intent expired",
+    };
+  }
+
+  const txHash = intent.transactionHash;
+  if (!txHash) {
+    throw new Error("No transaction hash has been submitted for this payment intent.");
+  }
+
+  // 1. Move to verifying state
+  await updatePaymentIntent(intent.id, input.userId, { status: "verifying" });
+
+  // 2. Check for duplicate hash replay across all other verified intents
+  const duplicate = (
+    await db
+      .select()
+      .from(paymentIntents)
+      .where(
+        and(
+          eq(paymentIntents.transactionHash, txHash),
+          eq(paymentIntents.status, "verified")
+        )
+      )
+      .limit(1)
+  )[0];
+
+  if (duplicate && duplicate.id !== intent.id) {
+    await updatePaymentIntent(intent.id, input.userId, {
+      status: "duplicate",
+      failureCode: "duplicate",
+    });
+    const updated = (await getPaymentIntentForUser(intent.id, input.userId))!;
+    const [audit] = await db
+      .insert(paymentVerifications)
+      .values({
+        paymentIntentId: intent.id,
+        transactionHash: txHash,
+        status: "duplicate",
+        failureReason: "duplicate",
+        rawResponseJson: JSON.stringify({ duplicateOfIntentId: duplicate.id }),
+      })
+      .$returningId();
+    const verification = (
+      await db
+        .select()
+        .from(paymentVerifications)
+        .where(eq(paymentVerifications.id, audit.id))
+        .limit(1)
+    )[0];
+    return {
+      success: false,
+      intent: updated,
+      verification,
+      failureReason: "duplicate",
+      errorMessage: `Duplicate transaction hash already claimed by intent ${duplicate.id}`,
+    };
+  }
+
+  // 3. Perform authoritative blockchain verification
+  const verifyResult = await verifyNimiqPayment({
+    transactionHash: txHash,
+    expectedRecipient: intent.recipient,
+    expectedValueLuna: intent.valueLuna,
+    rpcUrl: input.rpcUrl,
+    minConfirmations: 1,
+  });
+
+  if (verifyResult.success && verifyResult.transaction) {
+    const tx = verifyResult.transaction;
+    await updatePaymentIntent(intent.id, input.userId, {
+      status: "verified",
+      senderAddress: tx.from,
+      blockNumber: tx.blockNumber,
+      confirmations: tx.confirmations,
+      networkId: tx.networkId,
+      verifiedAt: new Date(),
+      failureCode: null,
+    });
+    const updated = (await getPaymentIntentForUser(intent.id, input.userId))!;
+
+    const [audit] = await db
+      .insert(paymentVerifications)
+      .values({
+        paymentIntentId: intent.id,
+        transactionHash: txHash,
+        status: "verified",
+        sender: tx.from,
+        recipient: tx.to,
+        valueLuna: tx.value,
+        blockNumber: tx.blockNumber,
+        confirmations: tx.confirmations,
+        networkId: tx.networkId,
+        executionResult: tx.executionResult ?? true,
+        rawResponseJson: JSON.stringify(verifyResult.rawResponse),
+      })
+      .$returningId();
+
+    const verification = (
+      await db
+        .select()
+        .from(paymentVerifications)
+        .where(eq(paymentVerifications.id, audit.id))
+        .limit(1)
+    )[0];
+
+    return {
+      success: true,
+      intent: updated,
+      verification,
+    };
+  }
+
+  // Failure path: Map explicit failure code
+  const failureStatus =
+    verifyResult.failureReason === "underpaid"
+      ? "underpaid"
+      : verifyResult.failureReason === "wrong_recipient"
+      ? "wrong_recipient"
+      : verifyResult.failureReason === "invalid"
+      ? "invalid"
+      : "verification_failed";
+
+  await updatePaymentIntent(intent.id, input.userId, {
+    status: failureStatus,
+    failureCode: verifyResult.failureReason ?? "verification_failed",
+  });
+  const updated = (await getPaymentIntentForUser(intent.id, input.userId))!;
+
+  const [audit] = await db
+    .insert(paymentVerifications)
+    .values({
+      paymentIntentId: intent.id,
+      transactionHash: txHash,
+      status: failureStatus,
+      failureReason: verifyResult.failureReason,
+      rawResponseJson: JSON.stringify(verifyResult.rawResponse),
+    })
+    .$returningId();
+
+  const verification = (
+    await db
+      .select()
+      .from(paymentVerifications)
+      .where(eq(paymentVerifications.id, audit.id))
+      .limit(1)
+    )[0];
+
+  return {
+    success: false,
+    intent: updated,
+    verification,
+    failureReason: verifyResult.failureReason,
+    errorMessage: verifyResult.errorMessage,
+  };
+}
+
+/**
+ * Returns payment intent details with verification audit log and match eligibility.
+ */
+export async function getPaymentIntentWithAudit(id: string, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Payment service is unavailable.");
+
+  const intent = await getPaymentIntentForUser(id, userId);
+  if (!intent) return undefined;
+
+  const verifications = await db
+    .select()
+    .from(paymentVerifications)
+    .where(eq(paymentVerifications.paymentIntentId, id))
+    .orderBy(desc(paymentVerifications.createdAt));
+
+  // Check if already claimed for a match
+  const claimedPlayer = (
+    await db
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.paymentIntentId, id))
+      .limit(1)
+  )[0];
+
+  const claimedMatch = (
+    await db
+      .select()
+      .from(matches)
+      .where(eq(matches.paymentIntentId, id))
+      .limit(1)
+  )[0];
+
+  const isClaimed = Boolean(claimedPlayer || claimedMatch);
+  const isEligibleForMatch = intent.status === "verified" && !isClaimed;
+
+  return {
+    intent,
+    verifications,
+    isEligibleForMatch,
+    claimedMatchId: claimedPlayer?.matchId || claimedMatch?.id || null,
+  };
+}
+
+/**
+ * Claims a verified payment intent for a match entry.
+ * Prevents double entry or claiming an unverified intent.
+ */
+export async function claimVerifiedPaymentForMatch(input: {
+  matchId: string;
+  userId: number;
+  paymentIntentId: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Match payment service is unavailable.");
+
+  return db.transaction(async tx => {
+    const intent = (
+      await tx
+        .select()
+        .from(paymentIntents)
+        .where(
+          and(
+            eq(paymentIntents.id, input.paymentIntentId),
+            eq(paymentIntents.userId, input.userId)
+          )
+        )
+        .limit(1)
+    )[0];
+
+    if (!intent) throw new Error("Payment intent not found.");
+    if (intent.status !== "verified") {
+      throw new Error(
+        `Payment is not verified (current status: ${intent.status}). Cannot enter paid match.`
+      );
+    }
+
+    const existingClaim = (
+      await tx
+        .select()
+        .from(matchPlayers)
+        .where(eq(matchPlayers.paymentIntentId, input.paymentIntentId))
+        .limit(1)
+    )[0];
+
+    if (existingClaim && existingClaim.matchId !== input.matchId) {
+      throw new Error("Payment intent has already been used for another match.");
+    }
+
+    await tx
+      .update(matchPlayers)
+      .set({ paymentIntentId: input.paymentIntentId })
+      .where(
+        and(
+          eq(matchPlayers.matchId, input.matchId),
+          eq(matchPlayers.userId, input.userId)
+        )
+      );
+
+    return {
+      success: true,
+      matchId: input.matchId,
+      paymentIntentId: input.paymentIntentId,
+    };
+  });
 }

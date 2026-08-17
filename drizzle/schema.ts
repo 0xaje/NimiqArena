@@ -1,4 +1,5 @@
 import {
+  boolean,
   int,
   index,
   mysqlEnum,
@@ -74,7 +75,8 @@ export const matches = mysqlTable(
     hostUserId: int("hostUserId").notNull(),
     winnerUserId: int("winnerUserId"),
     loserUserId: int("loserUserId"),
-    joinCode: varchar("joinCode", { length: 12 }).notNull(),
+    paymentIntentId: varchar("paymentIntentId", { length: 32 }),
+    joinCode: varchar("joinCode", { length: 16 }).unique().notNull(),
     visibility: mysqlEnum("visibility", ["challenge_friend", "public"])
       .default("challenge_friend")
       .notNull(),
@@ -99,6 +101,7 @@ export const matches = mysqlTable(
     seasonIdx: index("matches_season_idx").on(table.seasonId),
     hostIdx: index("matches_host_idx").on(table.hostUserId),
     winnerIdx: index("matches_winner_idx").on(table.winnerUserId),
+    paymentIntentIdx: uniqueIndex("matches_payment_intent_idx").on(table.paymentIntentId),
     joinCodeIdx: uniqueIndex("matches_join_code_idx").on(table.joinCode),
   })
 );
@@ -178,6 +181,7 @@ export const matchPlayers = mysqlTable(
     matchId: varchar("matchId", { length: 32 }).notNull(),
     userId: int("userId").notNull(),
     seat: int("seat", { unsigned: true }).notNull(),
+    paymentIntentId: varchar("paymentIntentId", { length: 32 }),
     status: mysqlEnum("status", ["joined", "disconnected", "left"])
       .default("joined")
       .notNull(),
@@ -195,6 +199,9 @@ export const matchPlayers = mysqlTable(
     matchSeatIdx: uniqueIndex("match_players_match_seat_idx").on(
       table.matchId,
       table.seat
+    ),
+    playerPaymentIntentIdx: uniqueIndex("match_players_payment_intent_idx").on(
+      table.paymentIntentId
     ),
   })
 );
@@ -236,16 +243,27 @@ export const paymentIntents = mysqlTable(
       "created",
       "confirmation_pending",
       "submitted",
+      "verifying",
       "verified",
       "rejected",
       "failed",
       "expired",
+      "invalid",
+      "underpaid",
+      "wrong_recipient",
+      "duplicate",
+      "verification_failed",
     ])
       .default("created")
       .notNull(),
     clientNonce: varchar("clientNonce", { length: 64 }).notNull(),
     transactionHash: varchar("transactionHash", { length: 128 }),
+    senderAddress: varchar("senderAddress", { length: 64 }),
+    blockNumber: int("blockNumber", { unsigned: true }),
+    confirmations: int("confirmations", { unsigned: true }),
+    networkId: int("networkId"),
     failureCode: varchar("failureCode", { length: 64 }),
+    verifiedAt: timestamp("verifiedAt"),
     expiresAt: timestamp("expiresAt").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -256,9 +274,33 @@ export const paymentIntents = mysqlTable(
       table.userId,
       table.clientNonce
     ),
-    txHashIdx: uniqueIndex("payment_intents_tx_hash_idx").on(
+    txHashIdx: index("payment_intents_tx_hash_idx").on(
       table.transactionHash
     ),
+  })
+);
+
+export const paymentVerifications = mysqlTable(
+  "payment_verifications",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    paymentIntentId: varchar("paymentIntentId", { length: 32 }).notNull(),
+    transactionHash: varchar("transactionHash", { length: 128 }).notNull(),
+    status: varchar("status", { length: 32 }).notNull(),
+    sender: varchar("sender", { length: 64 }),
+    recipient: varchar("recipient", { length: 64 }),
+    valueLuna: int("valueLuna", { unsigned: true }),
+    blockNumber: int("blockNumber", { unsigned: true }),
+    confirmations: int("confirmations", { unsigned: true }),
+    networkId: int("networkId"),
+    executionResult: boolean("executionResult"),
+    failureReason: varchar("failureReason", { length: 64 }),
+    rawResponseJson: text("rawResponseJson"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    intentIdx: index("payment_verifications_intent_idx").on(table.paymentIntentId),
+    txHashIdx: index("payment_verifications_tx_hash_idx").on(table.transactionHash),
   })
 );
 
@@ -280,3 +322,5 @@ export type MatchEvent = typeof matchEvents.$inferSelect;
 export type InsertMatchEvent = typeof matchEvents.$inferInsert;
 export type PaymentIntent = typeof paymentIntents.$inferSelect;
 export type InsertPaymentIntent = typeof paymentIntents.$inferInsert;
+export type PaymentVerification = typeof paymentVerifications.$inferSelect;
+export type InsertPaymentVerification = typeof paymentVerifications.$inferInsert;

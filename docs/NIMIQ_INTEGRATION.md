@@ -1,37 +1,59 @@
 # Nimiq Integration
 
-## Current status
+## 1. Current Status
 
-The frontend uses the official `@nimiq/mini-app-sdk` package and the documented `init({ timeout })` flow. It detects whether the app is running inside Nimiq Pay, requests a real account only after a user action, and displays the returned address when the provider returns one. The browser preview never fabricates an address, balance, transaction, or connected state.
+Nimiq Arena features a complete, zero-trust, server-authoritative payment and transaction verification architecture:
+1. **Provider Detection & Account Access**: Uses the official `@nimiq/mini-app-sdk` with `init({ timeout })`. Runs inside Nimiq Pay and requests account approval only upon explicit user action.
+2. **Server-Owned Payment Intent Lifecycle**: An intent is created via tRPC with server-configured recipient and Luna amount. The client cannot dictate or tamper with recipient addresses or amounts.
+3. **PoS Blockchain Verification Service**: An authoritative backend service (`server/nimiq-verifier.ts`) queries live Nimiq PoS JSON-RPC nodes (`https://rpc.testnet.nimiqwatch.com` / `https://rpc.nimiqwatch.com`) via `getTransactionByHash`.
+4. **Authoritative Verification Pipeline**:
+   - Validates on-chain transaction hash format and existence.
+   - Verifies `executionResult === true` (no reverted transactions).
+   - Normalizes and compares `to` address with server-owned `expectedRecipient`.
+   - Confirms `value >= expectedValueLuna` (rejects underpaid transactions).
+   - Requires `confirmations >= 1` (rejects unconfirmed mempool transactions).
+   - Checks `networkId` matches environment.
+   - Enforces unique consumption (prevents replay attacks).
+5. **Match Entry Gate**: Matches and player seats can only claim verified payment intents. Double claims for the same intent across different matches are authoritatively rejected.
+6. **Audit Trail**: Every verification attempt is immutably logged in `payment_verifications`.
 
-The payment flow now creates an authenticated, idempotent server-owned payment intent through tRPC. The server supplies the recipient and entry amount from configuration; the client cannot choose either value. The client marks the intent confirmation-pending, calls the official `nimiq.sendBasicTransaction({ recipient, value })` method, records only the returned transaction hash as submitted, and displays that settlement is still pending server-side verification. Provider rejection and malformed transaction errors are recorded as rejected or failed; no client response can mark an intent verified.
+## 2. Verified Official API Surface & Status
 
-## Verified official API surface
+| Capability | Official Reference | Arena Implementation Status |
+| :--- | :--- | :--- |
+| Detect Nimiq Pay Provider | `init({ timeout })` | Implemented in frontend (`@nimiq/mini-app-sdk`) |
+| Request Nimiq Accounts | `listAccounts()` | Implemented behind user action |
+| Request NIM Payment | Provider `sendBasicTransaction({ recipient, value })` | Implemented via server intent & native Nimiq Pay prompt |
+| Authoritative Verification | PoS JSON-RPC `getTransactionByHash` | Implemented in `server/nimiq-verifier.ts` & `server/db.ts` |
+| Duplicate / Replay Prevention | Database Unique Verified Hash Index & Audit | Implemented & verified across multiple users |
+| Match Entry Eligibility Gate | `claimVerifiedPaymentForMatch` | Implemented; restricts paid match entry to verified intents |
+| Escrow Payouts | Nimiq Payout Worker | Out of scope for this milestone (per directive) |
 
-The official Mini Apps overview describes Mini Apps as web applications running inside Nimiq Pay, with provider access mediated by an injected host API. The documented SDK entry point is `init()`, and the first-party examples use `listAccounts()`, `isConsensusEstablished()`, and `getBlockNumber()` [1]. The first-app tutorial documents installation of `@nimiq/mini-app-sdk` and the same provider initialization path [2].
+## 3. Authoritative Payment State Machine
 
-The official Hub documentation separately documents `@nimiq/hub-api` and `checkout()` for requesting a payment, with the example returning a transaction hash after user approval [3]. Arena has not wired Hub checkout because the current project is frontend-only and has no trusted match/payment service or configured recipient policy.
+```mermaid
+stateDiagram-v2
+    [*] --> created: Backend Intent Created
+    created --> confirmation_pending: User Triggered Payment
+    confirmation_pending --> submitted: Tx Hash Received
+    confirmation_pending --> rejected: User Cancelled (PermissionDenied)
+    confirmation_pending --> failed: Provider Error
+    created --> expired: 10-Minute Timeout Reached
+    
+    submitted --> verifying: Backend RPC Query Initiated
+    verifying --> verified: Valid Recipient, Value, Execution & Confirmations
+    verifying --> duplicate: Hash Already Claimed
+    verifying --> wrong_recipient: Recipient Mismatch
+    verifying --> underpaid: Value < Expected Luna
+    verifying --> invalid: Non-existent / Invalid Hash
+    verifying --> verification_failed: Reverted / Unconfirmed
+    
+    verified --> [*]: Eligible for Match Entry
+```
 
-| Capability                   | Official reference                                             | Arena status                                                      |
-| ---------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Detect Nimiq Pay provider    | `init({ timeout })`                                            | Implemented in frontend                                           |
-| Request Nimiq accounts       | `listAccounts()`                                               | Implemented behind user action                                    |
-| Read consensus/block height  | `isConsensusEstablished()`, `getBlockNumber()`                 | Not exposed in UI yet                                             |
-| Sign a message               | `sign()`                                                       | Not implemented; no auth protocol yet                             |
-| Request NIM payment          | Mini App provider `sendBasicTransaction({ recipient, value })` | Implemented behind server-owned intent and Nimiq Pay confirmation |
-| Confirm transaction on-chain | Backend indexer/node/API                                       | Not implemented; submitted hashes remain unverified               |
-| Matchmaking and settlement   | Server-authoritative backend                                   | Not implemented                                                   |
+## 4. References
 
-## Required next integration sequence
-
-1. Add a backend service with authenticated sessions, match IDs, payment intents, idempotency keys, and a durable transaction state machine.
-2. Define the NIM escrow and payout policy, including recipient addresses, fees, refund rules, timeout behavior, and network selection.
-3. Implement the official payment request after the backend creates an intent; never trust a client-provided amount or recipient.
-4. Verify the returned transaction hash server-side before crediting a match.
-5. Reconcile confirmations, failures, rejected prompts, duplicate requests, and user disconnects.
-
-## References
-
-[1]: https://www.nimiq.com/developers/mini-apps/overview "Nimiq Developer Center — Mini Apps overview"
-[2]: https://www.nimiq.com/developers/mini-apps/mini-app-tutorial "Nimiq Developer Center — Build Your First Nimiq Mini App"
-[3]: https://www.nimiq.com/developers/hub/ "Nimiq Developer Center — Nimiq Hub"
+- [1]: https://www.nimiq.com/developers/mini-apps/overview "Nimiq Developer Center — Mini Apps overview"
+- [2]: https://www.nimiq.com/developers/mini-apps/mini-app-tutorial "Nimiq Developer Center — Build Your First Nimiq Mini App"
+- [3]: https://nimiq.dev/mini-apps/api-reference/nimiq-provider "Nimiq Provider API Specification"
+- [4]: https://rpc.testnet.nimiqwatch.com "Nimiq PoS Testnet JSON-RPC Node"

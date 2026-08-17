@@ -203,3 +203,46 @@ No Quick Match, leaderboard, ratings, payouts, settlement, or new games were add
    - Verified abandoned match rating settlement and forfeit penalty.
    - Verified leaderboard ordering and ranking calculations against real MariaDB.
    - Verified player profile rank and transaction history retrieval.
+
+### Milestone 08 — Real Nimiq On-Chain Transaction Verification, Payment State Machine & Match Entry Gating
+
+**Date:** 2026-08-17
+
+#### What was built & verified:
+
+1. **Authoritative Nimiq PoS (Albatross) JSON-RPC Verifier (`server/nimiq-verifier.ts`)**:
+   - Official protocol query: `getTransactionByHash` against live public Nimiq PoS nodes (`https://rpc.testnet.nimiqwatch.com` / `https://rpc.nimiqwatch.com`).
+   - Real-world on-chain verification rules:
+     1. Transaction format validation and existence on-chain.
+     2. `executionResult === true` (no reverted transactions).
+     3. Address normalization and exact match against server-owned recipient address.
+     4. Transferred Luna amount $\ge$ expected entry fee (`valueLuna`). Rejects underpaid transactions.
+     5. Block confirmation threshold ($\ge 1$). Rejects unconfirmed mempool entries.
+     6. Network ID matching (`5` for Testnet, `42` for Mainnet).
+
+2. **Durable Payment State Machine & Audit Layer (`drizzle/schema.ts`, `server/db.ts`)**:
+   - Expanded `paymentIntents.status`: `created` -> `confirmation_pending` -> `submitted` -> `verifying` -> `verified` / `rejected` / `failed` / `expired` / `invalid` / `underpaid` / `wrong_recipient` / `duplicate` / `verification_failed`.
+   - `payment_verifications` audit table: immutably logs every verification attempt with block number, sender, recipient, value, confirmations, and raw RPC response payload.
+   - Match eligibility linkage: `matches.paymentIntentId` and `match_players.paymentIntentId` bind verified payment intents to match entries with duplicate prevention.
+
+3. **Live RPC & Gated Database Integration Test Matrix (`server/payment-verifier.integration.test.ts`)**:
+   - Verified against real on-chain Testnet transaction hash `3cd3908a903461dab66cd71910d35c66564ca59983eeeb138dbd0bd93e647b3a` (Network 5, Value 402251 Luna).
+   - Proved:
+     - Live public RPC query success.
+     - Authoritative payment verification on valid amount and recipient.
+     - Rejection of wrong recipient (`wrong_recipient`).
+     - Rejection of underpaid amount (`underpaid`).
+     - Rejection of non-existent hash (`invalid`).
+     - Full database persistence of block number, network ID, confirmations, and audit trail.
+     - Rejection of duplicate transaction hash replay (`duplicate`).
+     - Match entry gating via `claimVerifiedPaymentForMatch` and prevention of double claims.
+     - Prevention of unverified payment from being claimed for match entry.
+
+4. **Frontend Truth Panel & Verification Trigger (`client/src/pages/Home.tsx`)**:
+   - Added `payment.verify` mutation to trigger server verification on submitted transactions.
+   - Truth Panel accurately reports real verification statuses (`VERIFIED`, `UNDERPAID`, `WRONG RECIPIENT`, `DUPLICATE`, etc.).
+
+5. **Repository Verification**:
+   - `tsc --noEmit`: passed (0 TypeScript errors).
+   - `vitest run`: passed (18 test files, 80 tests passing 100%).
+   - `npm run build`: passed (clean production client and server bundles).

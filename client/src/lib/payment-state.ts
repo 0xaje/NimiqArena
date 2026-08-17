@@ -3,9 +3,16 @@ export type PaymentPhase =
   | "creating"
   | "confirming"
   | "submitted"
+  | "verifying"
+  | "verified"
   | "rejected"
   | "failed"
-  | "expired";
+  | "expired"
+  | "invalid"
+  | "underpaid"
+  | "wrong_recipient"
+  | "duplicate"
+  | "verification_failed";
 
 export function createPaymentNonce() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto)
@@ -20,6 +27,11 @@ export function canRetryPayment(phase: PaymentPhase) {
     phase === "idle" ||
     phase === "rejected" ||
     phase === "failed" ||
-    phase === "expired"
+    phase === "expired" ||
+    phase === "invalid" ||
+    phase === "underpaid" ||
+    phase === "wrong_recipient" ||
+    phase === "duplicate" ||
+    phase === "verification_failed"
   );
 }
