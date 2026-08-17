@@ -288,3 +288,28 @@ No Quick Match, leaderboard, ratings, payouts, settlement, or new games were add
 - **Total Tests**: 98 passed (98/98) — 100% pass rate.
 - **Production Build**: Clean client & server build (`npm run build`).
 
+### Milestone 10 — Production Deployment & Controlled Testnet Pilot
+
+**Date:** 2026-08-17
+
+#### What was built & verified:
+
+1. **Production Infrastructure & Environment Configuration**:
+   - Standardized production environment configuration (`DATABASE_URL`, `NIMIQ_PAYMENT_RECIPIENT`, `NIMIQ_ARENA_ENTRY_VALUE_LUNA`, `NIMIQ_NETWORK_ID`, `NIMIQ_RPC_URL`, `JWT_SECRET`, `NODE_ENV`, `PORT`).
+   - Verified schema constraints, unique indexes, and foreign keys.
+
+2. **Production Smoke Testing Suite (`server/production-smoke.test.ts`)**:
+   - Verified system health, catalog lookup, active season seeding, match lifecycle, SSE synchronization, and Testnet transaction verification against production configuration.
+
+3. **Production-Safe Observability (`server/_core/logger.ts`)**:
+   - Structured logging across API, match engine, payment verifications, and streams.
+   - Verified zero secret leak policy with automated redaction of sensitive credentials, cookies, JWTs, and wallet tokens.
+
+4. **Mainnet Readiness & Assessment (`docs/MAINNET_READINESS.md`)**:
+   - Evaluated 16 critical production readiness items.
+   - Identified remaining operational dependencies (RPC failover, edge rate-limiting, automated refund pipeline, legal compliance) required before mainnet real-money transactions are unlocked.
+
+5. **Deployment Guide (`docs/DEPLOYMENT.md`)**:
+   - Complete operational manual covering Vercel Serverless, persistent Node/Docker deployment, migration execution, and secret rotation runbooks.
+
+

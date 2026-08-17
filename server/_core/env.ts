@@ -13,4 +13,8 @@ export const ENV = {
   nimiqArenaEntryValueLuna: Number(
     process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA ?? 0
   ),
+  nimiqNetworkId: Number(process.env.NIMIQ_NETWORK_ID ?? 5),
+  nimiqRpcUrl:
+    process.env.NIMIQ_RPC_URL || "https://rpc.testnet.nimiqwatch.com",
 };
+
