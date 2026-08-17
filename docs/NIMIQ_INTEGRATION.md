@@ -12,15 +12,15 @@ The official Mini Apps overview describes Mini Apps as web applications running 
 
 The official Hub documentation separately documents `@nimiq/hub-api` and `checkout()` for requesting a payment, with the example returning a transaction hash after user approval [3]. Arena has not wired Hub checkout because the current project is frontend-only and has no trusted match/payment service or configured recipient policy.
 
-| Capability | Official reference | Arena status |
-|---|---|---|
-| Detect Nimiq Pay provider | `init({ timeout })` | Implemented in frontend |
-| Request Nimiq accounts | `listAccounts()` | Implemented behind user action |
-| Read consensus/block height | `isConsensusEstablished()`, `getBlockNumber()` | Not exposed in UI yet |
-| Sign a message | `sign()` | Not implemented; no auth protocol yet |
-| Request NIM payment | Mini App provider `sendBasicTransaction({ recipient, value })` | Implemented behind server-owned intent and Nimiq Pay confirmation |
-| Confirm transaction on-chain | Backend indexer/node/API | Not implemented; submitted hashes remain unverified |
-| Matchmaking and settlement | Server-authoritative backend | Not implemented |
+| Capability                   | Official reference                                             | Arena status                                                      |
+| ---------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Detect Nimiq Pay provider    | `init({ timeout })`                                            | Implemented in frontend                                           |
+| Request Nimiq accounts       | `listAccounts()`                                               | Implemented behind user action                                    |
+| Read consensus/block height  | `isConsensusEstablished()`, `getBlockNumber()`                 | Not exposed in UI yet                                             |
+| Sign a message               | `sign()`                                                       | Not implemented; no auth protocol yet                             |
+| Request NIM payment          | Mini App provider `sendBasicTransaction({ recipient, value })` | Implemented behind server-owned intent and Nimiq Pay confirmation |
+| Confirm transaction on-chain | Backend indexer/node/API                                       | Not implemented; submitted hashes remain unverified               |
+| Matchmaking and settlement   | Server-authoritative backend                                   | Not implemented                                                   |
 
 ## Required next integration sequence
 

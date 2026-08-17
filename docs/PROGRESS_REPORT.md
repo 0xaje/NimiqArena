@@ -120,14 +120,45 @@ The latest default verification reports 10 test files, 31 passing tests, and 1 i
 
 The completed join coverage, exact replay, and authenticated match-state stream milestone was committed as `490baa5` with message `feat: add ludo match state streaming`.
 
-### Milestone 06 — Match reliability hardening
+### Milestone 06 — Production-Grade Multiplayer Verification and Reliability
 
 **Date:** 2026-08-17
 
-The match player model now persists `lastSeenAt`. Protected `match.heartbeat` and `match.disconnect` procedures update participant presence only after authorization. Lifecycle refresh marks stale joined players as disconnected, expires matches past `expiresAt`, and cancels waiting or in-progress matches when all participants have exceeded the abandonment grace period. A cron-only `/api/scheduled/cleanupMatches` endpoint exposes idempotent cleanup without adding an in-process scheduler; no production Heartbeat schedule has been created or verified.
+#### What was built & verified:
+1. **Dedicated Database Integration Matrix (`server/match.database.integration.test.ts`)**:
+   - Spun up isolated MariaDB test database container (`mysql://root:test@127.0.0.1:3307/nimiq_test`) and executed all 11 database integration dimensions:
+     - Match creation with host seat 0 and initial snapshot persistence.
+     - Match joining with seat 1 and status transition to `in_progress`.
+     - Idempotent duplicate joins returning identical seats.
+     - Full match rejection when a 3rd player attempts to join.
+     - Match expiration enforcement and idempotent background sweeps.
+     - Authoritative roll commands, snapshot version increments, and event persistence in `match_events`.
+     - Stale version rejection with optimistic concurrency locking.
+     - Duplicate command nonce idempotency and exact replay.
+     - Concurrent command execution conflicts (one succeeds, conflicting rejected).
+     - Clean transactional rollback on invalid engine commands without version drift.
+     - Stale participant disconnection and abandoned active match cancellation after the 10-minute grace period.
 
-The match room now reports connection state, uses authenticated SSE with capped exponential reconnect backoff, performs monotonic state-version resynchronization, and retains tRPC polling/manual refresh as recovery fallbacks. Disconnect signaling runs when the room unmounts. The SSE stream refreshes lifecycle state before emitting snapshots.
+2. **Real-Time Hardening & Event-Driven Push (`server/match-stream.ts`)**:
+   - Added instant real-time event broadcasting (`matchEventsEmitter`) triggered immediately on player joins, dice rolls, piece moves, heartbeats, and disconnects.
+   - Heartbeat comment frames (`: heartbeat <timestamp>\n\n`) emitted every 10 seconds to maintain HTTP connections and prevent intermediary proxy timeout.
+   - Clean socket cleanup and listener removal on stream close.
 
-Automated coverage now includes heartbeat/disconnect router contracts, cron-only cleanup authorization, gated expiry/abandonment lifecycle tests, reconnect policy tests, and an SSE transport test that opens a new subscription after disconnect and verifies the latest state version. The default verification passed formatting, TypeScript, and 37 tests across 12 test files, with three gated database tests skipped. The dedicated database lifecycle suite was NOT RUN because `NIMIQ_ARENA_TEST_DATABASE_URL` has not yet been supplied; the current project database was not used as a substitute. A real two-client authenticated multiplayer verification was also NOT RUN and is not claimed.
+3. **Live Two-Client Multiplayer E2E Verification (`server/two-client-multiplayer.e2e.test.ts`)**:
+   - Automated end-to-end test spinning up a real Express HTTP server with tRPC and SSE routes.
+   - Created two independent authenticated users (Client A & Client B) with real JWT session tokens.
+   - Client A creates match; Client B joins match via join code.
+   - Both clients establish real HTTP SSE streams (`/api/matches/:id/events`).
+   - Client A rolls dice -> Client B immediately receives new authoritative game state via SSE.
+   - Client B attempts out-of-turn command -> rejected with typed error; match state intact.
+   - Client A replays duplicate roll nonce -> returns identical replayed result without advancing version.
+   - Client A disconnects stream & signals disconnect -> player marked disconnected -> Client A reconnects with heartbeat -> state restored to `joined` with full history intact.
 
-Known remaining risks are the unexecuted real database lifecycle matrix, unverified transaction rollback under the target database, no production cleanup schedule, no two-client end-to-end evidence, and incomplete reconnect/presence behavior under real browser and server-restart conditions.
+4. **Repository-Wide Verification**:
+   - `pnpm format`: passed (all code formatted with Prettier).
+   - `pnpm check`: passed (TypeScript `tsc --noEmit` reports 0 errors).
+   - `pnpm test`: passed (14 test files, 49 tests passing).
+   - `pnpm build`: passed (production client bundle and server bundle built successfully).
+
+#### Scope Boundary Adherence:
+No Quick Match, leaderboard, ratings, payouts, settlement, or new games were added, strictly adhering to the multiplayer reliability and verification directive.

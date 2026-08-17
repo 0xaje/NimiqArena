@@ -1,6 +1,7 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
+  InsertGame,
   InsertUser,
   games,
   matchEvents,
@@ -22,8 +23,29 @@ import {
 import { replayStoredMatchEvent } from "../shared/game/match-event";
 import { nanoid } from "nanoid";
 import { ENV } from "./_core/env";
+import { notifyMatchUpdated } from "./match-stream";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+
+export const DEFAULT_GAMES: InsertGame[] = [
+  {
+    id: "ludo-league",
+    slug: "ludo-league",
+    name: "Ludo League",
+    kind: "ludo",
+    status: "active",
+    description: "Classic 2-player authoritative board game",
+  },
+];
+
+export async function ensureDefaultGamesSeeded(db: ReturnType<typeof drizzle>) {
+  for (const game of DEFAULT_GAMES) {
+    await db
+      .insert(games)
+      .values(game)
+      .onDuplicateKeyUpdate({ set: { status: game.status, name: game.name } });
+  }
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -116,11 +138,15 @@ export async function getUserByOpenId(openId: string) {
 export async function getGameBySlug(slug: string): Promise<Game | undefined> {
   const db = await getDb();
   if (!db) throw new Error("Game service is unavailable.");
-  const result = await db
+  let result = await db
     .select()
     .from(games)
     .where(eq(games.slug, slug))
     .limit(1);
+  if (!result[0] && DEFAULT_GAMES.some(g => g.slug === slug)) {
+    await ensureDefaultGamesSeeded(db);
+    result = await db.select().from(games).where(eq(games.slug, slug)).limit(1);
+  }
   return result[0];
 }
 
@@ -203,6 +229,7 @@ export async function heartbeatMatchPlayer(matchId: string, userId: number) {
     );
   if (!updated[0]?.affectedRows)
     throw new Error("You are not a participant in this match.");
+  notifyMatchUpdated(matchId);
   return { ok: true as const, lastSeenAt: now };
 }
 
@@ -215,6 +242,7 @@ export async function disconnectMatchPlayer(matchId: string, userId: number) {
     .where(
       and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, userId))
     );
+  notifyMatchUpdated(matchId);
 }
 
 export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
@@ -353,6 +381,7 @@ export async function joinMatchByCode(input: {
         .limit(1)
     )[0];
     if (!player) throw new Error("Player could not be joined.");
+    notifyMatchUpdated(match.id);
     return { match: { ...match, status: "in_progress" as const }, player };
   });
 }
@@ -378,7 +407,7 @@ export async function applyLudoMatchCommand(input: {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
   const { randomInt } = await import("node:crypto");
-  return db.transaction(async tx => {
+  const result = await db.transaction(async tx => {
     const match = (
       await tx
         .select()
@@ -423,14 +452,16 @@ export async function applyLudoMatchCommand(input: {
       matchId: input.matchId,
       playerId: player.seat as 0 | 1,
     };
-    const result = applyCommand(snapshot, command, () => randomInt(1, 7));
-    if (!result.ok) throw new Error(`${result.code}: ${result.reason}`);
+    const engineResult = applyCommand(snapshot, command, () => randomInt(1, 7));
+    if (!engineResult.ok)
+      throw new Error(`${engineResult.code}: ${engineResult.reason}`);
     const updated = await tx
       .update(matches)
       .set({
-        stateVersion: result.snapshot.version,
-        stateJson: JSON.stringify(result.snapshot),
-        status: result.snapshot.winner === null ? "in_progress" : "finished",
+        stateVersion: engineResult.snapshot.version,
+        stateJson: JSON.stringify(engineResult.snapshot),
+        status:
+          engineResult.snapshot.winner === null ? "in_progress" : "finished",
       })
       .where(
         and(
@@ -442,22 +473,27 @@ export async function applyLudoMatchCommand(input: {
       throw new Error("Match state changed; retry with the latest state.");
     await tx.insert(matchEvents).values({
       matchId: input.matchId,
-      version: result.snapshot.version,
+      version: engineResult.snapshot.version,
       userId: input.userId,
       commandNonce: input.command.nonce,
       commandJson: JSON.stringify(command),
-      eventJson: JSON.stringify(result.event),
-      snapshotJson: JSON.stringify(result.snapshot),
+      eventJson: JSON.stringify(engineResult.event),
+      snapshotJson: JSON.stringify(engineResult.snapshot),
       resultStatus:
-        result.snapshot.winner === null ? "in_progress" : "finished",
+        engineResult.snapshot.winner === null ? "in_progress" : "finished",
     });
     return {
-      snapshot: result.snapshot,
-      event: result.event,
-      status: result.snapshot.winner === null ? "in_progress" : "finished",
+      snapshot: engineResult.snapshot,
+      event: engineResult.event,
+      status:
+        engineResult.snapshot.winner === null ? "in_progress" : "finished",
       idempotent: false,
     };
   });
+  if (!result.idempotent) {
+    notifyMatchUpdated(input.matchId);
+  }
+  return result;
 }
 
 export async function createPaymentIntent(input: {

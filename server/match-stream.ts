@@ -1,6 +1,14 @@
+import { EventEmitter } from "node:events";
 import type { Express } from "express";
 import { getMatchPlayer, getMatchPlayers, refreshMatchLifecycle } from "./db";
 import { createContext } from "./_core/context";
+
+const matchEventsEmitter = new EventEmitter();
+matchEventsEmitter.setMaxListeners(100);
+
+export function notifyMatchUpdated(matchId: string) {
+  matchEventsEmitter.emit(`match:${matchId}`);
+}
 
 export function registerMatchStream(app: Express) {
   app.get("/api/matches/:id/events", async (req, res) => {
@@ -31,21 +39,57 @@ export function registerMatchStream(app: Express) {
     let closed = false;
     const sendState = async () => {
       if (closed) return;
-      const current = await refreshMatchLifecycle(matchId);
-      if (!current) return;
-      const players = await getMatchPlayers(matchId);
-      res.write(
-        `event: state\ndata: ${JSON.stringify({ id: current.id, status: current.status, stateVersion: current.stateVersion, snapshot: JSON.parse(current.stateJson), players: players.map(item => ({ seat: item.seat, status: item.status })), yourSeat: player.seat })}\n\n`
-      );
+      try {
+        const current = await refreshMatchLifecycle(matchId);
+        if (!current || closed) return;
+        const players = await getMatchPlayers(matchId);
+        if (closed) return;
+        res.write(
+          `event: state\ndata: ${JSON.stringify({
+            id: current.id,
+            status: current.status,
+            stateVersion: current.stateVersion,
+            snapshot: JSON.parse(current.stateJson),
+            players: players.map(item => ({
+              seat: item.seat,
+              status: item.status,
+            })),
+            yourSeat: player.seat,
+          })}\n\n`
+        );
+      } catch {
+        // Stream write or DB read failed; ignore if closed
+      }
     };
 
+    const onMatchUpdate = () => {
+      void sendState().catch(() => undefined);
+    };
+
+    matchEventsEmitter.on(`match:${matchId}`, onMatchUpdate);
+
     await sendState();
-    const heartbeat = setInterval(() => {
+
+    // Send periodic state sync and keepalive heartbeat
+    const periodicSync = setInterval(() => {
       void sendState().catch(() => undefined);
     }, 3_000);
+
+    const pingInterval = setInterval(() => {
+      if (!closed) {
+        try {
+          res.write(`: heartbeat ${Date.now()}\n\n`);
+        } catch {
+          // Socket closed
+        }
+      }
+    }, 10_000);
+
     req.on("close", () => {
       closed = true;
-      clearInterval(heartbeat);
+      clearInterval(periodicSync);
+      clearInterval(pingInterval);
+      matchEventsEmitter.off(`match:${matchId}`, onMatchUpdate);
     });
   });
 }

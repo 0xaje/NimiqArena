@@ -92,24 +92,17 @@
       "indexes": {
         "payment_intents_user_idx": {
           "name": "payment_intents_user_idx",
-          "columns": [
-            "userId"
-          ],
+          "columns": ["userId"],
           "isUnique": false
         },
         "payment_intents_user_nonce_idx": {
           "name": "payment_intents_user_nonce_idx",
-          "columns": [
-            "userId",
-            "clientNonce"
-          ],
+          "columns": ["userId", "clientNonce"],
           "isUnique": true
         },
         "payment_intents_tx_hash_idx": {
           "name": "payment_intents_tx_hash_idx",
-          "columns": [
-            "transactionHash"
-          ],
+          "columns": ["transactionHash"],
           "isUnique": true
         }
       },
@@ -117,9 +110,7 @@
       "compositePrimaryKeys": {
         "payment_intents_id": {
           "name": "payment_intents_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -202,17 +193,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}

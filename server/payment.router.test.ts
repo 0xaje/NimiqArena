@@ -24,11 +24,18 @@ function createContext(): TrpcContext {
 describe("payment procedures", () => {
   it("rejects short idempotency nonces before touching the database", async () => {
     const caller = appRouter.createCaller(createContext());
-    await expect(caller.payment.createIntent({ clientNonce: "short" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller.payment.createIntent({ clientNonce: "short" })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("rejects malformed transaction hashes at the API boundary", async () => {
     const caller = appRouter.createCaller(createContext());
-    await expect(caller.payment.submitTransaction({ id: "intent-id-123456", transactionHash: "not-a-hash" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller.payment.submitTransaction({
+        id: "intent-id-123456",
+        transactionHash: "not-a-hash",
+      })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

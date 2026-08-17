@@ -71,9 +71,7 @@
       "indexes": {
         "games_slug_idx": {
           "name": "games_slug_idx",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "isUnique": true
         }
       },
@@ -81,9 +79,7 @@
       "compositePrimaryKeys": {
         "games_id": {
           "name": "games_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -167,18 +163,12 @@
       "indexes": {
         "match_events_match_version_idx": {
           "name": "match_events_match_version_idx",
-          "columns": [
-            "matchId",
-            "version"
-          ],
+          "columns": ["matchId", "version"],
           "isUnique": true
         },
         "match_events_match_nonce_idx": {
           "name": "match_events_match_nonce_idx",
-          "columns": [
-            "matchId",
-            "commandNonce"
-          ],
+          "columns": ["matchId", "commandNonce"],
           "isUnique": true
         }
       },
@@ -186,9 +176,7 @@
       "compositePrimaryKeys": {
         "match_events_id": {
           "name": "match_events_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -262,32 +250,22 @@
       "indexes": {
         "match_players_match_idx": {
           "name": "match_players_match_idx",
-          "columns": [
-            "matchId"
-          ],
+          "columns": ["matchId"],
           "isUnique": false
         },
         "match_players_user_idx": {
           "name": "match_players_user_idx",
-          "columns": [
-            "userId"
-          ],
+          "columns": ["userId"],
           "isUnique": false
         },
         "match_players_match_user_idx": {
           "name": "match_players_match_user_idx",
-          "columns": [
-            "matchId",
-            "userId"
-          ],
+          "columns": ["matchId", "userId"],
           "isUnique": true
         },
         "match_players_match_seat_idx": {
           "name": "match_players_match_seat_idx",
-          "columns": [
-            "matchId",
-            "seat"
-          ],
+          "columns": ["matchId", "seat"],
           "isUnique": true
         }
       },
@@ -295,9 +273,7 @@
       "compositePrimaryKeys": {
         "match_players_id": {
           "name": "match_players_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -400,23 +376,17 @@
       "indexes": {
         "matches_game_idx": {
           "name": "matches_game_idx",
-          "columns": [
-            "gameId"
-          ],
+          "columns": ["gameId"],
           "isUnique": false
         },
         "matches_host_idx": {
           "name": "matches_host_idx",
-          "columns": [
-            "hostUserId"
-          ],
+          "columns": ["hostUserId"],
           "isUnique": false
         },
         "matches_join_code_idx": {
           "name": "matches_join_code_idx",
-          "columns": [
-            "joinCode"
-          ],
+          "columns": ["joinCode"],
           "isUnique": true
         }
       },
@@ -424,9 +394,7 @@
       "compositePrimaryKeys": {
         "matches_id": {
           "name": "matches_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -520,24 +488,17 @@
       "indexes": {
         "payment_intents_user_idx": {
           "name": "payment_intents_user_idx",
-          "columns": [
-            "userId"
-          ],
+          "columns": ["userId"],
           "isUnique": false
         },
         "payment_intents_user_nonce_idx": {
           "name": "payment_intents_user_nonce_idx",
-          "columns": [
-            "userId",
-            "clientNonce"
-          ],
+          "columns": ["userId", "clientNonce"],
           "isUnique": true
         },
         "payment_intents_tx_hash_idx": {
           "name": "payment_intents_tx_hash_idx",
-          "columns": [
-            "transactionHash"
-          ],
+          "columns": ["transactionHash"],
           "isUnique": true
         }
       },
@@ -545,9 +506,7 @@
       "compositePrimaryKeys": {
         "payment_intents_id": {
           "name": "payment_intents_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -630,17 +589,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}

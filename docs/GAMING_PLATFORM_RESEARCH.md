@@ -6,11 +6,11 @@ The redesign should make Nimiq Arena feel like a **game destination**, not a sin
 
 ## Patterns observed
 
-| Reference | Observed pattern | Arena translation |
-|---|---|---|
-| Steam Discovery Update | Personalized home page, recommendation feed, discovery queue, tags, filters, follow/ignore actions, and visible library state. | Build a Browse / game-library layer with genre and mode tags, clear availability states, and a future “For you” surface without inventing recommendations today. |
-| Epic Games Store | Strong featured carousel, “discover something new,” free games, new releases, trending, top sellers, and category blocks. | Use a featured “Arena spotlight,” a horizontal game rail, and distinct collections such as Play now, Coming soon, and Free to enter. |
-| Game Library case study | Nostalgia and personality can create emotional engagement when balanced with modern usability; discovery and social connection are central to a multi-game platform. | Give Arena a memorable game-room identity with tactile board/court motifs, playful labels, and a clear but expandable navigation model. |
+| Reference               | Observed pattern                                                                                                                                                     | Arena translation                                                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Steam Discovery Update  | Personalized home page, recommendation feed, discovery queue, tags, filters, follow/ignore actions, and visible library state.                                       | Build a Browse / game-library layer with genre and mode tags, clear availability states, and a future “For you” surface without inventing recommendations today. |
+| Epic Games Store        | Strong featured carousel, “discover something new,” free games, new releases, trending, top sellers, and category blocks.                                            | Use a featured “Arena spotlight,” a horizontal game rail, and distinct collections such as Play now, Coming soon, and Free to enter.                             |
+| Game Library case study | Nostalgia and personality can create emotional engagement when balanced with modern usability; discovery and social connection are central to a multi-game platform. | Give Arena a memorable game-room identity with tactile board/court motifs, playful labels, and a clear but expandable navigation model.                          |
 
 ## Design decision for Nimiq Arena
 

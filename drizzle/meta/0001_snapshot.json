@@ -71,9 +71,7 @@
       "indexes": {
         "games_slug_idx": {
           "name": "games_slug_idx",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "isUnique": true
         }
       },
@@ -81,9 +79,7 @@
       "compositePrimaryKeys": {
         "games_id": {
           "name": "games_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -186,23 +182,17 @@
       "indexes": {
         "matches_game_idx": {
           "name": "matches_game_idx",
-          "columns": [
-            "gameId"
-          ],
+          "columns": ["gameId"],
           "isUnique": false
         },
         "matches_host_idx": {
           "name": "matches_host_idx",
-          "columns": [
-            "hostUserId"
-          ],
+          "columns": ["hostUserId"],
           "isUnique": false
         },
         "matches_join_code_idx": {
           "name": "matches_join_code_idx",
-          "columns": [
-            "joinCode"
-          ],
+          "columns": ["joinCode"],
           "isUnique": true
         }
       },
@@ -210,9 +200,7 @@
       "compositePrimaryKeys": {
         "matches_id": {
           "name": "matches_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -306,24 +294,17 @@
       "indexes": {
         "payment_intents_user_idx": {
           "name": "payment_intents_user_idx",
-          "columns": [
-            "userId"
-          ],
+          "columns": ["userId"],
           "isUnique": false
         },
         "payment_intents_user_nonce_idx": {
           "name": "payment_intents_user_nonce_idx",
-          "columns": [
-            "userId",
-            "clientNonce"
-          ],
+          "columns": ["userId", "clientNonce"],
           "isUnique": true
         },
         "payment_intents_tx_hash_idx": {
           "name": "payment_intents_tx_hash_idx",
-          "columns": [
-            "transactionHash"
-          ],
+          "columns": ["transactionHash"],
           "isUnique": true
         }
       },
@@ -331,9 +312,7 @@
       "compositePrimaryKeys": {
         "payment_intents_id": {
           "name": "payment_intents_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -416,17 +395,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}

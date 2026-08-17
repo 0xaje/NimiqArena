@@ -14,6 +14,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    env: {
+      VITE_APP_ID: "nimiq-arena-app",
+      JWT_SECRET: "nimiq-arena-development-jwt-secret-key-32-chars-long",
+      NIMIQ_ARENA_ENTRY_VALUE_LUNA: "100000",
+      NIMIQ_PAYMENT_RECIPIENT: "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
+    },
     include: [
       "server/**/*.test.ts",
       "server/**/*.spec.ts",
