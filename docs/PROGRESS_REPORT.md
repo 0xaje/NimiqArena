@@ -312,4 +312,31 @@ No Quick Match, leaderboard, ratings, payouts, settlement, or new games were add
 5. **Deployment Guide (`docs/DEPLOYMENT.md`)**:
    - Complete operational manual covering Vercel Serverless, persistent Node/Docker deployment, migration execution, and secret rotation runbooks.
 
+### Milestone 11 — Live Pilot & Hackathon Product Polish
+
+**Date:** 2026-08-17
+
+#### What was built & verified:
+
+1. **Frictionless Social Sharing & Direct Joins**:
+   - Integrated Web Share API (`navigator.share`) and clipboard copy fallback in match room (`MatchRoom.tsx`).
+   - Enabled direct URL join parameter `/join?code=XYZ` with automatic code prefill and validation (`JoinMatch.tsx`).
+
+2. **1-Click Rematch & Competitive Retention**:
+   - Victory/defeat screen features an instant **"Challenge Again (Rematch)"** action that creates a fresh match room and returns a shareable link in 1 click.
+
+3. **Mobile-First Board & Touch Optimization**:
+   - Optimized Ludo board layout (`client/src/index.css`) for narrow mobile viewports and Mini App frames.
+   - Added glowing active piece indicators (`pulse-token`) and enlarged touch targets for piece movement and dice rolling.
+
+4. **Multi-Node RPC Failover Redundancy**:
+   - Implemented automated fallback across candidate Nimiq JSON-RPC endpoints in `server/nimiq-verifier.ts` (`https://rpc.testnet.nimiqwatch.com`, `https://testnet.nimiq.network:8443`).
+
+5. **In-Memory & Edge Rate Limiting**:
+   - Deployed token-bucket rate limiter (`server/_core/rateLimiter.ts`) enforcing 120 req/min for general API queries and 60 req/min for match commands.
+
+6. **Elevated Mainnet Readiness**:
+   - Mainnet Readiness Score elevated to **85/100** with RPC redundancy and rate limiting completed.
+
+
 

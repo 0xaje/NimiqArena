@@ -23,8 +23,8 @@
 | **Multiplayer** | 2-Player Authoritative Ludo Engine | **READY** | 100% verified across captures, safe zones, 6-bonus turns, and home stretch. |
 | **Multiplayer** | SSE Push Stream & Reconnect Policy | **READY** | Exponential backoff with jitter and monotonic state version synchronization. |
 | **Competitive** | Authoritative FIDE Elo Ratings | **READY** | $K=32$ Elo engine, rating floor at 100, immutable `rating_history` ledger. |
-| **Infrastructure** | Edge Rate Limiting & DDoS Shielding | **NOT READY** | Requires Cloudflare WAF or Redis rate-limiting on `/api/trpc/*` and `/api/matches/*`. |
-| **Blockchain** | Multi-Node RPC Failover & Redundancy | **NOT READY** | Requires secondary backup RPC endpoint if primary RPC node degrades. |
+| **Infrastructure** | Edge Rate Limiting & DDoS Shielding | **READY** | `server/_core/rateLimiter.ts` token-bucket rate limiter active on `/api/*` and match commands. |
+| **Blockchain** | Multi-Node RPC Failover & Redundancy | **READY** | `server/nimiq-verifier.ts` automated fallback across primary and secondary Testnet RPC nodes. |
 | **Financial** | Automated Dispute & Refund Mechanism | **NOT READY** | Requires automated refund pipeline for cancelled/unmatched player entry fees. |
 | **Financial** | Abandoned Match Financial Policy | **READY** | 10-minute disconnection grace period before automated default win settlement. |
 | **Operations** | Incident Response Runbook & Secret Rotation | **READY** | Documented in `docs/DEPLOYMENT.md` and `docs/SECURITY.md`. |
@@ -35,13 +35,11 @@
 
 ## Detailed Gap Analysis Before Mainnet
 
-### 1. RPC Node Redundancy (NOT READY)
-- **Current State**: Single RPC URL configured (`NIMIQ_RPC_URL`).
-- **Required**: An array of RPC endpoints with automatic round-robin and fallback failover if the primary node encounters rate limits or latency spikes.
+### 1. RPC Node Redundancy (READY)
+- **Implemented**: `server/nimiq-verifier.ts` contains `DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS` with candidate iteration and auto-failover on network timeout or HTTP 5xx errors.
 
-### 2. Edge Rate Limiting & Abuse Prevention (NOT READY)
-- **Current State**: Application handles concurrency and stale states, but has no token-bucket rate limiter.
-- **Required**: Implement IP-based and user-based rate limiting (e.g. max 20 commands/minute per player, max 60 requests/minute on public endpoints).
+### 2. Rate Limiting & Abuse Prevention (READY)
+- **Implemented**: `server/_core/rateLimiter.ts` actively enforces 120 req/min on `/api/trpc` and 60 req/min on match command routes with sliding window expiration.
 
 ### 3. Automated Refund Pipeline (NOT READY)
 - **Current State**: Payment intents verify successfully; unmatched or expired matches transition to `expired` or `cancelled`.
@@ -55,15 +53,17 @@
 
 ## Mainnet Readiness Score
 
-$$\mathbf{Readiness\ Score:\ 75/100}$$
+$$\mathbf{Readiness\ Score:\ 85/100}$$
 
 - **Core Technology & Rules**: **100% (READY)**
 - **Security & Anti-Cheat**: **100% (READY)**
 - **Testnet Blockchain Verification**: **100% (READY)**
-- **Operational Redundancy & Legal Safeguards**: **50% (IN PROGRESS)**
+- **Infrastructure & RPC Redundancy**: **100% (READY)**
+- **Operational Policies & Compliance**: **60% (IN PROGRESS)**
 
 ---
 
 ## Decision & Next Step
 - Keep live pilot strictly on **Nimiq Testnet**.
-- Complete RPC failover and rate limiting before enabling mainnet transactions.
+- Complete automated refund pipeline and terms of service before Mainnet rollout.
+

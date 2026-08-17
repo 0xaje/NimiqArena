@@ -1,5 +1,5 @@
 import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -12,6 +12,21 @@ export default function JoinMatch() {
   const [joinCode, setJoinCode] = useState("");
   const join = trpc.match.joinByCode.useMutation();
   const user = authQuery.data;
+
+  // Auto-fill from URL query param if present (?code=ABC123XYZ)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const codeFromUrl = params.get("code") || params.get("joinCode");
+      if (codeFromUrl) {
+        const clean = codeFromUrl.replace(/[^a-z0-9]/gi, "").slice(0, 12).toUpperCase();
+        setJoinCode(clean);
+        toast.info("Invite code detected from link", { description: `Code: ${clean}` });
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

@@ -56,6 +56,10 @@ export interface NimiqVerificationResult {
 
 export const DEFAULT_NIMIQ_TESTNET_RPC = 'https://rpc.testnet.nimiqwatch.com';
 export const DEFAULT_NIMIQ_MAINNET_RPC = 'https://rpc.nimiqwatch.com';
+export const DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS = [
+  'https://rpc.testnet.nimiqwatch.com',
+  'https://testnet.nimiq.network:8443',
+];
 
 /**
  * Normalizes a Nimiq IBAN address (e.g., "NQ81 C01N BASE..." -> "NQ81C01NBASE...")
@@ -72,7 +76,7 @@ export function isValidNimiqTxHash(hash: string): boolean {
 }
 
 /**
- * Fetches transaction details from a Nimiq JSON-RPC endpoint.
+ * Fetches transaction details from a Nimiq JSON-RPC endpoint with automated failover.
  */
 export async function getNimiqTransaction(
   hash: string,
@@ -84,52 +88,58 @@ export async function getNimiqTransaction(
     return { transaction: null, error: 'Invalid transaction hash format' };
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  // Build candidate RPC endpoints (requested primary + known fallbacks)
+  const candidateUrls = [rpcUrl, ...DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS.filter(u => u !== rpcUrl)];
 
-  try {
-    const res = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'getTransactionByHash',
-        params: [cleanHash],
-        id: 1,
-      }),
-      signal: controller.signal,
-    });
+  let lastError = 'RPC request failed';
+  for (const currentUrl of candidateUrls) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!res.ok) {
-      return { transaction: null, error: `RPC HTTP error: ${res.status} ${res.statusText}` };
-    }
+    try {
+      const res = await fetch(currentUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'getTransactionByHash',
+          params: [cleanHash],
+          id: 1,
+        }),
+        signal: controller.signal,
+      });
 
-    const payload = (await res.json()) as {
-      jsonrpc: string;
-      result?: { data: NimiqRpcTransaction | null };
-      error?: { code: number; message: string; data?: string };
-    };
+      if (!res.ok) {
+        lastError = `RPC HTTP error: ${res.status} ${res.statusText}`;
+        continue;
+      }
 
-    if (payload.error) {
-      return {
-        transaction: null,
-        error: payload.error.data || payload.error.message,
-        raw: payload,
+      const payload = (await res.json()) as {
+        jsonrpc: string;
+        result?: { data: NimiqRpcTransaction | null };
+        error?: { code: number; message: string; data?: string };
       };
-    }
 
-    const tx = payload.result?.data ?? null;
-    return { transaction: tx, raw: payload };
-  } catch (err: any) {
-    return {
-      transaction: null,
-      error: err.name === 'AbortError' ? 'RPC request timed out' : err.message || String(err),
-    };
-  } finally {
-    clearTimeout(timeoutId);
+      if (payload.error) {
+        return {
+          transaction: null,
+          error: payload.error.data || payload.error.message,
+          raw: payload,
+        };
+      }
+
+      const tx = payload.result?.data ?? null;
+      return { transaction: tx, raw: payload };
+    } catch (err: any) {
+      lastError = err.name === 'AbortError' ? 'RPC request timed out' : err.message || String(err);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
+
+  return { transaction: null, error: lastError };
 }
 
 /**

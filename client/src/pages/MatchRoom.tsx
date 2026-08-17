@@ -138,12 +138,54 @@ export default function MatchRoom() {
       snapshot.currentPlayer === yourSeat
   );
 
+  const createChallenge = trpc.match.createChallenge.useMutation();
+
+  async function shareChallenge() {
+    if (!state) return;
+    const code = (state as { joinCode?: string }).joinCode ?? "";
+    const shareUrl = `${window.location.origin}/join?code=${code}`;
+    const shareData = {
+      title: "⚔️ Nimiq Arena Challenge",
+      text: `I challenge you to a Ludo match on Nimiq Arena! Join using code: ${code}`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        toast.success("Challenge invite shared!");
+        return;
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+      }
+    }
+
+    await navigator.clipboard?.writeText(shareUrl);
+    toast.success("Direct Challenge Link Copied!", {
+      description: `Share this link with your friend: ${shareUrl}`,
+    });
+  }
+
   async function copyCode() {
     if (!state) return;
-    await navigator.clipboard?.writeText(
-      (state as { joinCode?: string }).joinCode ?? ""
-    );
-    toast("Invite code copied");
+    const code = (state as { joinCode?: string }).joinCode ?? "";
+    await navigator.clipboard?.writeText(code);
+    toast.success("Invite Code Copied!", {
+      description: `Code: ${code}`,
+    });
+  }
+
+  async function handleRematch() {
+    try {
+      toast.info("Creating fresh rematch room…");
+      const newMatch = await createChallenge.mutateAsync({ gameSlug: "ludo-league" });
+      toast.success("Rematch Created!", { description: `Code: ${newMatch.joinCode}` });
+      window.location.href = `/matches/${newMatch.id}`;
+    } catch (err) {
+      toast.error("Failed to create rematch", {
+        description: err instanceof Error ? err.message : "Try again.",
+      });
+    }
   }
 
   async function sendCommand(
@@ -218,7 +260,9 @@ export default function MatchRoom() {
               ? "Checking the protected match state…"
               : stateQuery.isError || !state
                 ? "A live room is only shown to an authenticated participant. No opponent, move, result, rating, or settlement is created locally."
-                : "This room renders the persisted match snapshot. No opponent, move, result, rating, or settlement is created locally."}
+                : state.status === "waiting"
+                  ? "Share your invite link or 10-character code with your opponent. As soon as they join, the table goes live."
+                  : "This room renders the persisted match snapshot. No opponent, move, result, rating, or settlement is created locally."}
           </p>
         </section>
 
@@ -258,9 +302,14 @@ export default function MatchRoom() {
                 <span className="card-label">STATE VERSION</span>
                 <strong>{state?.stateVersion ?? "—"}</strong>
               </div>
-              <button className="copy-code" onClick={copyCode}>
-                <Copy size={15} /> Copy invite code
-              </button>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button className="copy-code" onClick={shareChallenge}>
+                  <Copy size={15} /> Share Invite Link
+                </button>
+                <button className="copy-code secondary-chip" onClick={copyCode} title="Copy Code Only">
+                  Code: {(state as { joinCode?: string }).joinCode ?? "—"}
+                </button>
+              </div>
             </section>
             <section className="authoritative-strip">
               <div>
@@ -302,18 +351,18 @@ export default function MatchRoom() {
                     <h2>
                       {snapshot?.winner !== null &&
                       snapshot?.winner !== undefined
-                        ? `Player ${snapshot.winner + 1} wins`
+                        ? `Player ${snapshot.winner + 1} wins!`
                         : isYourTurn
                           ? snapshot?.dice
-                            ? "Choose a piece."
-                            : "Roll the dice."
-                          : "Waiting for server turn."}
+                            ? "Choose a piece to move."
+                            : "Roll the server dice."
+                          : "Waiting for opponent turn."}
                     </h2>
                   </div>
                   <span
                     className={`state-chip ${isYourTurn ? "good" : "muted"}`}
                   >
-                    {isYourTurn ? "YOUR TURN" : "SERVER STATE"}
+                    {isYourTurn ? "YOUR TURN" : "OPPONENT TURN"}
                   </span>
                 </div>
                 <div className="ludo-board">
@@ -322,6 +371,7 @@ export default function MatchRoom() {
                       <span
                         className={`track-cell ${index % 13 === 0 ? "safe-cell" : ""}`}
                         key={index}
+                        title={index % 13 === 0 ? "Safe Square (Protected from capture)" : `Square ${index + 1}`}
                       >
                         {index + 1}
                       </span>
@@ -375,11 +425,14 @@ export default function MatchRoom() {
                         flexWrap: "wrap",
                       }}
                     >
-                      <Link className="primary-action" href="/#leaderboard">
-                        🏆 View Leaderboard
+                      <button className="primary-action" onClick={handleRematch} disabled={createChallenge.isPending}>
+                        ⚔️ {createChallenge.isPending ? "Creating Rematch…" : "Challenge Again (Rematch)"}
+                      </button>
+                      <Link className="secondary-chip" href="/leaderboard">
+                        🏆 Full Leaderboard
                       </Link>
-                      <Link className="text-action" href="/games/ludo-league">
-                        Start another match
+                      <Link className="secondary-chip" href="/profile">
+                        👤 View Rating History
                       </Link>
                     </div>
                   ) : (
@@ -392,13 +445,13 @@ export default function MatchRoom() {
                       }
                       onClick={() => sendCommand({ kind: "roll" })}
                     >
-                      {command.isPending ? "Submitting…" : "Roll server dice"}
+                      {command.isPending ? "Submitting…" : "🎲 Roll Server Dice"}
                     </button>
                   )}
                   <p>
                     {snapshot?.winner !== null && snapshot?.winner !== undefined
-                      ? "Match finished. Authoritative ratings and stats have been updated in the database."
-                      : "Dice, turns, legal moves, and winner state are controlled by the backend engine."}
+                      ? "Match finished. Official Elo rating, streaks, and seasonal rankings have been calculated."
+                      : "Rules: Roll a 6 to release a piece from Base. Safe squares protect pieces. Capturing opponent pieces awards a bonus turn."}
                   </p>
                 </div>
               </article>
@@ -406,17 +459,15 @@ export default function MatchRoom() {
                 <div className="room-panel-icon">
                   <ShieldCheck size={18} />
                 </div>
-                <span className="card-label">AUTHORITY PANEL</span>
-                <h2>Server-owned state.</h2>
+                <span className="card-label">COMPETITIVE INTEGRITY</span>
+                <h2>Server-Authoritative Match</h2>
                 <p>
-                  The board is a rendering of the latest snapshot. Stale
-                  versions, duplicate nonces, illegal moves, and unauthorized
-                  players are rejected by the API.
+                  Every dice roll and piece move is verified on the backend. Rating updates, win streaks, and leaderboard positions are computed using official FIDE Elo calculations ($K=32$).
                 </p>
                 <div className="state-chip muted">
                   {state?.stateVersion === 0
                     ? "INITIAL SNAPSHOT"
-                    : `VERSION ${state?.stateVersion}`}
+                    : `STATE VERSION ${state?.stateVersion}`}
                 </div>
               </aside>
             </section>
@@ -425,7 +476,7 @@ export default function MatchRoom() {
       </main>
       <footer className="detail-footer">
         <span>
-          <Users size={14} /> Online presence is limited to real joined players.
+          <Users size={14} /> Real multiplayer table. No bots or simulated players.
         </span>
         <Link href="/">Return to Arena</Link>
       </footer>
