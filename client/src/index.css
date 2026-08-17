@@ -1977,3 +1977,115 @@ h1 em,
   justify-content: center;
   width: fit-content;
 }
+
+/* Leaderboard & Profile Sections */
+.leaderboard-section,
+.profile-section {
+  padding: 64px 0;
+  border-top: 1px solid var(--rule);
+}
+.leaderboard-header,
+.profile-header {
+  margin-bottom: 28px;
+}
+.leaderboard-card,
+.profile-card {
+  background: var(--paper-bright);
+  border: 1px solid var(--rule);
+  padding: 24px;
+}
+.leaderboard-table-container {
+  overflow-x: auto;
+}
+.arena-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.arena-table th {
+  padding: 12px 16px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  text-transform: uppercase;
+}
+.arena-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.arena-table tr:hover td {
+  background: rgba(239, 101, 61, 0.03);
+}
+.rank-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: bold;
+  color: var(--orange);
+}
+.rank-badge.top-1 {
+  color: #d97706;
+}
+.rank-badge.top-2 {
+  color: #6b7280;
+}
+.rank-badge.top-3 {
+  color: #b45309;
+}
+.rating-pill {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.stat-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stat-card .stat-value {
+  font-size: 28px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: bold;
+  color: var(--ink);
+}
+.stat-card .stat-label {
+  font-size: 10px;
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.delta-pos {
+  color: #15803d;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+}
+.delta-neg {
+  color: #b91c1c;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+}
+.empty-state-box {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--rule);
+  background: var(--paper);
+  margin: 12px 0;
+}
+.empty-state-box p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}

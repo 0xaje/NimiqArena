@@ -32,12 +32,11 @@ The browser synchronization boundary uses an authenticated SSE stream at `/api/m
 
 ## Explicitly unavailable
 
-There is no public matchmaking queue, Solo bot, rating result, leaderboard, payout, settlement verification, or simulated opponent. The match room reports `WAITING` until a real second player joins. A client cannot mark a match finished or write a winner.
+## Milestone 07 Additions: Rating & Leaderboard Procedures
 
-## Reliability milestone additions
-
-`match.heartbeat` is a protected participant mutation that records `lastSeenAt` and restores a disconnected participant to `joined` only after authorization. `match.disconnect` records an explicit participant disconnect state.
-
-The authenticated SSE stream now uses client-side exponential reconnect backoff and match-state invalidation fallback. The client reports `CONNECTING`, `CONNECTED`, `RECONNECTING`, or `OFFLINE` in the match room. State resynchronization accepts only equal or newer persisted state versions.
-
-`POST /api/scheduled/cleanupMatches` is a cron-only lifecycle endpoint. It expires active matches past `expiresAt` and cancels waiting or in-progress matches when all participants have been disconnected beyond the abandonment grace period. No schedule has been created or verified in this milestone.
+| Procedure            | Access    | Purpose                                              | Authoritative behavior                                                   |
+| -------------------- | --------- | ---------------------------------------------------- | ------------------------------------------------------------------------ |
+| `season.getActive`   | Public    | Retrieve active season metadata                      | Returns current seasonal window, number, and status                      |
+| `leaderboard.getTop` | Public    | Query database leaderboard rankings                  | Returns ordered player ratings, rank, wins, losses, win rate, and streak |
+| `auth.stats`         | Protected | Retrieve authenticated player stats & rating history | Returns true Elo rating, rank, streak, and recent rating transactions    |
+| `auth.guestLogin`    | Public    | Authenticate dev/preview guest player session        | Mints valid session cookie & Bearer token for seamless multi-user tests  |

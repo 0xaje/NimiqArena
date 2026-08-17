@@ -43,3 +43,7 @@ The match room uses authenticated SSE, capped exponential reconnect backoff, mon
 ## 2026-08-17 — Dedicated database and two-client evidence required
 
 Mocked tests are useful contract coverage but are not evidence of real persisted-row behavior or multiplayer. The gated database suite requires a dedicated disposable database URL, and the two-client flow requires two independent authenticated clients. Until both are available, the report must label those results NOT VERIFIED.
+
+## 2026-08-17 — Elo Rating Model & Seasonal Boundaries
+
+Competitive Ludo rankings use standard competitive Elo calibration with $K=32$, starting rating 1000, and a hard floor of 100. Ratings update strictly inside the atomic database transaction that completes a match. Unique constraints on `rating_history(matchId, userId)` protect against duplicate execution. Seasons partition ratings and leaderboards without wiping historical transaction records.

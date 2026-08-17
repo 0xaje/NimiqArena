@@ -5,10 +5,13 @@ import {
   applyLudoMatchCommand,
   createChallengeMatch,
   createPaymentIntent,
+  getActiveSeason,
   getGameBySlug,
+  getLeaderboard,
   getMatchById,
   getMatchPlayer,
   getMatchPlayers,
+  getPlayerStats,
   getUserByOpenId,
   heartbeatMatchPlayer,
   disconnectMatchPlayer,
@@ -76,6 +79,22 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    stats: protectedProcedure
+      .input(
+        z
+          .object({
+            gameSlug: z.string().min(1).max(64).optional(),
+            seasonId: z.string().min(1).max(32).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ ctx, input }) => {
+        return await getPlayerStats({
+          userId: ctx.user.id,
+          gameSlug: input?.gameSlug,
+          seasonId: input?.seasonId,
+        });
+      }),
     guestLogin: publicProcedure
       .input(
         z
@@ -104,6 +123,38 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+  season: router({
+    getActive: publicProcedure.query(async () => {
+      const active = await getActiveSeason();
+      if (!active)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No active season found.",
+        });
+      return active;
+    }),
+  }),
+  leaderboard: router({
+    getTop: publicProcedure
+      .input(
+        z
+          .object({
+            gameSlug: z.string().min(1).max(64).optional(),
+            seasonId: z.string().min(1).max(32).optional(),
+            limit: z.number().int().min(1).max(100).optional(),
+            offset: z.number().int().min(0).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return await getLeaderboard({
+          gameSlug: input?.gameSlug,
+          seasonId: input?.seasonId,
+          limit: input?.limit,
+          offset: input?.offset,
+        });
+      }),
   }),
   game: router({
     getBySlug: publicProcedure

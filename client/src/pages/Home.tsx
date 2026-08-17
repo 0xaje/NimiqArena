@@ -106,6 +106,15 @@ export default function Home() {
   const failIntent = trpc.payment.failIntent.useMutation();
   const submitTransaction = trpc.payment.submitTransaction.useMutation();
 
+  const seasonQuery = trpc.season.getActive.useQuery();
+  const leaderboardQuery = trpc.leaderboard.getTop.useQuery({
+    gameSlug: "ludo-league",
+  });
+  const statsQuery = trpc.auth.stats.useQuery(
+    { gameSlug: "ludo-league" },
+    { enabled: Boolean(user) }
+  );
+
   async function switchPlayer(name: string) {
     try {
       const res = await guestLogin.mutateAsync({ name });
@@ -113,6 +122,8 @@ export default function Home() {
         sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
       }
       await utils.auth.me.invalidate();
+      await utils.auth.stats.invalidate();
+      await utils.leaderboard.getTop.invalidate();
       toast.success(`Signed in as ${name}`);
     } catch (e) {
       toast.error("Failed to switch player");
@@ -307,18 +318,12 @@ export default function Home() {
           <Link className="side-nav-link" href="/join">
             Join a friend <span>JOIN</span>
           </Link>
-          <button
-            className="side-nav-link"
-            onClick={() => unavailable("Live rooms")}
-          >
-            Live rooms <span className="nav-status">NOT LIVE</span>
-          </button>
-          <button
-            className="side-nav-link"
-            onClick={() => unavailable("Leaderboard")}
-          >
-            Leaderboard <span className="nav-status">NOT LIVE</span>
-          </button>
+          <a className="side-nav-link" href="#leaderboard">
+            Leaderboard <span>TOP</span>
+          </a>
+          <a className="side-nav-link" href="#profile">
+            Player Profile <span>STATS</span>
+          </a>
         </nav>
         <div className="sidebar-bottom">
           <div className="mini-status">
@@ -625,6 +630,223 @@ export default function Home() {
               </p>
             </div>
             <span className="state-chip muted">NOT LIVE</span>
+          </div>
+        </section>
+
+        {/* Real Leaderboard Section */}
+        <section className="leaderboard-section" id="leaderboard">
+          <div className="leaderboard-header">
+            <div className="stamp-row">
+              <span className="stamp orange">
+                {seasonQuery.data?.name ?? "SEASON 01"}
+              </span>
+              <span className="stamp">
+                {seasonQuery.data?.status?.toUpperCase() ?? "ACTIVE"}
+              </span>
+            </div>
+            <p className="eyebrow">AUTHORITATIVE RANKINGS</p>
+            <h2>Leaderboard</h2>
+            <p className="section-note">
+              Rankings are calculated directly from verified database match
+              results using server-authoritative Elo rating. No simulated or
+              fake users.
+            </p>
+          </div>
+
+          <div className="leaderboard-card">
+            {leaderboardQuery.isLoading ? (
+              <div className="empty-state-box">
+                <p>Loading authoritative leaderboard records…</p>
+              </div>
+            ) : leaderboardQuery.data && leaderboardQuery.data.length > 0 ? (
+              <div className="leaderboard-table-container">
+                <table className="arena-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>Rating</th>
+                      <th>Record</th>
+                      <th>Win Rate</th>
+                      <th>Streak</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardQuery.data.map(entry => (
+                      <tr key={entry.userId}>
+                        <td>
+                          <span
+                            className={`rank-badge ${entry.rank <= 3 ? `top-${entry.rank}` : ""}`}
+                          >
+                            #{entry.rank}
+                          </span>
+                        </td>
+                        <td>
+                          <strong>{entry.userName}</strong>
+                        </td>
+                        <td>
+                          <span className="rating-pill">{entry.rating}</span>
+                        </td>
+                        <td>
+                          {entry.wins}W - {entry.losses}L
+                        </td>
+                        <td>{entry.winRate}%</td>
+                        <td>
+                          {entry.currentStreak > 0 ? (
+                            <span>🔥 {entry.currentStreak}</span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state-box">
+                <Trophy size={28} />
+                <p>
+                  No competitive matches completed in this season yet.
+                  <br />
+                  Play a challenge match in <strong>Ludo League</strong> to
+                  appear on the leaderboard!
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Real Player Profile & Rating History Section */}
+        <section className="profile-section" id="profile">
+          <div className="profile-header">
+            <span className="stamp orange">COMPETITIVE RECORD</span>
+            <p className="eyebrow">YOUR ARENA PROFILE</p>
+            <h2>{user ? user.name || "Player Profile" : "Player Profile"}</h2>
+            <p className="section-note">
+              Real-time competitive metrics, win streaks, and persisted rating
+              transaction history.
+            </p>
+          </div>
+
+          <div className="profile-card">
+            {user ? (
+              <>
+                <div className="stat-card-grid">
+                  <div className="stat-card">
+                    <span className="stat-label">Elo Rating</span>
+                    <span className="stat-value">
+                      {statsQuery.data?.rating ?? 1000}
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Season Rank</span>
+                    <span className="stat-value">
+                      {statsQuery.data?.rank ? `#${statsQuery.data.rank}` : "—"}
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Win / Loss</span>
+                    <span className="stat-value">
+                      {statsQuery.data?.wins ?? 0}W /{" "}
+                      {statsQuery.data?.losses ?? 0}L
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Win Rate</span>
+                    <span className="stat-value">
+                      {statsQuery.data?.winRate ?? 0}%
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Current Streak</span>
+                    <span className="stat-value">
+                      🔥 {statsQuery.data?.currentStreak ?? 0}
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Matches Played</span>
+                    <span className="stat-value">
+                      {statsQuery.data?.matchesPlayed ?? 0}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="history-section">
+                  <span className="card-label">RATING HISTORY</span>
+                  {statsQuery.data?.history &&
+                  statsQuery.data.history.length > 0 ? (
+                    <div className="leaderboard-table-container">
+                      <table className="arena-table">
+                        <thead>
+                          <tr>
+                            <th>Outcome</th>
+                            <th>Opponent</th>
+                            <th>Change</th>
+                            <th>New Rating</th>
+                            <th>Match ID</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {statsQuery.data.history.map(item => (
+                            <tr key={item.id}>
+                              <td>
+                                <strong>
+                                  {item.outcome.replace("_", " ").toUpperCase()}
+                                </strong>
+                              </td>
+                              <td>{item.opponentName}</td>
+                              <td>
+                                <span
+                                  className={
+                                    item.ratingChange >= 0
+                                      ? "delta-pos"
+                                      : "delta-neg"
+                                  }
+                                >
+                                  {item.ratingChange >= 0
+                                    ? `+${item.ratingChange}`
+                                    : item.ratingChange}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="rating-pill">
+                                  {item.newRating}
+                                </span>
+                              </td>
+                              <td>
+                                <small>{item.matchId}</small>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="empty-state-box">
+                      <p>
+                        No rating changes recorded yet. Play a match to build
+                        your history!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="empty-state-box">
+                <p>
+                  Sign in to view your real competitive profile and history.
+                </p>
+                <div style={{ marginTop: "14px" }}>
+                  <button
+                    className="primary-action"
+                    onClick={() => switchPlayer("Player 1 (Host)")}
+                  >
+                    Sign in as Player 1
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

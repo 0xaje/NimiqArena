@@ -63,3 +63,25 @@ Match presence is persisted in `match_players.lastSeenAt` and `status`. Particip
 The match room uses authenticated SSE with client-owned exponential reconnect backoff and tRPC state polling/manual refresh as resynchronization fallbacks. Persisted `stateVersion` remains the authority after reconnect or server restart; no in-memory match snapshot is required to recover the latest state.
 
 Lifecycle cleanup is exposed through a cron-only `/api/scheduled/cleanupMatches` handler. The handler is idempotent and does not run an in-process scheduler. A production Heartbeat schedule has not been created or verified yet.
+
+## Rating & Leaderboard Subsystem
+
+Competitive outcomes originate solely from authoritative match completion:
+
+```text
+Engine Winner / Abandonment
+            |
+            v
+Atomic DB Transaction
+  ├── Update matches (status: finished, winnerUserId, loserUserId)
+  ├── Calculate Elo Rating (K=32, Starting=1000, Floor=100)
+  ├── Upsert player_ratings (seasonId, gameSlug, rating, wins, losses, streaks)
+  └── Insert rating_history (matchId, userId, delta, outcome)
+            |
+            v
+Leaderboard Query (Indexed by seasonId, gameSlug, rating DESC)
+```
+
+- **Zero Client Authority**: The client never submits winner, score, rank, or rating.
+- **Idempotent Settlement**: Unique key constraints on `rating_history(matchId, userId)` protect against duplicate execution.
+- **Pure Rating Calculation**: `calculateElo()` executes deterministically on instantaneous database rating states.

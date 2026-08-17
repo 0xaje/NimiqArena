@@ -164,3 +164,42 @@ The completed join coverage, exact replay, and authenticated match-state stream 
 #### Scope Boundary Adherence:
 
 No Quick Match, leaderboard, ratings, payouts, settlement, or new games were added, strictly adhering to the multiplayer reliability and verification directive.
+
+### Milestone 07 — Real Rating System, Authoritative Match Completion, Database-Backed Leaderboard & Seasons
+
+**Date:** 2026-08-17
+
+#### What was built & verified:
+
+1. **Deterministic Server Elo Rating Engine (`server/rating-engine.ts`)**:
+   - Calibrated competitive Elo formula: Starting rating 1000, K-factor 32, rating floor 100.
+   - Guaranteed minimum delta (+1 for winner / -1 for loser) unless bounded by rating floor.
+   - Comprehensive unit test suite (`server/rating-engine.test.ts`) verifying expected scores, symmetric adjustments, underdog multipliers, floor clamping, draw calculations, and abandoned outcomes (7/7 unit tests passing).
+
+2. **Database Schema & Data Layer (`drizzle/schema.ts`, `server/db.ts`)**:
+   - `seasons` table: seasonal boundaries, numbers, statuses (`active`, `upcoming`, `ended`).
+   - `player_ratings` table: seasonal and per-game tracking of Elo rating, wins, losses, win rate, current streak, best streak, and matches played.
+   - `rating_history` table: immutable transaction logs capturing matchId, opponent ID, pre/post ratings, delta, and outcome.
+   - `matches` table: extended with `winnerUserId`, `loserUserId`, and `seasonId`.
+
+3. **Authoritative & Idempotent Completion Pipeline**:
+   - Wired rating settlement into `applyLudoMatchCommand` inside the atomic database transaction when the engine declares a winner.
+   - Wired abandonment resolution into `refreshMatchLifecycle` to penalize forfeiting players and award abandoned wins after the 10-minute grace window.
+   - Unique constraints on `(matchId, userId)` guarantee zero double counting or duplicate executions on nonce replays.
+
+4. **Real Database-Backed Leaderboard & Player Profile (`server/routers.ts`)**:
+   - `season.getActive`: provides live season metadata.
+   - `leaderboard.getTop`: queries real database player ratings ordered by rating and wins with calculated win rates and streaks. No fake or hardcoded players.
+   - `auth.stats`: queries authenticated user's real rating, season rank, win/loss record, streaks, and last 20 rating transaction history rows.
+
+5. **Frontend UI Real Data Integration**:
+   - `client/src/pages/Home.tsx`: Leaderboard section renders live database ranks and honest empty states; Player Profile section displays real competitive metrics and transaction logs.
+   - `client/src/pages/MatchRoom.tsx`: Concluded matches display authoritative victory/defeat banners and direct links to the live leaderboard.
+
+6. **Dedicated Real Database Integration Matrix (`server/rating.database.integration.test.ts`)**:
+   - Verified active season provisioning and lookup.
+   - Verified winner rating gain (+16) and loser rating decrease (-16) on authoritative completion.
+   - Verified duplicate completion idempotency and non-replay drift.
+   - Verified abandoned match rating settlement and forfeit penalty.
+   - Verified leaderboard ordering and ranking calculations against real MariaDB.
+   - Verified player profile rank and transaction history retrieval.

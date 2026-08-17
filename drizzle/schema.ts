@@ -45,12 +45,35 @@ export const games = mysqlTable(
   })
 );
 
+export const seasons = mysqlTable(
+  "seasons",
+  {
+    id: varchar("id", { length: 32 }).primaryKey(),
+    number: int("number", { unsigned: true }).notNull(),
+    name: varchar("name", { length: 64 }).notNull(),
+    status: mysqlEnum("status", ["upcoming", "active", "ended"])
+      .default("active")
+      .notNull(),
+    startsAt: timestamp("startsAt").notNull(),
+    endsAt: timestamp("endsAt").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    numberIdx: uniqueIndex("seasons_number_idx").on(table.number),
+    statusIdx: index("seasons_status_idx").on(table.status),
+  })
+);
+
 export const matches = mysqlTable(
   "matches",
   {
     id: varchar("id", { length: 32 }).primaryKey(),
     gameId: varchar("gameId", { length: 32 }).notNull(),
+    seasonId: varchar("seasonId", { length: 32 }).default("season-1").notNull(),
     hostUserId: int("hostUserId").notNull(),
+    winnerUserId: int("winnerUserId"),
+    loserUserId: int("loserUserId"),
     joinCode: varchar("joinCode", { length: 12 }).notNull(),
     visibility: mysqlEnum("visibility", ["challenge_friend", "public"])
       .default("challenge_friend")
@@ -73,8 +96,78 @@ export const matches = mysqlTable(
   },
   table => ({
     gameIdx: index("matches_game_idx").on(table.gameId),
+    seasonIdx: index("matches_season_idx").on(table.seasonId),
     hostIdx: index("matches_host_idx").on(table.hostUserId),
+    winnerIdx: index("matches_winner_idx").on(table.winnerUserId),
     joinCodeIdx: uniqueIndex("matches_join_code_idx").on(table.joinCode),
+  })
+);
+
+export const playerRatings = mysqlTable(
+  "player_ratings",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    gameSlug: varchar("gameSlug", { length: 64 }).notNull(),
+    seasonId: varchar("seasonId", { length: 32 }).notNull(),
+    rating: int("rating").default(1000).notNull(),
+    wins: int("wins", { unsigned: true }).default(0).notNull(),
+    losses: int("losses", { unsigned: true }).default(0).notNull(),
+    currentStreak: int("currentStreak", { unsigned: true })
+      .default(0)
+      .notNull(),
+    bestStreak: int("bestStreak", { unsigned: true }).default(0).notNull(),
+    matchesPlayed: int("matchesPlayed", { unsigned: true })
+      .default(0)
+      .notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    userGameSeasonIdx: uniqueIndex("player_ratings_user_game_season_idx").on(
+      table.userId,
+      table.gameSlug,
+      table.seasonId
+    ),
+    leaderboardIdx: index("player_ratings_leaderboard_idx").on(
+      table.seasonId,
+      table.gameSlug,
+      table.rating
+    ),
+  })
+);
+
+export const ratingHistory = mysqlTable(
+  "rating_history",
+  {
+    id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+    matchId: varchar("matchId", { length: 32 }).notNull(),
+    userId: int("userId").notNull(),
+    seasonId: varchar("seasonId", { length: 32 }).notNull(),
+    gameSlug: varchar("gameSlug", { length: 64 }).notNull(),
+    previousRating: int("previousRating").notNull(),
+    ratingChange: int("ratingChange").notNull(),
+    newRating: int("newRating").notNull(),
+    opponentUserId: int("opponentUserId").notNull(),
+    opponentRating: int("opponentRating").notNull(),
+    outcome: mysqlEnum("outcome", [
+      "win",
+      "loss",
+      "draw",
+      "abandoned_loss",
+      "abandoned_win",
+    ]).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    matchUserIdx: uniqueIndex("rating_history_match_user_idx").on(
+      table.matchId,
+      table.userId
+    ),
+    userSeasonIdx: index("rating_history_user_season_idx").on(
+      table.userId,
+      table.seasonId,
+      table.createdAt
+    ),
   })
 );
 
@@ -173,8 +266,14 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Game = typeof games.$inferSelect;
 export type InsertGame = typeof games.$inferInsert;
+export type Season = typeof seasons.$inferSelect;
+export type InsertSeason = typeof seasons.$inferInsert;
 export type Match = typeof matches.$inferSelect;
 export type InsertMatch = typeof matches.$inferInsert;
+export type PlayerRating = typeof playerRatings.$inferSelect;
+export type InsertPlayerRating = typeof playerRatings.$inferInsert;
+export type RatingHistory = typeof ratingHistory.$inferSelect;
+export type InsertRatingHistory = typeof ratingHistory.$inferInsert;
 export type MatchPlayer = typeof matchPlayers.$inferSelect;
 export type InsertMatchPlayer = typeof matchPlayers.$inferInsert;
 export type MatchEvent = typeof matchEvents.$inferSelect;

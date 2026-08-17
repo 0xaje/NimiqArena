@@ -1,17 +1,25 @@
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { randomInt } from "node:crypto";
+import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertGame,
+  InsertSeason,
   InsertUser,
   games,
   matchEvents,
   matchPlayers,
   matches,
   paymentIntents,
+  playerRatings,
+  ratingHistory,
+  seasons,
   users,
   type Game,
   type Match,
   type PaymentIntent,
+  type PlayerRating,
+  type RatingHistory,
+  type Season,
 } from "../drizzle/schema";
 import {
   applyCommand,
@@ -24,8 +32,22 @@ import { replayStoredMatchEvent } from "../shared/game/match-event";
 import { nanoid } from "nanoid";
 import { ENV } from "./_core/env";
 import { notifyMatchUpdated } from "./match-stream";
+import { calculateElo, STARTING_RATING } from "./rating-engine";
+
+export type LudoServerCommand =
+  | Omit<Extract<LudoCommand, { kind: "roll" }>, "matchId" | "playerId">
+  | Omit<Extract<LudoCommand, { kind: "move" }>, "matchId" | "playerId">;
 
 let _db: ReturnType<typeof drizzle> | null = null;
+
+export const DEFAULT_SEASON: InsertSeason = {
+  id: "season-1",
+  number: 1,
+  name: "Season 01: Opening Tables",
+  status: "active",
+  startsAt: new Date("2026-01-01T00:00:00Z"),
+  endsAt: new Date("2026-12-31T23:59:59Z"),
+};
 
 export const DEFAULT_GAMES: InsertGame[] = [
   {
@@ -37,6 +59,17 @@ export const DEFAULT_GAMES: InsertGame[] = [
     description: "Classic 2-player authoritative board game",
   },
 ];
+
+export async function ensureDefaultSeasonsSeeded(
+  db: ReturnType<typeof drizzle>
+) {
+  await db
+    .insert(seasons)
+    .values(DEFAULT_SEASON)
+    .onDuplicateKeyUpdate({
+      set: { name: DEFAULT_SEASON.name, status: DEFAULT_SEASON.status },
+    });
+}
 
 export async function ensureDefaultGamesSeeded(db: ReturnType<typeof drizzle>) {
   for (const game of DEFAULT_GAMES) {
@@ -284,6 +317,28 @@ export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
       (latest, player) => Math.max(latest, player.lastSeenAt.getTime()),
       match.updatedAt.getTime()
     );
+    const joinedPlayers = players.filter(p => p.status === "joined");
+    const disconnectedPlayers = players.filter(p => p.status !== "joined");
+
+    if (
+      match.status === "in_progress" &&
+      joinedPlayers.length === 1 &&
+      disconnectedPlayers.length === 1
+    ) {
+      const disconnectedAt = disconnectedPlayers[0].lastSeenAt.getTime();
+      if (disconnectedAt + ABANDONMENT_GRACE_MS <= now.getTime()) {
+        await settleMatchRating(tx, {
+          matchId: match.id,
+          gameSlug: "ludo-league",
+          seasonId: match.seasonId ?? "season-1",
+          winnerUserId: joinedPlayers[0].userId,
+          loserUserId: disconnectedPlayers[0].userId,
+          outcome: "abandoned_win",
+        });
+        return { ...match, status: "finished" as const };
+      }
+    }
+
     if (
       allDisconnected &&
       ["waiting", "in_progress"].includes(match.status) &&
@@ -395,18 +450,335 @@ export async function getMatchPlayers(matchId: string) {
     .where(eq(matchPlayers.matchId, matchId));
 }
 
-type LudoServerCommand =
-  | Omit<Extract<LudoCommand, { kind: "roll" }>, "matchId" | "playerId">
-  | Omit<Extract<LudoCommand, { kind: "move" }>, "matchId" | "playerId">;
+export async function getActiveSeason(): Promise<Season | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Season service is unavailable.");
+  await ensureDefaultSeasonsSeeded(db);
+  const active = await db
+    .select()
+    .from(seasons)
+    .where(eq(seasons.status, "active"))
+    .limit(1);
+  return active[0] ?? null;
+}
+
+export async function settleMatchRating(
+  tx: any,
+  input: {
+    matchId: string;
+    gameSlug: string;
+    seasonId?: string;
+    winnerUserId: number;
+    loserUserId: number;
+    outcome?: "win" | "abandoned_win";
+  }
+) {
+  const seasonId = input.seasonId ?? "season-1";
+  const outcomeWinner = input.outcome ?? "win";
+  const outcomeLoser =
+    outcomeWinner === "abandoned_win" ? "abandoned_loss" : "loss";
+
+  // Check if rating history already recorded for this match (idempotency guard)
+  const existingHistory = await tx
+    .select()
+    .from(ratingHistory)
+    .where(eq(ratingHistory.matchId, input.matchId))
+    .limit(1);
+
+  if (existingHistory.length > 0) {
+    return; // Already settled
+  }
+
+  // Fetch or default rating for Winner
+  const winnerRatingRow = (
+    await tx
+      .select()
+      .from(playerRatings)
+      .where(
+        and(
+          eq(playerRatings.userId, input.winnerUserId),
+          eq(playerRatings.gameSlug, input.gameSlug),
+          eq(playerRatings.seasonId, seasonId)
+        )
+      )
+      .limit(1)
+  )[0];
+
+  // Fetch or default rating for Loser
+  const loserRatingRow = (
+    await tx
+      .select()
+      .from(playerRatings)
+      .where(
+        and(
+          eq(playerRatings.userId, input.loserUserId),
+          eq(playerRatings.gameSlug, input.gameSlug),
+          eq(playerRatings.seasonId, seasonId)
+        )
+      )
+      .limit(1)
+  )[0];
+
+  const currentRatingWinner = winnerRatingRow?.rating ?? STARTING_RATING;
+  const currentRatingLoser = loserRatingRow?.rating ?? STARTING_RATING;
+
+  const eloResult = calculateElo({
+    ratingA: currentRatingWinner,
+    ratingB: currentRatingLoser,
+    outcomeA: outcomeWinner,
+  });
+
+  // Update or insert winner player_ratings
+  if (winnerRatingRow) {
+    const nextStreak = winnerRatingRow.currentStreak + 1;
+    await tx
+      .update(playerRatings)
+      .set({
+        rating: eloResult.newRatingA,
+        wins: winnerRatingRow.wins + 1,
+        matchesPlayed: winnerRatingRow.matchesPlayed + 1,
+        currentStreak: nextStreak,
+        bestStreak: Math.max(winnerRatingRow.bestStreak, nextStreak),
+      })
+      .where(eq(playerRatings.id, winnerRatingRow.id));
+  } else {
+    await tx.insert(playerRatings).values({
+      userId: input.winnerUserId,
+      gameSlug: input.gameSlug,
+      seasonId,
+      rating: eloResult.newRatingA,
+      wins: 1,
+      losses: 0,
+      currentStreak: 1,
+      bestStreak: 1,
+      matchesPlayed: 1,
+    });
+  }
+
+  // Update or insert loser player_ratings
+  if (loserRatingRow) {
+    await tx
+      .update(playerRatings)
+      .set({
+        rating: eloResult.newRatingB,
+        losses: loserRatingRow.losses + 1,
+        matchesPlayed: loserRatingRow.matchesPlayed + 1,
+        currentStreak: 0,
+      })
+      .where(eq(playerRatings.id, loserRatingRow.id));
+  } else {
+    await tx.insert(playerRatings).values({
+      userId: input.loserUserId,
+      gameSlug: input.gameSlug,
+      seasonId,
+      rating: eloResult.newRatingB,
+      wins: 0,
+      losses: 1,
+      currentStreak: 0,
+      bestStreak: 0,
+      matchesPlayed: 1,
+    });
+  }
+
+  // Record rating history for winner
+  await tx.insert(ratingHistory).values({
+    matchId: input.matchId,
+    userId: input.winnerUserId,
+    seasonId,
+    gameSlug: input.gameSlug,
+    previousRating: currentRatingWinner,
+    ratingChange: eloResult.changeA,
+    newRating: eloResult.newRatingA,
+    opponentUserId: input.loserUserId,
+    opponentRating: currentRatingLoser,
+    outcome: outcomeWinner,
+  });
+
+  // Record rating history for loser
+  await tx.insert(ratingHistory).values({
+    matchId: input.matchId,
+    userId: input.loserUserId,
+    seasonId,
+    gameSlug: input.gameSlug,
+    previousRating: currentRatingLoser,
+    ratingChange: eloResult.changeB,
+    newRating: eloResult.newRatingB,
+    opponentUserId: input.winnerUserId,
+    opponentRating: currentRatingWinner,
+    outcome: outcomeLoser,
+  });
+
+  // Update match record with winnerUserId and loserUserId
+  await tx
+    .update(matches)
+    .set({
+      winnerUserId: input.winnerUserId,
+      loserUserId: input.loserUserId,
+      status: "finished",
+    })
+    .where(eq(matches.id, input.matchId));
+}
+
+export async function getLeaderboard(input?: {
+  gameSlug?: string;
+  seasonId?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Leaderboard service is unavailable.");
+  const gameSlug = input?.gameSlug ?? "ludo-league";
+  const seasonId = input?.seasonId ?? "season-1";
+  const limit = Math.min(input?.limit ?? 50, 100);
+  const offset = input?.offset ?? 0;
+
+  const rows = await db
+    .select({
+      id: playerRatings.id,
+      userId: playerRatings.userId,
+      rating: playerRatings.rating,
+      wins: playerRatings.wins,
+      losses: playerRatings.losses,
+      currentStreak: playerRatings.currentStreak,
+      bestStreak: playerRatings.bestStreak,
+      matchesPlayed: playerRatings.matchesPlayed,
+      userName: users.name,
+      userOpenId: users.openId,
+    })
+    .from(playerRatings)
+    .innerJoin(users, eq(playerRatings.userId, users.id))
+    .where(
+      and(
+        eq(playerRatings.gameSlug, gameSlug),
+        eq(playerRatings.seasonId, seasonId)
+      )
+    )
+    .orderBy(desc(playerRatings.rating), desc(playerRatings.wins))
+    .limit(limit)
+    .offset(offset);
+
+  return rows.map((row, index) => {
+    const winRate =
+      row.matchesPlayed > 0
+        ? Math.round((row.wins / row.matchesPlayed) * 100)
+        : 0;
+    return {
+      rank: offset + index + 1,
+      userId: row.userId,
+      userName: row.userName || `Player ${row.userId}`,
+      rating: row.rating,
+      wins: row.wins,
+      losses: row.losses,
+      matchesPlayed: row.matchesPlayed,
+      winRate,
+      currentStreak: row.currentStreak,
+      bestStreak: row.bestStreak,
+    };
+  });
+}
+
+export async function getPlayerStats(input: {
+  userId: number;
+  gameSlug?: string;
+  seasonId?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Profile service is unavailable.");
+  const gameSlug = input.gameSlug ?? "ludo-league";
+  const seasonId = input.seasonId ?? "season-1";
+
+  const ratingRow = (
+    await db
+      .select()
+      .from(playerRatings)
+      .where(
+        and(
+          eq(playerRatings.userId, input.userId),
+          eq(playerRatings.gameSlug, gameSlug),
+          eq(playerRatings.seasonId, seasonId)
+        )
+      )
+      .limit(1)
+  )[0];
+
+  // Calculate player's current rank position in season
+  let rank: number | null = null;
+  if (ratingRow) {
+    const higher = await db
+      .select({ id: playerRatings.id })
+      .from(playerRatings)
+      .where(
+        and(
+          eq(playerRatings.gameSlug, gameSlug),
+          eq(playerRatings.seasonId, seasonId),
+          gt(playerRatings.rating, ratingRow.rating)
+        )
+      );
+    rank = higher.length + 1;
+  }
+
+  // Fetch recent rating history
+  const history = await db
+    .select({
+      id: ratingHistory.id,
+      matchId: ratingHistory.matchId,
+      previousRating: ratingHistory.previousRating,
+      ratingChange: ratingHistory.ratingChange,
+      newRating: ratingHistory.newRating,
+      outcome: ratingHistory.outcome,
+      opponentUserId: ratingHistory.opponentUserId,
+      opponentRating: ratingHistory.opponentRating,
+      createdAt: ratingHistory.createdAt,
+      opponentName: users.name,
+    })
+    .from(ratingHistory)
+    .leftJoin(users, eq(ratingHistory.opponentUserId, users.id))
+    .where(
+      and(
+        eq(ratingHistory.userId, input.userId),
+        eq(ratingHistory.gameSlug, gameSlug),
+        eq(ratingHistory.seasonId, seasonId)
+      )
+    )
+    .orderBy(desc(ratingHistory.createdAt))
+    .limit(20);
+
+  const wins = ratingRow?.wins ?? 0;
+  const losses = ratingRow?.losses ?? 0;
+  const matchesPlayed = ratingRow?.matchesPlayed ?? 0;
+  const winRate =
+    matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
+
+  return {
+    rating: ratingRow?.rating ?? STARTING_RATING,
+    rank,
+    wins,
+    losses,
+    matchesPlayed,
+    winRate,
+    currentStreak: ratingRow?.currentStreak ?? 0,
+    bestStreak: ratingRow?.bestStreak ?? 0,
+    history: history.map(h => ({
+      id: h.id,
+      matchId: h.matchId,
+      previousRating: h.previousRating,
+      ratingChange: h.ratingChange,
+      newRating: h.newRating,
+      outcome: h.outcome,
+      opponentName: h.opponentName || `Player ${h.opponentUserId}`,
+      opponentRating: h.opponentRating,
+      createdAt: h.createdAt,
+    })),
+  };
+}
 
 export async function applyLudoMatchCommand(input: {
   matchId: string;
   userId: number;
-  command: LudoServerCommand;
+  command: LudoServerCommand & { expectedVersion: number; nonce: string };
 }) {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
-  const { randomInt } = await import("node:crypto");
   const result = await db.transaction(async tx => {
     const match = (
       await tx
@@ -430,6 +802,7 @@ export async function applyLudoMatchCommand(input: {
     )[0];
     if (!player || player.status !== "joined")
       throw new Error("You are not a joined player in this match.");
+
     const previousEvent = (
       await tx
         .select()
@@ -444,6 +817,10 @@ export async function applyLudoMatchCommand(input: {
     )[0];
     if (previousEvent)
       return replayStoredMatchEvent<LudoSnapshot, LudoEvent>(previousEvent);
+
+    if (match.stateVersion !== input.command.expectedVersion) {
+      throw new Error("Match state changed; retry with the latest state.");
+    }
     if (match.status !== "in_progress")
       throw new Error("Match is not ready for gameplay.");
     const snapshot = JSON.parse(match.stateJson) as LudoSnapshot;
@@ -482,6 +859,27 @@ export async function applyLudoMatchCommand(input: {
       resultStatus:
         engineResult.snapshot.winner === null ? "in_progress" : "finished",
     });
+
+    if (engineResult.snapshot.winner !== null) {
+      const seats = await tx
+        .select()
+        .from(matchPlayers)
+        .where(eq(matchPlayers.matchId, input.matchId));
+      const winnerSeat = engineResult.snapshot.winner;
+      const winnerPlayer = seats.find(p => p.seat === winnerSeat);
+      const loserPlayer = seats.find(p => p.seat !== winnerSeat);
+      if (winnerPlayer && loserPlayer) {
+        await settleMatchRating(tx, {
+          matchId: input.matchId,
+          gameSlug: "ludo-league",
+          seasonId: match.seasonId ?? "season-1",
+          winnerUserId: winnerPlayer.userId,
+          loserUserId: loserPlayer.userId,
+          outcome: "win",
+        });
+      }
+    }
+
     return {
       snapshot: engineResult.snapshot,
       event: engineResult.event,

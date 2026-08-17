@@ -42,3 +42,15 @@ Heartbeat and disconnect mutations require authenticated match participation; cl
 SSE connections authorize the match participant before opening. Client reconnects cannot advance state because commands still require participant authorization, expected versions, and idempotency nonces. After reconnect, the persisted snapshot and state version are re-read; stale client state is never treated as authoritative.
 
 Cleanup is cron-only and idempotent. It can expire matches past their expiry timestamp and cancel abandoned waiting or in-progress matches only after all participants have been disconnected beyond the configured grace period. No cleanup schedule is active until explicitly configured and verified.
+
+## Competitive Integrity & Rating Safeguards
+
+1. **Zero Client Authority Over Results**:
+   - The client has no procedure or mechanism to report winner, score, rank, streak, or rating delta.
+   - All outcomes originate strictly when the server engine determines a winner (`snapshot.winner !== null`) or when a match is declared abandoned by the server lifecycle sweep.
+2. **Duplicate Settlement Prevention**:
+   - Unique constraints on `rating_history(matchId, userId)` and `player_ratings(userId, gameSlug, seasonId)` guarantee rating is calculated exactly once per match.
+   - Nonce replays return the stored event without recalculating ratings or incrementing win counters.
+3. **Database-Backed Rankings**:
+   - Leaderboard rankings are derived directly from indexed database records (`seasonId, gameSlug, rating DESC, wins DESC`).
+   - No mock users, simulated players, or hardcoded ranks exist in production procedures.

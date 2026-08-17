@@ -365,20 +365,40 @@ export default function MatchRoom() {
                   </div>
                 </div>
                 <div className="board-actions">
-                  <button
-                    className="primary-action"
-                    disabled={
-                      !isYourTurn ||
-                      snapshot?.dice !== null ||
-                      command.isPending
-                    }
-                    onClick={() => sendCommand({ kind: "roll" })}
-                  >
-                    {command.isPending ? "Submitting…" : "Roll server dice"}
-                  </button>
+                  {snapshot?.winner !== null &&
+                  snapshot?.winner !== undefined ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "12px",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Link className="primary-action" href="/#leaderboard">
+                        🏆 View Leaderboard
+                      </Link>
+                      <Link className="text-action" href="/games/ludo-league">
+                        Start another match
+                      </Link>
+                    </div>
+                  ) : (
+                    <button
+                      className="primary-action"
+                      disabled={
+                        !isYourTurn ||
+                        snapshot?.dice !== null ||
+                        command.isPending
+                      }
+                      onClick={() => sendCommand({ kind: "roll" })}
+                    >
+                      {command.isPending ? "Submitting…" : "Roll server dice"}
+                    </button>
+                  )}
                   <p>
-                    Dice, turns, legal moves, and winner state are controlled by
-                    the backend engine.
+                    {snapshot?.winner !== null && snapshot?.winner !== undefined
+                      ? "Match finished. Authoritative ratings and stats have been updated in the database."
+                      : "Dice, turns, legal moves, and winner state are controlled by the backend engine."}
                   </p>
                 </div>
               </article>
