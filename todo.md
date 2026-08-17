@@ -26,4 +26,4 @@
 - [x] Create a git commit for the milestone.
 - [x] Clarify the public game-detail procedure and protected Challenge Friend procedure in the milestone history.
 - [x] Visually verify the Ludo detail page and match-room unavailable state at desktop and mobile widths.
-- [ ] Create and record the Ludo vertical-slice git commit.
+- [x] Create and record the Ludo vertical-slice git commit.

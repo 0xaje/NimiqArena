@@ -78,3 +78,8 @@ Verification performed: `pnpm check` passed, `pnpm test` passed with 7 test file
 ### Next milestone
 
 Add the authenticated friend-join flow, then expose server-authoritative Ludo commands through an atomic match-event API. Only after that should the playable board UI and real matchmaking queue be connected.
+
+
+### Milestone commit
+
+The verified vertical slice was committed as `fbada1b` with message `feat: add real ludo match vertical slice`.
