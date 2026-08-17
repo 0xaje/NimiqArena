@@ -116,6 +116,7 @@ export const matchEvents = mysqlTable(
     commandJson: text("commandJson").notNull(),
     eventJson: text("eventJson").notNull(),
     snapshotJson: text("snapshotJson").notNull(),
+    resultStatus: varchar("resultStatus", { length: 32 }).notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => ({

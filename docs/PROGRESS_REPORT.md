@@ -98,7 +98,11 @@ Verification performed: `pnpm check` passed, `pnpm test` passed with 7 test file
 
 Add authenticated reconnect/presence semantics and a real push transport, then test two real clients joining the same match and receiving the same persisted snapshots before expanding matchmaking.
 
-
 ### Milestone 05 correction
 
 The event table now also persists `snapshotJson` for each command event. Duplicate nonce replay returns the original post-command snapshot and event rather than the latest match snapshot. Migration `0003_natural_carlie_cooper.sql` was reviewed and applied. Formatting checks now pass on all changed files; TypeScript checks, 20 tests, and the production build pass. Backend tests currently cover protected input validation; database-backed success, stale-version, unauthorized-participant, duplicate-replay, and concurrent-conflict integration cases remain required before claiming the command API production-ready.
+
+
+### Milestone 05 final correction
+
+`match_events` now also stores `resultStatus`. Duplicate nonce replay uses the stored snapshot, event, and original result status, so a later match transition cannot change the replay response. Migration `0004_pretty_shaman.sql` was reviewed and applied. The shared replay regression is included in Vitest; final verification now reports 8 test files and 21 passing tests, with formatting, TypeScript, and production build checks passing.

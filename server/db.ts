@@ -19,6 +19,7 @@ import {
   type LudoEvent,
   type LudoSnapshot,
 } from "../shared/game/ludo-engine";
+import { replayStoredMatchEvent } from "../shared/game/match-event";
 import { nanoid } from "nanoid";
 import { ENV } from "./_core/env";
 
@@ -314,12 +315,7 @@ export async function applyLudoMatchCommand(input: {
         .limit(1)
     )[0];
     if (previousEvent)
-      return {
-        snapshot: JSON.parse(previousEvent.snapshotJson) as LudoSnapshot,
-        event: JSON.parse(previousEvent.eventJson) as LudoEvent,
-        status: match.status,
-        idempotent: true,
-      };
+      return replayStoredMatchEvent<LudoSnapshot, LudoEvent>(previousEvent);
     if (match.status !== "in_progress")
       throw new Error("Match is not ready for gameplay.");
     const snapshot = JSON.parse(match.stateJson) as LudoSnapshot;
@@ -353,6 +349,8 @@ export async function applyLudoMatchCommand(input: {
       commandJson: JSON.stringify(command),
       eventJson: JSON.stringify(result.event),
       snapshotJson: JSON.stringify(result.snapshot),
+      resultStatus:
+        result.snapshot.winner === null ? "in_progress" : "finished",
     });
     return {
       snapshot: result.snapshot,

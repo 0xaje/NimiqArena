@@ -29,6 +29,13 @@
       "when": 1786974777834,
       "tag": "0003_natural_carlie_cooper",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786974924696,
+      "tag": "0004_pretty_shaman",
+      "breakpoints": true
     }
   ]
 }

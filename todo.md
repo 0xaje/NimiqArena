@@ -34,9 +34,11 @@
 - [x] Connect the match room to authoritative state and render a real Ludo board, with unsupported actions marked NOT LIVE.
 - [ ] Add critical join/command/concurrency/recovery tests and update API specification documentation.
 - [x] Run formatting/lint-equivalent, TypeScript, tests, production build, and responsive route verification.
-- [ ] Create a meaningful git commit for the next Ludo milestone.
-- [ ] Persist the original post-command snapshot for every match event so duplicate nonce replay returns the same authoritative result.
+- [x] Create a meaningful git commit for the next Ludo milestone.
+- [x] Persist the original post-command snapshot for every match event so duplicate nonce replay returns the same authoritative result.
 - [ ] Add backend tests for successful commands, stale versions, unauthorized participants, duplicate nonce replay, and concurrent conflicts.
-- [ ] Re-run formatting, TypeScript, tests, and production build after the idempotency fix and API coverage expansion.
-- [ ] Create the next Ludo milestone commit after resolving the remaining gaps.
+- [x] Re-run formatting, TypeScript, tests, and production build after the idempotency fix and API coverage expansion.
+- [x] Create the next Ludo milestone commit after resolving the remaining gaps.
 - [ ] Implement real push transport, reconnect subscriptions, and recovery semantics in a future milestone.
+- [x] Persist and replay the original post-command match status/result metadata with each event.
+- [x] Add coverage for duplicate nonce replay after later match-state changes.

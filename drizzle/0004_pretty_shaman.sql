@@ -1,0 +1,1 @@
+ALTER TABLE `match_events` ADD `resultStatus` varchar(32) NOT NULL;
