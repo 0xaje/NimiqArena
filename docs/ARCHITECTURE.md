@@ -55,3 +55,11 @@ The frontend reads game detail through the public `game.getBySlug` procedure. Ma
 Challenge Friend matches now create a host player row. A protected `match.joinByCode` request validates the normalized code, expiry, capacity, and duplicate participation before assigning seat 1 and transitioning the match to `in_progress`. Match state is readable only by joined participants.
 
 The protected `match.command` procedure accepts only roll or move commands with an expected version and nonce. The server supplies the authenticated player seat, invokes the shared deterministic engine, updates the match snapshot with an optimistic version predicate, and appends a unique match event in the same transaction. Duplicate nonces replay the stored event without applying the command twice. The current transport boundary is short polling plus manual refresh; it is not presented as production real-time multiplayer until two real clients are connected through a push transport.
+
+## Reliability milestone
+
+Match presence is persisted in `match_players.lastSeenAt` and `status`. Participant heartbeats are authenticated mutations, while disconnects are explicit state transitions. Match reads and SSE snapshots call the lifecycle refresh boundary so expiry and stale-player transitions are not dependent on process memory.
+
+The match room uses authenticated SSE with client-owned exponential reconnect backoff and tRPC state polling/manual refresh as resynchronization fallbacks. Persisted `stateVersion` remains the authority after reconnect or server restart; no in-memory match snapshot is required to recover the latest state.
+
+Lifecycle cleanup is exposed through a cron-only `/api/scheduled/cleanupMatches` handler. The handler is idempotent and does not run an in-process scheduler. A production Heartbeat schedule has not been created or verified yet.

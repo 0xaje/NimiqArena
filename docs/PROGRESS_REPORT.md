@@ -116,7 +116,18 @@ The backend integration suite now covers successful Challenge Friend join, expir
 
 The latest default verification reports 10 test files, 31 passing tests, and 1 intentionally skipped database integration test, with formatting, TypeScript, and production build checks passing. No opponent, online presence, matchmaking result, rating, payout, settlement, or production reconnect guarantee is fabricated.
 
-
 ### Final milestone commit
 
 The completed join coverage, exact replay, and authenticated match-state stream milestone was committed as `490baa5` with message `feat: add ludo match state streaming`.
+
+### Milestone 06 — Match reliability hardening
+
+**Date:** 2026-08-17
+
+The match player model now persists `lastSeenAt`. Protected `match.heartbeat` and `match.disconnect` procedures update participant presence only after authorization. Lifecycle refresh marks stale joined players as disconnected, expires matches past `expiresAt`, and cancels waiting or in-progress matches when all participants have exceeded the abandonment grace period. A cron-only `/api/scheduled/cleanupMatches` endpoint exposes idempotent cleanup without adding an in-process scheduler; no production Heartbeat schedule has been created or verified.
+
+The match room now reports connection state, uses authenticated SSE with capped exponential reconnect backoff, performs monotonic state-version resynchronization, and retains tRPC polling/manual refresh as recovery fallbacks. Disconnect signaling runs when the room unmounts. The SSE stream refreshes lifecycle state before emitting snapshots.
+
+Automated coverage now includes heartbeat/disconnect router contracts, cron-only cleanup authorization, gated expiry/abandonment lifecycle tests, reconnect policy tests, and an SSE transport test that opens a new subscription after disconnect and verifies the latest state version. The default verification passed formatting, TypeScript, and 37 tests across 12 test files, with three gated database tests skipped. The dedicated database lifecycle suite was NOT RUN because `NIMIQ_ARENA_TEST_DATABASE_URL` has not yet been supplied; the current project database was not used as a substitute. A real two-client authenticated multiplayer verification was also NOT RUN and is not claimed.
+
+Known remaining risks are the unexecuted real database lifecycle matrix, unverified transaction rollback under the target database, no production cleanup schedule, no two-client end-to-end evidence, and incomplete reconnect/presence behavior under real browser and server-restart conditions.

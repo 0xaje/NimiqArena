@@ -34,3 +34,11 @@ Challenge codes are generated server-side, normalized before lookup, expire with
 Roll and move commands are accepted only from a joined participant. The server overwrites the player identity with the authenticated seat, validates the command through the shared engine, rejects stale state versions, and stores a unique nonce/event record. The optimistic version predicate prevents two concurrent commands from both advancing the same snapshot. The client board renders the returned snapshot and never decides turns, dice, legality, winners, ratings, or settlement.
 
 The current browser synchronization mechanism is polling and manual refresh. It does not claim secure push presence, reconnect subscriptions, or abandoned-match cleanup; those remain required before production multiplayer.
+
+## Reliability controls
+
+Heartbeat and disconnect mutations require authenticated match participation; clients cannot mark another player disconnected or revive a non-participant. `lastSeenAt` is server-written and stale-player transitions occur at the lifecycle boundary.
+
+SSE connections authorize the match participant before opening. Client reconnects cannot advance state because commands still require participant authorization, expected versions, and idempotency nonces. After reconnect, the persisted snapshot and state version are re-read; stale client state is never treated as authoritative.
+
+Cleanup is cron-only and idempotent. It can expire matches past their expiry timestamp and cancel abandoned waiting or in-progress matches only after all participants have been disconnected beyond the configured grace period. No cleanup schedule is active until explicitly configured and verified.

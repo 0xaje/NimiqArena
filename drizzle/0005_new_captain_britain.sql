@@ -1,0 +1,1 @@
+ALTER TABLE `match_players` ADD `lastSeenAt` timestamp DEFAULT (now()) NOT NULL;

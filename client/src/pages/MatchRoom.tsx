@@ -6,10 +6,11 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { reconnectDelayMs, shouldResync } from "@/lib/reconnect-policy";
 
 function positionLabel(position: number) {
   if (position < 0) return "BASE";
@@ -29,18 +30,95 @@ export default function MatchRoom() {
   const command = trpc.match.command.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
+  const heartbeat = trpc.match.heartbeat.useMutation();
+  const disconnect = trpc.match.disconnect.useMutation();
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connecting" | "connected" | "reconnecting" | "offline"
+  >(stateQuery.data ? "connecting" : "offline");
+  const reconnectTimer = useRef<number | null>(null);
   const state = stateQuery.data;
 
   useEffect(() => {
-    if (!matchId || stateQuery.isError) return;
-    const stream = new EventSource(`/api/matches/${matchId}/events`);
-    const onState = () => void utils.match.state.invalidate({ id: matchId });
-    stream.addEventListener("state", onState);
-    return () => {
-      stream.removeEventListener("state", onState);
-      stream.close();
+    if (!matchId || stateQuery.isError || !stateQuery.data) {
+      setConnectionStatus("offline");
+      return;
+    }
+    let closed = false;
+    let attempt = 0;
+    let stream: EventSource | null = null;
+
+    const connect = () => {
+      if (closed) return;
+      setConnectionStatus(attempt === 0 ? "connecting" : "reconnecting");
+      stream = new EventSource(`/api/matches/${matchId}/events`);
+      const onOpen = () => {
+        attempt = 0;
+        setConnectionStatus("connected");
+        void utils.match.state.invalidate({ id: matchId });
+      };
+      const onState = (event: Event) => {
+        attempt = 0;
+        setConnectionStatus("connected");
+        try {
+          const payload = JSON.parse((event as MessageEvent<string>).data) as {
+            stateVersion?: number;
+          };
+          if (
+            shouldResync(
+              stateQuery.data?.stateVersion ?? 0,
+              payload.stateVersion ?? 0
+            )
+          ) {
+            void utils.match.state.invalidate({ id: matchId });
+          }
+        } catch {
+          void utils.match.state.invalidate({ id: matchId });
+        }
+      };
+      const onError = () => {
+        stream?.close();
+        if (closed) return;
+        setConnectionStatus("reconnecting");
+        const delay = reconnectDelayMs(attempt);
+        attempt += 1;
+        reconnectTimer.current = window.setTimeout(connect, delay);
+      };
+      stream.addEventListener("open", onOpen);
+      stream.addEventListener("state", onState);
+      stream.addEventListener("error", onError);
     };
-  }, [matchId, stateQuery.isError, utils]);
+
+    connect();
+    return () => {
+      closed = true;
+      stream?.close();
+      if (reconnectTimer.current !== null)
+        window.clearTimeout(reconnectTimer.current);
+    };
+  }, [matchId, stateQuery.data, stateQuery.isError, utils]);
+
+  useEffect(() => {
+    if (!matchId || stateQuery.isError || !stateQuery.data) return;
+    let closed = false;
+    let timer: number | null = null;
+    const tick = () => {
+      if (closed) return;
+      heartbeat.mutate(
+        { id: matchId },
+        {
+          onSettled: () => {
+            if (!closed) timer = window.setTimeout(tick, 15_000);
+          },
+        }
+      );
+    };
+    timer = window.setTimeout(tick, 15_000);
+    return () => {
+      closed = true;
+      if (timer !== null) window.clearTimeout(timer);
+      void disconnect.mutate({ id: matchId });
+    };
+  }, [disconnect, heartbeat, matchId, stateQuery.data, stateQuery.isError]);
 
   const snapshot = state?.snapshot as
     | {
@@ -202,6 +280,10 @@ export default function MatchRoom() {
               <div>
                 <span className="card-label">PLAYERS</span>
                 <strong>{state?.players.length ?? 0}/2</strong>
+              </div>
+              <div>
+                <span className="card-label">SYNC</span>
+                <strong>{connectionStatus.toUpperCase()}</strong>
               </div>
               <button
                 className="refresh-state"

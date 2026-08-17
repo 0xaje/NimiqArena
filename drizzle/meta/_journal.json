@@ -36,6 +36,13 @@
       "when": 1786974924696,
       "tag": "0004_pretty_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1786976909586,
+      "tag": "0005_new_captain_britain",
+      "breakpoints": true
     }
   ]
 }

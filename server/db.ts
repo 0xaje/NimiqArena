@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -186,6 +186,105 @@ export async function getMatchPlayer(matchId: string, userId: number) {
     )
     .limit(1);
   return result[0];
+}
+
+const PLAYER_HEARTBEAT_TIMEOUT_MS = 45_000;
+const ABANDONMENT_GRACE_MS = 10 * 60_000;
+
+export async function heartbeatMatchPlayer(matchId: string, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const now = new Date();
+  const updated = await db
+    .update(matchPlayers)
+    .set({ status: "joined", lastSeenAt: now })
+    .where(
+      and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, userId))
+    );
+  if (!updated[0]?.affectedRows)
+    throw new Error("You are not a participant in this match.");
+  return { ok: true as const, lastSeenAt: now };
+}
+
+export async function disconnectMatchPlayer(matchId: string, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  await db
+    .update(matchPlayers)
+    .set({ status: "disconnected", lastSeenAt: new Date() })
+    .where(
+      and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, userId))
+    );
+}
+
+export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  return db.transaction(async tx => {
+    const match = (
+      await tx.select().from(matches).where(eq(matches.id, matchId)).limit(1)
+    )[0];
+    if (!match) return undefined;
+    if (
+      match.expiresAt.getTime() <= now.getTime() &&
+      !["finished", "cancelled", "expired"].includes(match.status)
+    ) {
+      await tx
+        .update(matches)
+        .set({ status: "expired" })
+        .where(eq(matches.id, matchId));
+      return { ...match, status: "expired" as const };
+    }
+    const staleBefore = new Date(now.getTime() - PLAYER_HEARTBEAT_TIMEOUT_MS);
+    await tx
+      .update(matchPlayers)
+      .set({ status: "disconnected" })
+      .where(
+        and(
+          eq(matchPlayers.matchId, matchId),
+          eq(matchPlayers.status, "joined"),
+          lt(matchPlayers.lastSeenAt, staleBefore)
+        )
+      );
+    const players = await tx
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.matchId, matchId));
+    const allDisconnected =
+      players.length > 0 && players.every(player => player.status !== "joined");
+    const lastActivityAt = players.reduce(
+      (latest, player) => Math.max(latest, player.lastSeenAt.getTime()),
+      match.updatedAt.getTime()
+    );
+    if (
+      allDisconnected &&
+      ["waiting", "in_progress"].includes(match.status) &&
+      lastActivityAt + ABANDONMENT_GRACE_MS <= now.getTime()
+    ) {
+      await tx
+        .update(matches)
+        .set({ status: "cancelled" })
+        .where(eq(matches.id, matchId));
+      return { ...match, status: "cancelled" as const };
+    }
+    return match;
+  });
+}
+
+export async function sweepMatchLifecycle(now = new Date()) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const active = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(inArray(matches.status, ["waiting", "in_progress"]));
+  let changed = 0;
+  for (const row of active) {
+    const result = await refreshMatchLifecycle(row.id, now);
+    if (result?.status === "expired" || result?.status === "cancelled")
+      changed += 1;
+  }
+  return { changed };
 }
 
 export async function joinMatchByCode(input: {

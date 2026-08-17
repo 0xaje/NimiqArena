@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { registerMatchStream } from "../match-stream";
+import { registerMatchCleanup } from "../match-cleanup";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -38,6 +39,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerMatchStream(app);
+  registerMatchCleanup(app);
   // tRPC API
   app.use(
     "/api/trpc",

@@ -9,8 +9,11 @@ import {
   getMatchById,
   getMatchPlayer,
   getMatchPlayers,
+  heartbeatMatchPlayer,
+  disconnectMatchPlayer,
   getPaymentIntentForUser,
   joinMatchByCode,
+  refreshMatchLifecycle,
   updatePaymentIntent,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -161,7 +164,7 @@ export const appRouter = router({
     state: protectedProcedure
       .input(z.object({ id: matchIdSchema }))
       .query(async ({ ctx, input }) => {
-        const match = await getMatchById(input.id);
+        const match = await refreshMatchLifecycle(input.id);
         if (!match)
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -183,10 +186,31 @@ export const appRouter = router({
           players: players.map(current => ({
             seat: current.seat,
             status: current.status,
+            lastSeenAt: current.lastSeenAt,
           })),
           yourSeat: player.seat,
           expiresAt: match.expiresAt,
         };
+      }),
+    heartbeat: protectedProcedure
+      .input(z.object({ id: matchIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          await refreshMatchLifecycle(input.id);
+          return await heartbeatMatchPlayer(input.id, ctx.user.id);
+        } catch (error) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              error instanceof Error ? error.message : "Heartbeat rejected.",
+          });
+        }
+      }),
+    disconnect: protectedProcedure
+      .input(z.object({ id: matchIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        await disconnectMatchPlayer(input.id, ctx.user.id);
+        return { ok: true as const };
       }),
     command: protectedProcedure
       .input(z.object({ id: matchIdSchema, command: ludoCommandSchema }))

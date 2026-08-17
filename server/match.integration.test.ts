@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
   applyLudoMatchCommand: vi.fn(),
+  heartbeatMatchPlayer: vi.fn(),
+  disconnectMatchPlayer: vi.fn(),
+  refreshMatchLifecycle: vi.fn(),
   getGameBySlug: vi.fn(),
   getMatchById: vi.fn(),
   getMatchPlayer: vi.fn(),
@@ -50,6 +53,12 @@ const match = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMocks.refreshMatchLifecycle.mockResolvedValue(match);
+  dbMocks.heartbeatMatchPlayer.mockResolvedValue({
+    ok: true,
+    lastSeenAt: new Date(),
+  });
+  dbMocks.disconnectMatchPlayer.mockResolvedValue(undefined);
   dbMocks.getMatchById.mockResolvedValue(match);
   dbMocks.getMatchPlayer.mockResolvedValue({
     matchId: match.id,
@@ -64,6 +73,17 @@ beforeEach(() => {
 });
 
 describe("authoritative match command integration", () => {
+  it("records a participant heartbeat and disconnect signal through protected procedures", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(
+      caller.match.heartbeat({ id: match.id })
+    ).resolves.toMatchObject({ ok: true });
+    await expect(caller.match.disconnect({ id: match.id })).resolves.toEqual({
+      ok: true,
+    });
+    expect(dbMocks.heartbeatMatchPlayer).toHaveBeenCalledWith(match.id, 7);
+    expect(dbMocks.disconnectMatchPlayer).toHaveBeenCalledWith(match.id, 7);
+  });
   it("creates a real joined seat for a valid Challenge Friend code", async () => {
     dbMocks.joinMatchByCode.mockResolvedValue({
       match: { ...match, status: "in_progress" },

@@ -90,6 +90,7 @@ export const matchPlayers = mysqlTable(
       .notNull(),
     joinedAt: timestamp("joinedAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
   },
   table => ({
     matchIdx: index("match_players_match_idx").on(table.matchId),

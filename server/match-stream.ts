@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { getMatchById, getMatchPlayer, getMatchPlayers } from "./db";
+import { getMatchPlayer, getMatchPlayers, refreshMatchLifecycle } from "./db";
 import { createContext } from "./_core/context";
 
 export function registerMatchStream(app: Express) {
@@ -11,7 +11,7 @@ export function registerMatchStream(app: Express) {
     }
 
     const matchId = req.params.id;
-    const match = await getMatchById(matchId);
+    const match = await refreshMatchLifecycle(matchId);
     const player = match
       ? await getMatchPlayer(matchId, context.user.id)
       : undefined;
@@ -31,7 +31,7 @@ export function registerMatchStream(app: Express) {
     let closed = false;
     const sendState = async () => {
       if (closed) return;
-      const current = await getMatchById(matchId);
+      const current = await refreshMatchLifecycle(matchId);
       if (!current) return;
       const players = await getMatchPlayers(matchId);
       res.write(

@@ -45,3 +45,15 @@
 - [x] Add backend tests for successful join, expired code, full match, and duplicate join behavior.
 - [x] Add an unauthorized-participant test specifically for match.command.
 - [x] Add a gated database-backed integration test harness for authoritative command persistence and idempotent replay; it runs only with a dedicated test database flag.
+- [ ] Run the gated database match lifecycle suite against a dedicated test database and record actual results.
+- [ ] Fix every database lifecycle issue discovered, including rollback and exact replay behavior. NOT VERIFIED until dedicated database run.
+- [x] Harden SSE reconnect, exponential backoff, heartbeat, stale detection, resynchronization, and disconnect handling.
+- [x] Implement match expiration, abandonment, player disconnect state, cleanup rules, and restart recovery boundary.
+- [ ] Perform a real two-client authenticated multiplayer verification without simulated clients.
+- [x] Add practical automated integration coverage for this lifecycle.
+- [x] Update all requested engineering documentation and the consolidated engineering report with actual results and NOT VERIFIED outcomes.
+- [x] Run formatting, TypeScript, unit tests, and production build; database integration tests remain NOT VERIFIED pending the dedicated URL.
+- [x] Create a clean reliability milestone git commit.
+- [x] Add automated lifecycle tests for expiry, stale-player disconnect, abandonment cancellation, and idempotent cleanup (gated pending dedicated database execution).
+- [x] Add a transport-level test for SSE disconnect, reconnect, and state resynchronization.
+- [ ] Run the dedicated database lifecycle suite and restart/recovery verification when `NIMIQ_ARENA_TEST_DATABASE_URL` is available.

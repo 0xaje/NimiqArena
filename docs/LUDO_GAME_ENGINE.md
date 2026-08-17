@@ -23,3 +23,9 @@ Before money is enabled, the product must choose and document whether dice outco
 ## Required test categories
 
 The current suite covers deterministic initial snapshots, server-supplied dice, base-entry requirements, stale versions, duplicate nonces, captures, extra turns on six/capture, and win detection in `client/src/game/ludo-engine.test.ts`. API validation also covers malformed IDs, challenge codes, and command payloads. Remaining engine/system work includes reconnects, timeouts, event-log replay checks, property-based rules, and a documented fairness protocol for money-enabled play. The module currently uses a two-player track model with four pieces per player, a 52-square track, home progress, safe squares, and exact home-boundary validation.
+
+## Reliability milestone
+
+The engine remains deterministic and state-versioned while the surrounding match service now persists player `lastSeenAt` and `status`. Protected heartbeat and disconnect procedures feed lifecycle decisions; stale joined players become disconnected, expired matches become expired, and waiting or in-progress matches with all participants disconnected beyond the abandonment grace period become cancelled.
+
+The match room reconnects to the authenticated SSE stream with capped exponential backoff and resynchronizes through persisted state versions and tRPC polling/manual refresh. This transport behavior is tested at the policy level, but a real two-client reconnect sequence remains NOT VERIFIED until the dedicated database and authenticated-client setup is available.

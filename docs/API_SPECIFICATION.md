@@ -33,3 +33,11 @@ The browser synchronization boundary uses an authenticated SSE stream at `/api/m
 ## Explicitly unavailable
 
 There is no public matchmaking queue, Solo bot, rating result, leaderboard, payout, settlement verification, or simulated opponent. The match room reports `WAITING` until a real second player joins. A client cannot mark a match finished or write a winner.
+
+## Reliability milestone additions
+
+`match.heartbeat` is a protected participant mutation that records `lastSeenAt` and restores a disconnected participant to `joined` only after authorization. `match.disconnect` records an explicit participant disconnect state.
+
+The authenticated SSE stream now uses client-side exponential reconnect backoff and match-state invalidation fallback. The client reports `CONNECTING`, `CONNECTED`, `RECONNECTING`, or `OFFLINE` in the match room. State resynchronization accepts only equal or newer persisted state versions.
+
+`POST /api/scheduled/cleanupMatches` is a cron-only lifecycle endpoint. It expires active matches past `expiresAt` and cancels waiting or in-progress matches when all participants have been disconnected beyond the abandonment grace period. No schedule has been created or verified in this milestone.
