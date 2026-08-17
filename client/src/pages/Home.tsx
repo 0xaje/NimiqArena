@@ -1,4 +1,7 @@
 /* Courtline Editorial reminder: ink navy, warm ivory, Arena Orange, offset matchday scorecards, explicit live/not-live boundaries. */
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { createPaymentNonce, type PaymentPhase } from "@/lib/payment-state";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { init } from "@nimiq/mini-app-sdk";
 import {
@@ -19,7 +22,6 @@ import {
 import { toast } from "sonner";
 
 type ProviderState = "checking" | "ready" | "browser" | "error";
-
 function formatAddress(address: string) {
   return address.length > 14 ? `${address.slice(0, 7)}…${address.slice(-5)}` : address;
 }
@@ -31,12 +33,26 @@ function providerError(value: unknown) {
 }
 
 export default function Home() {
+  // The useAuth hook provides authentication state.
+  // To implement login/logout, call logout(), or start login from an event
+  // handler: onClick={() => startLogin()} (imported from "@/const"). Never call
+  // startLogin() during render (no href={startLogin()}) — it mints a one-time
+  // nonce cookie and must run only at the moment of navigation.
+  let { user, loading, error, isAuthenticated, logout } = useAuth();
+
   const nimiqPromise = useRef<ReturnType<typeof init> | null>(null);
   const [providerState, setProviderState] = useState<ProviderState>("checking");
   const [providerMessage, setProviderMessage] = useState("Waiting for Nimiq Pay to initialize the provider…");
   const [address, setAddress] = useState<string | null>(null);
   const [language, setLanguage] = useState("en");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
+  const [paymentIntent, setPaymentIntent] = useState<{ id: string; recipient: string; valueLuna: number } | null>(null);
+  const [clientNonce, setClientNonce] = useState(createPaymentNonce);
+  const createIntent = trpc.payment.createIntent.useMutation();
+  const markConfirmationPending = trpc.payment.markConfirmationPending.useMutation();
+  const failIntent = trpc.payment.failIntent.useMutation();
+  const submitTransaction = trpc.payment.submitTransaction.useMutation();
 
   useEffect(() => {
     setLanguage(window.nimiqPay?.language || navigator.language?.split("-")[0] || "en");
@@ -80,6 +96,42 @@ export default function Home() {
       setProviderState("error");
       setProviderMessage(error instanceof Error ? error.message : "The wallet request was not completed.");
       toast.error("Wallet request was not completed", { description: providerMessage });
+    }
+  }
+
+  async function payEntry() {
+    if (paymentPhase === "creating" || paymentPhase === "confirming") return;
+    if (!nimiqPromise.current || providerState !== "ready") {
+      toast("Nimiq Pay is required for payment", { description: "Open Arena inside Nimiq Pay to receive the native confirmation dialog." });
+      return;
+    }
+
+    let intent: { id: string; recipient: string; valueLuna: number } | null = null;
+    try {
+      setPaymentPhase("creating");
+      intent = await createIntent.mutateAsync({ clientNonce });
+      setPaymentIntent(intent);
+      await markConfirmationPending.mutateAsync({ id: intent.id });
+      setPaymentPhase("confirming");
+
+      const nimiq = await nimiqPromise.current;
+      const result = await nimiq.sendBasicTransaction({ recipient: intent.recipient, value: intent.valueLuna });
+      const error = providerError(result);
+      if (error) throw new Error(error);
+      const transactionHash = result as string;
+      await submitTransaction.mutateAsync({ id: intent.id, transactionHash });
+      setPaymentPhase("submitted");
+      toast("Transaction submitted", { description: "Arena is waiting for server-side blockchain verification. No balance was credited yet." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The Nimiq payment request was not completed.";
+      const isExpired = /expired/i.test(message);
+      const code = /denied|reject|cancel/i.test(message) ? "permission_denied" : /invalid|malformed/i.test(message) ? "invalid_transaction" : "provider_error";
+      if (intent) {
+        try { await failIntent.mutateAsync({ id: intent.id, code }); } catch { /* preserve the original provider failure for the user */ }
+      }
+      setPaymentPhase(isExpired ? "expired" : code === "permission_denied" ? "rejected" : "failed");
+      setClientNonce(createPaymentNonce());
+      toast(isExpired ? "Payment intent expired" : code === "permission_denied" ? "Payment was rejected" : "Payment was not completed", { description: isExpired ? "A fresh payment intent will be created on your next attempt." : message });
     }
   }
 
@@ -161,7 +213,7 @@ export default function Home() {
         <section className="status-strip" id="status">
           <div className="section-marker"><span className="marker-number">01</span><span>LIVE STATUS</span></div>
           <div className="status-card provider-card"><div className="status-icon"><Radio size={18} /></div><div><span className="card-label">NIMIQ PAY</span><h2>{providerState === "ready" ? "Provider is ready" : "Wallet host not connected"}</h2><p>{providerMessage}</p></div><span className={`state-chip ${providerState === "ready" ? "good" : "muted"}`}>{providerLabel}</span></div>
-          <div className="status-card"><div className="status-icon orange-icon"><Coins size={18} /></div><div><span className="card-label">NIM BALANCE</span><h2>Not requested</h2><p>Balances stay private until a real wallet request is approved.</p></div><span className="state-chip muted">NOT LOADED</span></div>
+          <div className="status-card payment-card"><div className="status-icon orange-icon"><Coins size={18} /></div><div><span className="card-label">NIM ENTRY</span><h2>{paymentPhase === "submitted" ? "Awaiting verification" : paymentPhase === "confirming" ? "Confirm in Nimiq Pay" : paymentPhase === "rejected" ? "Payment rejected" : paymentPhase === "failed" ? "Payment failed" : paymentPhase === "expired" ? "Intent expired" : "Pay the entry"}</h2><p>{paymentPhase === "submitted" ? "A transaction hash was received. Arena has not credited anything until the server verifies it." : "The amount and recipient come from a server-created intent. Nimiq Pay asks you to approve the transaction."}</p><button className="pay-entry-button" onClick={payEntry} disabled={paymentPhase === "creating" || paymentPhase === "confirming" || paymentPhase === "submitted"}>{paymentPhase === "creating" ? "Creating intent…" : paymentPhase === "confirming" ? "Waiting for approval…" : paymentPhase === "submitted" ? "Verification pending" : "Pay with Nimiq Pay"}</button></div><span className={`state-chip ${paymentPhase === "submitted" ? "good" : "muted"}`}>{paymentPhase === "submitted" ? "SUBMITTED" : paymentPhase === "confirming" ? "CONFIRMING" : paymentPhase === "expired" ? "EXPIRED" : "NOT SETTLED"}</span></div>
           <div className="status-card"><div className="status-icon"><Trophy size={18} /></div><div><span className="card-label">MATCHMAKING</span><h2>No tables open</h2><p>Server-authoritative multiplayer is not connected in this build.</p></div><span className="state-chip muted">NOT LIVE</span></div>
         </section>
 

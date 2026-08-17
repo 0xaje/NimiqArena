@@ -99,6 +99,10 @@ h1 em, .section-heading h2 em { color: var(--orange); font-style: italic; }
 .card-label { color: var(--muted); font-size: 9px; }
 .status-card h2 { font-size: 16px; margin: 8px 0 6px; letter-spacing: -.01em; }
 .status-card p { font-size: 11px; line-height: 1.5; color: var(--muted); max-width: 230px; margin: 0; }
+.pay-entry-button { margin-top: 12px; border: 0; background: var(--orange); color: var(--paper-bright); padding: 8px 10px; font-family: 'IBM Plex Mono'; font-size: 9px; letter-spacing: .05em; transition: transform .16s var(--ease-out), background .18s var(--ease-out); }
+.pay-entry-button:hover:not(:disabled) { background: var(--ink); transform: translateY(-1px); }
+.pay-entry-button:active:not(:disabled) { transform: scale(.97); }
+.pay-entry-button:disabled { opacity: .58; cursor: not-allowed; }
 .state-chip { position: absolute; bottom: 0; left: 46px; font-family: 'IBM Plex Mono'; font-size: 8px; letter-spacing: .08em; padding: 4px 6px; border: 1px solid var(--rule); color: var(--muted); }
 .state-chip.good { color: #3e795f; border-color: rgba(62,121,95,.35); }
 .playbook-section { padding: 90px 0 84px; }

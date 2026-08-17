@@ -36,4 +36,10 @@ Every match action should be represented as a command with `matchId`, `playerId`
 
 ## Current implementation notes
 
-The current UI includes a provider status card, a real account request path, a static board preview, and feature gates for matchmaking, leaderboard, balances, and playable board actions. The board artwork is not game state.
+The current UI includes a provider status card, a real account request path, a server-backed payment card, a static board preview, and feature gates for matchmaking, leaderboard, and playable board actions. Payment intent creation, confirmation-pending state, provider submission, and failure recording run through protected tRPC procedures. The board artwork is not game state, and a submitted transaction is not settlement.
+
+The payment state machine is:
+
+`created → confirmation_pending → submitted → verified`
+
+Failure branches are `confirmation_pending → rejected`, `confirmation_pending → failed`, and `created/confirmation_pending → expired`. Only a trusted verification worker may produce `verified`; no public procedure accepts that state.

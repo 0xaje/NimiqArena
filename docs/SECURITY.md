@@ -23,4 +23,6 @@ Private keys must remain inside Nimiq Pay or the official wallet boundary. Arena
 
 ## Current safeguards
 
-The frontend only calls the official SDK `init()` and `listAccounts()` path when the provider is ready. It displays a browser-preview state when Nimiq Pay is absent, and all unavailable controls explain that no simulated action occurred.
+The frontend only calls the official SDK `init()` path when the provider is ready. Payment intents are created only through protected tRPC procedures, use a server-owned recipient and entry amount, and are idempotent on `(userId, clientNonce)`. The transaction hash is accepted only as `submitted`; it cannot set `verified`. Provider rejection is stored as `rejected`, malformed/provider failures as `failed`, and all unavailable states explain that no simulated action occurred.
+
+The remaining production control is on-chain verification. A worker or trusted backend integration must independently inspect the submitted hash, recipient, value, network, and confirmation policy before changing any intent to `verified` or crediting a player.

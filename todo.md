@@ -1,0 +1,12 @@
+# Nimiq Arena payment-flow milestone
+
+- [x] Verify the current official Nimiq Mini App payment method and response contract.
+- [x] Decide whether the current static project can safely host intent creation or must expose a backend boundary.
+- [x] Model payment intent, provider confirmation, pending, rejection, failure, and verified-settlement states.
+- [x] Implement the UI and SDK request boundary without fabricating transaction success.
+- [x] Add unit tests and update Nimiq integration, security, architecture, testing, and progress documentation.
+- [x] Run type checks, tests, production build, and browser verification.
+- [x] Allow payment retries with a fresh idempotency nonce after rejected, failed, or expired attempts.
+- [x] Update the progress report with the payment-intent milestone and remaining server-side verification gap.
+- [x] Handle expired payment intents explicitly so a retry creates a fresh intent and nonce.
+- [x] Re-run check, tests, and build after the retry and documentation updates.

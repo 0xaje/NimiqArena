@@ -38,6 +38,16 @@ The backend, database, server-authoritative Ludo engine, multiplayer transport, 
 
 The first delivery prioritizes correctness and truthful states over simulated completeness. Official Nimiq documentation is used as the integration source of truth. Payment is deferred until the product has a trusted backend contract and defined payout policy.
 
+### Milestone 02 — NIM payment intent and confirmation flow
+
+**Date:** 2026-08-17
+
+The project was upgraded to a backend-capable stack and now persists payment intents with server-owned recipient, server-owned entry amount in Luna, idempotency nonce, expiry, provider failure state, transaction hash, and explicit lifecycle status. Protected tRPC procedures create intents, mark confirmation pending, record rejected/failed provider outcomes, submit returned transaction hashes, and read intent state. The client calls the official `sendBasicTransaction({ recipient, value })` SDK method only after the intent is created and confirmation-pending.
+
+The UI now exposes a NIM entry card with creating, native confirmation, rejected, failed, submitted, and verification-pending states. A fresh idempotency nonce is generated for each new attempt so a rejected, failed, or expired payment can be retried without reusing a closed intent. The server also creates a fresh intent when an idempotency record has expired.
+
+Verification performed: `pnpm check`, `pnpm test` with 3 test files and 5 tests, `pnpm build`, and a desktop browser screenshot. The retry helper explicitly covers rejected, failed, and expired states. The remaining production gap is a trusted Nimiq transaction verifier that checks the submitted hash, recipient, value, network, and confirmation policy before transitioning an intent to `verified`; the current app correctly stops at `submitted / verification pending`.
+
 ### Next step
 
-Run type/build checks and visual verification, then create the single first-delivery checkpoint. After that, the next milestone should upgrade the project to a backend-capable architecture before enabling real multiplayer or money movement.
+Implement the trusted server-side Nimiq transaction verification worker and connect it to the intent state machine. After that, bind verified payment intents to real match creation and settlement policy.

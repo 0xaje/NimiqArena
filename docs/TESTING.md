@@ -2,7 +2,9 @@
 
 ## Current verification
 
-The frontend must pass TypeScript checking and a production build. The provider path must be manually exercised in two environments: a regular browser, where the UI stays in browser-preview mode, and Nimiq Pay, where `init()` can resolve and the account request can trigger a native approval dialog.
+The frontend and backend pass TypeScript checking and a production build. Vitest covers auth logout, required payment configuration, and payment procedure input validation. The provider path must be manually exercised in two environments: a regular browser, where the UI stays in browser-preview mode, and Nimiq Pay, where `init()` can resolve and `sendBasicTransaction()` can trigger a native approval dialog.
+
+The payment path is expected to be verified in Nimiq Pay with a real test transaction: create intent, approve or reject the native dialog, observe the returned transaction hash, and confirm that the UI remains `submitted / verification pending` until a server-side verifier is connected.
 
 ## Required production test layers
 

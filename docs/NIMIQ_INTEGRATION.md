@@ -2,9 +2,9 @@
 
 ## Current status
 
-The frontend now uses the official `@nimiq/mini-app-sdk` package and the documented `init({ timeout })` flow. It detects whether the app is running inside Nimiq Pay, requests a real account only after a user action, and displays the returned address when the provider returns one. The browser preview never fabricates an address, balance, transaction, or connected state.
+The frontend uses the official `@nimiq/mini-app-sdk` package and the documented `init({ timeout })` flow. It detects whether the app is running inside Nimiq Pay, requests a real account only after a user action, and displays the returned address when the provider returns one. The browser preview never fabricates an address, balance, transaction, or connected state.
 
-The current build intentionally does **not** send NIM, sign a payment, show a balance, or settle a match. Those actions require a backend-owned match and payment protocol, a verified recipient, idempotency controls, transaction-state reconciliation, and a production Nimiq Pay confirmation flow.
+The payment flow now creates an authenticated, idempotent server-owned payment intent through tRPC. The server supplies the recipient and entry amount from configuration; the client cannot choose either value. The client marks the intent confirmation-pending, calls the official `nimiq.sendBasicTransaction({ recipient, value })` method, records only the returned transaction hash as submitted, and displays that settlement is still pending server-side verification. Provider rejection and malformed transaction errors are recorded as rejected or failed; no client response can mark an intent verified.
 
 ## Verified official API surface
 
@@ -18,8 +18,8 @@ The official Hub documentation separately documents `@nimiq/hub-api` and `checko
 | Request Nimiq accounts | `listAccounts()` | Implemented behind user action |
 | Read consensus/block height | `isConsensusEstablished()`, `getBlockNumber()` | Not exposed in UI yet |
 | Sign a message | `sign()` | Not implemented; no auth protocol yet |
-| Request NIM payment | Hub `checkout()` or the relevant current Mini App provider method | Not implemented; requires backend/payment design |
-| Confirm transaction on-chain | Backend indexer/node/API | Not implemented |
+| Request NIM payment | Mini App provider `sendBasicTransaction({ recipient, value })` | Implemented behind server-owned intent and Nimiq Pay confirmation |
+| Confirm transaction on-chain | Backend indexer/node/API | Not implemented; submitted hashes remain unverified |
 | Matchmaking and settlement | Server-authoritative backend | Not implemented |
 
 ## Required next integration sequence
