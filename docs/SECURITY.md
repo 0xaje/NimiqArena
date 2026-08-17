@@ -21,11 +21,29 @@ Nimiq Arena treats the browser as hostile input. The current frontend does not c
 
 Private keys must remain inside Nimiq Pay or the official wallet boundary. Arena must request only the operation it needs and display human-readable purpose and amount before approval. No secret, seed phrase, or private key may be requested from the client.
 
-## Current safeguards
+## Verified Blockchain & Payment Security Controls
 
-The frontend only calls the official SDK `init()` path when the provider is ready. Payment intents are created only through protected tRPC procedures, use a server-owned recipient and entry amount, and are idempotent on `(userId, clientNonce)`. The transaction hash is accepted only as `submitted`; it cannot set `verified`. Provider rejection is stored as `rejected`, malformed/provider failures as `failed`, and all unavailable states explain that no simulated action occurred.
+1. **Authoritative Nimiq PoS (Albatross) JSON-RPC Verification**:
+   - The backend queries public Nimiq JSON-RPC endpoints directly via `getTransactionByHash`.
+   - Verification confirms:
+     1. Transaction hash exists on-chain and is properly formatted (64-character hexadecimal).
+     2. `executionResult === true` (no reverted transactions).
+     3. Normalized recipient address (`normalizeNimiqAddress`) matches `NIMIQ_PAYMENT_RECIPIENT`.
+     4. Value in Luna $\ge$ `NIMIQ_ARENA_ENTRY_VALUE_LUNA` (rejects underpaid transactions).
+     5. Block confirmations $\ge 1$ (rejects unconfirmed mempool entries).
+     6. Network ID matching (`5` for Testnet, `42` for Mainnet).
 
-The remaining production control is on-chain verification. A worker or trusted backend integration must independently inspect the submitted hash, recipient, value, network, and confirmation policy before changing any intent to `verified` or crediting a player.
+2. **Anti-Replay & Transaction Hash Uniqueness**:
+   - A single on-chain transaction hash can only be claimed once across all payment intents and matches.
+   - Unique constraints and verification locks reject reuse of previously verified transaction hashes (`duplicate`).
+
+3. **Match-Entry Payment Gating**:
+   - Paid match entry requires a `verified` payment intent linked via `claimVerifiedPaymentForMatch`.
+   - Unverified, underpaid, wrong-recipient, or expired intents are strictly rejected from entering matches.
+   - Unique constraints on `match_players.paymentIntentId` and `matches.paymentIntentId` prevent payment intent double-spending.
+
+4. **Immutable Audit Ledger**:
+   - All verification attempts, raw RPC payloads, block numbers, and confirmation counts are permanently logged in `payment_verifications`.
 
 ## Implemented Ludo controls
 
