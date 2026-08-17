@@ -48,6 +48,16 @@ The UI now exposes a NIM entry card with creating, native confirmation, rejected
 
 Verification performed: `pnpm check`, `pnpm test` with 3 test files and 5 tests, `pnpm build`, and a desktop browser screenshot. The retry helper explicitly covers rejected, failed, and expired states. The remaining production gap is a trusted Nimiq transaction verifier that checks the submitted hash, recipient, value, network, and confirmation policy before transitioning an intent to `verified`; the current app correctly stops at `submitted / verification pending`.
 
+### Milestone 03 — Multi-game Arena frontend direction
+
+**Date:** 2026-08-17
+
+The frontend was redesigned from a single Ludo matchroom into a broader Nimiq Arena game destination. The new home experience introduces a platform-level discovery header, featured-game stage, game-library rail, future-game cards, Arena vision rail, and a visible truth panel for Nimiq Pay, NIM entry, and multiplayer availability. Ludo is positioned as the featured first title rather than the entire product. Additional games are clearly labeled `COMING SOON` or `CONCEPT` and do not pretend to be playable.
+
+Research was recorded in `docs/GAMING_PLATFORM_RESEARCH.md`, using current Steam discovery patterns, Epic Games Store category rails, and a game-library UX case study as reference points. The design direction translates those patterns into a Nimiq Arena “Game Room / Matchday Network” system with editorial cards, courtline rules, mono status stamps, tactile imagery, and explicit real/not-live boundaries.
+
+Verification performed: `pnpm check`, `pnpm build`, and desktop/mobile screenshots at 1280px and 390px widths. The Nimiq wallet and payment states remain truthful; no balances, online players, leaderboards, matchmaking, or future games are fabricated.
+
 ### Next step
 
-Implement the trusted server-side Nimiq transaction verification worker and connect it to the intent state machine. After that, bind verified payment intents to real match creation and settlement policy.
+Implement the trusted server-side Nimiq transaction verification worker and connect verified payment intents to real match creation. In parallel, add real game records and availability data to replace the current frontend-only game index.

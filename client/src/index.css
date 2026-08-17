@@ -176,3 +176,85 @@ h1 em, .section-heading h2 em { color: var(--orange); font-style: italic; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Multi-game platform layer */
+.topbar-brand { display: flex; flex-direction: column; gap: 4px; }
+.topbar-kicker { color: var(--orange); font: 600 9px 'IBM Plex Mono'; letter-spacing: .16em; }
+.topbar-title { color: var(--ink-soft); font-size: 12px; }
+.search-button { border: 1px solid var(--rule); background: rgba(251,248,241,.6); color: var(--ink-soft); display: inline-flex; align-items: center; gap: 8px; padding: 11px 13px; font-size: 11px; }
+.search-button:hover { color: var(--orange); border-color: var(--orange); }
+.platform-intro { display: grid; grid-template-columns: minmax(0,.86fr) minmax(420px,1.14fr); gap: 54px; padding: 62px 0 78px; align-items: center; position: relative; }
+.platform-intro::before { content: ''; position: absolute; top: 32px; left: -48px; width: 78px; height: 78px; border-left: 2px solid var(--orange); border-top: 2px solid var(--orange); }
+.intro-copy h1 { font-size: clamp(54px, 6vw, 88px); margin-bottom: 22px; }
+.feature-stage { background: var(--ink); padding: 13px; box-shadow: 12px 12px 0 var(--paper-deep); }
+.feature-art { min-height: 445px; position: relative; overflow: hidden; }
+.feature-art img { width: 100%; height: 445px; object-fit: cover; display: block; }
+.feature-wash { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(18,40,63,.96) 0%, rgba(18,40,63,.52) 47%, rgba(18,40,63,.08) 100%), linear-gradient(0deg, rgba(18,40,63,.84), transparent 52%); }
+.feature-copy { position: absolute; left: 28px; bottom: 29px; color: var(--paper-bright); }
+.feature-copy h2 { font: 400 clamp(48px, 5vw, 74px)/.86 'DM Serif Display'; letter-spacing: -.035em; margin: 10px 0 12px; }
+.feature-copy h2 em { color: var(--orange); }
+.feature-copy p { color: rgba(251,248,241,.78); font-size: 13px; margin-bottom: 18px; }
+.feature-chip, .game-status { position: absolute; top: 18px; left: 19px; font: 600 8px 'IBM Plex Mono'; letter-spacing: .1em; color: var(--paper-bright); border: 1px solid rgba(251,248,241,.42); padding: 6px 8px; }
+.stage-button, .rail-link { border: 0; background: var(--orange); color: var(--paper-bright); display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; font: 500 10px 'IBM Plex Mono'; letter-spacing: .04em; }
+.stage-button:hover, .rail-link:hover { background: var(--paper-bright); color: var(--ink); }
+.feature-footer { display: flex; justify-content: space-between; color: rgba(251,248,241,.63); font: 8px 'IBM Plex Mono'; letter-spacing: .1em; padding: 13px 5px 2px; }
+.feature-footer span:first-child { display: inline-flex; align-items: center; gap: 7px; color: var(--orange); }
+.section-block { padding: 18px 0 80px; }
+.section-topline { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 30px; }
+.section-topline h2 { font: 400 clamp(42px,5vw,67px)/.93 'DM Serif Display'; letter-spacing: -.03em; margin: 0; }
+.section-topline h2 em { color: var(--orange); }
+.browse-link { border: 0; background: transparent; color: var(--ink); border-bottom: 1px solid var(--orange); display: inline-flex; align-items: center; gap: 8px; padding: 0 0 7px; font: 10px 'IBM Plex Mono'; }
+.browse-link:hover { color: var(--orange); }
+.game-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+.game-card { min-width: 0; border: 1px solid var(--rule); background: rgba(251,248,241,.68); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
+.game-card:hover { transform: translateY(-5px); box-shadow: 8px 8px 0 var(--paper-deep); }
+.game-card-art { position: relative; height: 224px; overflow: hidden; background: var(--ink); }
+.game-card-art img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(.82); transition: transform .35s var(--ease-out); }
+.game-card:hover .game-card-art img { transform: scale(1.04); }
+.game-card-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(18,40,63,.12), rgba(18,40,63,.8)); }
+.game-card-art.orange { box-shadow: inset 0 -4px 0 var(--orange); }
+.game-card-art.blue { box-shadow: inset 0 -4px 0 #6d9df5; }
+.game-card-art.green { box-shadow: inset 0 -4px 0 #74a982; }
+.game-card-art .game-status { left: auto; right: 15px; top: 15px; }
+.game-index { position: absolute; left: 16px; bottom: 13px; color: var(--paper-bright); font: 9px 'IBM Plex Mono'; }
+.game-card-body { min-height: 150px; padding: 18px 17px 17px; display: grid; grid-template-columns: 1fr auto; gap: 14px; }
+.game-card-body h3 { margin: 6px 0 0; font: 400 27px/1 'DM Serif Display'; }
+.game-card-body p { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
+.round-arrow { width: 30px; height: 30px; border: 1px solid var(--rule); border-radius: 50%; background: transparent; color: var(--ink); display: grid; place-items: center; }
+.round-arrow:hover { color: var(--paper-bright); background: var(--orange); border-color: var(--orange); }
+.arena-rails { display: grid; grid-template-columns: 1.08fr .92fr; gap: 18px; padding: 0 0 74px; }
+.rail-card { min-height: 242px; padding: 25px; border: 1px solid var(--rule); background: var(--paper-bright); position: relative; overflow: hidden; }
+.rail-card::after { content: ''; position: absolute; right: -13px; bottom: 20px; width: 90px; height: 90px; border: 1px solid var(--rule); transform: rotate(45deg); }
+.rail-dark { background: var(--ink); color: var(--paper-bright); border-color: var(--ink); }
+.rail-card h3 { position: relative; z-index: 1; font: 400 35px/.94 'DM Serif Display'; margin: 18px 0 12px; }
+.rail-card h3 em { color: var(--orange); }
+.rail-card p { position: relative; z-index: 1; max-width: 360px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.rail-dark p { color: rgba(251,248,241,.66); }
+.rail-link { position: relative; z-index: 1; margin-top: 10px; }
+.rail-status { position: relative; z-index: 1; display: flex; align-items: center; gap: 9px; margin-top: 19px; font: 9px 'IBM Plex Mono'; color: var(--ink-soft); }
+.rail-card .card-label { position: relative; z-index: 1; }
+.rail-card .status-dot { flex: 0 0 auto; }
+
+@media (max-width: 1080px) {
+  .platform-intro { gap: 30px; }
+  .search-button { display: none; }
+}
+@media (max-width: 780px) {
+  .topbar-brand { margin-right: auto; margin-left: 14px; }
+  .topbar-title { display: none; }
+  .platform-intro { grid-template-columns: 1fr; padding: 48px 0 58px; }
+  .feature-art, .feature-art img { min-height: 360px; height: 360px; }
+  .game-grid, .arena-rails { grid-template-columns: 1fr; }
+  .section-block { padding-bottom: 62px; }
+  .section-topline { align-items: start; flex-direction: column; }
+  .arena-rails { gap: 14px; padding-bottom: 60px; }
+}
+@media (max-width: 480px) {
+  .topbar-brand { display: none; }
+  .top-actions { margin-left: auto; }
+  .feature-copy { left: 20px; bottom: 22px; }
+  .feature-copy h2 { font-size: 52px; }
+  .feature-footer { font-size: 7px; }
+  .game-card-art { height: 205px; }
+  .rail-card { min-height: 220px; padding: 20px; }
+}

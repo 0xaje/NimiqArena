@@ -10,3 +10,8 @@
 - [x] Update the progress report with the payment-intent milestone and remaining server-side verification gap.
 - [x] Handle expired payment intents explicitly so a retry creates a fresh intent and nonce.
 - [x] Re-run check, tests, and build after the retry and documentation updates.
+- [x] Research current gaming-platform website patterns and record source URLs.
+- [x] Define a distinctive multi-game Nimiq Arena direction beyond Ludo.
+- [x] Redesign the frontend shell around a game library, featured play, and future game slots.
+- [x] Preserve truthful wallet, payment, multiplayer, and availability states in the redesigned UI.
+- [x] Verify desktop/mobile visuals and rerun frontend checks after the redesign.
