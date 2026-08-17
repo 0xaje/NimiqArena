@@ -125,6 +125,7 @@ The completed join coverage, exact replay, and authenticated match-state stream 
 **Date:** 2026-08-17
 
 #### What was built & verified:
+
 1. **Dedicated Database Integration Matrix (`server/match.database.integration.test.ts`)**:
    - Spun up isolated MariaDB test database container (`mysql://root:test@127.0.0.1:3307/nimiq_test`) and executed all 11 database integration dimensions:
      - Match creation with host seat 0 and initial snapshot persistence.
@@ -161,4 +162,5 @@ The completed join coverage, exact replay, and authenticated match-state stream 
    - `pnpm build`: passed (production client bundle and server bundle built successfully).
 
 #### Scope Boundary Adherence:
+
 No Quick Match, leaderboard, ratings, payouts, settlement, or new games were added, strictly adhering to the multiplayer reliability and verification directive.

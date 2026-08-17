@@ -16,6 +16,9 @@ import { trpc } from "@/lib/trpc";
 
 export default function LudoDetail() {
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
+  const authQuery = trpc.auth.me.useQuery();
+  const guestLogin = trpc.auth.guestLogin.useMutation();
   const gameQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
   const createChallenge = trpc.match.createChallenge.useMutation();
   const [createdMatch, setCreatedMatch] = useState<{
@@ -24,16 +27,31 @@ export default function LudoDetail() {
   } | null>(null);
 
   const game = gameQuery.data;
+  const user = authQuery.data;
+
   const copyCode = async () => {
     if (!createdMatch) return;
     await navigator.clipboard?.writeText(createdMatch.joinCode);
     toast("Invite code copied", {
-      description: "Share it with a friend once match joining is connected.",
+      description: "Share it with a friend or open /join in another window.",
     });
   };
 
   async function createMatch() {
     try {
+      if (!user) {
+        toast.info("Signing in as Player 1 (Host)…");
+        const loginRes = await guestLogin.mutateAsync({
+          name: "Player 1 (Host)",
+        });
+        if (loginRes.token) {
+          sessionStorage.setItem(
+            "manus-cookie",
+            `manus-session=${loginRes.token}`
+          );
+        }
+        await utils.auth.me.invalidate();
+      }
       const match = await createChallenge.mutateAsync({
         gameSlug: "ludo-league",
       });
@@ -59,11 +77,7 @@ export default function LudoDetail() {
         </Link>
         <span className="detail-brand">NIMIQ ARENA / GAME 001</span>
         <span className="detail-state">
-          {gameQuery.isLoading
-            ? "LOADING RECORD"
-            : gameQuery.isError
-              ? "RECORD UNAVAILABLE"
-              : "GAME RECORD ACTIVE"}
+          {user ? `PLAYING AS: ${user.name || "PLAYER 1"}` : "GUEST MODE"}
         </span>
       </header>
       <main className="detail-main">

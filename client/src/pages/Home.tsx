@@ -71,7 +71,10 @@ function providerError(value: unknown) {
 }
 
 export default function Home() {
-  useAuth();
+  const utils = trpc.useUtils();
+  const authQuery = trpc.auth.me.useQuery();
+  const guestLogin = trpc.auth.guestLogin.useMutation();
+  const user = authQuery.data;
   const ludoQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
   const gameCards: GameCard[] = [
     {
@@ -102,6 +105,19 @@ export default function Home() {
     trpc.payment.markConfirmationPending.useMutation();
   const failIntent = trpc.payment.failIntent.useMutation();
   const submitTransaction = trpc.payment.submitTransaction.useMutation();
+
+  async function switchPlayer(name: string) {
+    try {
+      const res = await guestLogin.mutateAsync({ name });
+      if (res.token) {
+        sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
+      }
+      await utils.auth.me.invalidate();
+      toast.success(`Signed in as ${name}`);
+    } catch (e) {
+      toast.error("Failed to switch player");
+    }
+  }
 
   useEffect(() => {
     setLanguage(
@@ -285,6 +301,12 @@ export default function Home() {
           <a className="side-nav-link" href="#games">
             Game library <span>03</span>
           </a>
+          <Link className="side-nav-link" href="/games/ludo-league">
+            Ludo League <span>PLAY</span>
+          </Link>
+          <Link className="side-nav-link" href="/join">
+            Join a friend <span>JOIN</span>
+          </Link>
           <button
             className="side-nav-link"
             onClick={() => unavailable("Live rooms")}
@@ -342,15 +364,16 @@ export default function Home() {
           <div className="top-actions">
             <button
               className="search-button"
-              onClick={() => unavailable("Game search")}
+              onClick={() =>
+                switchPlayer(
+                  user?.name?.includes("1")
+                    ? "Player 2 (Guest)"
+                    : "Player 1 (Host)"
+                )
+              }
+              title="Switch between Player 1 and Player 2 for two-client testing"
             >
-              <Search size={16} /> Search games
-            </button>
-            <button
-              className="help-link"
-              onClick={() => unavailable("Help center")}
-            >
-              <CircleHelp size={16} /> How it works
+              👤 {user?.name ? user.name : "Sign in as Player 1"}
             </button>
             <button className="wallet-button" onClick={connectWallet}>
               <WalletCards size={16} />{" "}
@@ -376,19 +399,12 @@ export default function Home() {
               honest competition, and room for more than one kind of player.
             </p>
             <div className="hero-actions">
-              <a className="primary-action" href="#games">
-                Browse the games <ArrowUpRight size={17} />
-              </a>
-              <button
-                className="text-action"
-                onClick={() =>
-                  document
-                    .getElementById("status")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-              >
-                Check live status <ChevronRight size={16} />
-              </button>
+              <Link className="primary-action" href="/games/ludo-league">
+                Play Ludo League <ArrowUpRight size={17} />
+              </Link>
+              <Link className="text-action" href="/join">
+                Join a friend's table <ChevronRight size={16} />
+              </Link>
             </div>
             <div className="trust-line">
               <ShieldCheck size={15} />

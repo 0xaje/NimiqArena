@@ -9,14 +9,17 @@ import {
   getMatchById,
   getMatchPlayer,
   getMatchPlayers,
+  getUserByOpenId,
   heartbeatMatchPlayer,
   disconnectMatchPlayer,
   getPaymentIntentForUser,
   joinMatchByCode,
   refreshMatchLifecycle,
   updatePaymentIntent,
+  upsertUser,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
@@ -73,6 +76,29 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    guestLogin: publicProcedure
+      .input(
+        z
+          .object({
+            name: z.string().min(1).max(50).optional(),
+          })
+          .optional()
+      )
+      .mutation(async ({ ctx, input }) => {
+        const name = input?.name?.trim() || "Player 1";
+        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+        const openId = `guest-${slug}`;
+        await upsertUser({
+          openId,
+          name,
+          role: "user",
+        });
+        const user = await getUserByOpenId(openId);
+        const token = await sdk.createSessionToken(openId, { name });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
+        return { user, token };
+      }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

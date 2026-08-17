@@ -6,12 +6,29 @@ import { trpc } from "@/lib/trpc";
 
 export default function JoinMatch() {
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
+  const authQuery = trpc.auth.me.useQuery();
+  const guestLogin = trpc.auth.guestLogin.useMutation();
   const [joinCode, setJoinCode] = useState("");
   const join = trpc.match.joinByCode.useMutation();
+  const user = authQuery.data;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     try {
+      if (!user) {
+        toast.info("Signing in as Player 2 (Guest)…");
+        const loginRes = await guestLogin.mutateAsync({
+          name: "Player 2 (Guest)",
+        });
+        if (loginRes.token) {
+          sessionStorage.setItem(
+            "manus-cookie",
+            `manus-session=${loginRes.token}`
+          );
+        }
+        await utils.auth.me.invalidate();
+      }
       const result = await join.mutateAsync({
         joinCode: joinCode.trim().toUpperCase(),
       });
@@ -36,7 +53,9 @@ export default function JoinMatch() {
           <ArrowLeft size={15} /> Arena home
         </Link>
         <span className="detail-brand">NIMIQ ARENA / JOIN</span>
-        <span className="detail-state">PROTECTED FLOW</span>
+        <span className="detail-state">
+          {user ? `PLAYING AS: ${user.name || "PLAYER 2"}` : "GUEST MODE"}
+        </span>
       </header>
       <main className="detail-main join-main">
         <section className="room-hero">
