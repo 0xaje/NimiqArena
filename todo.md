@@ -57,3 +57,5 @@
 - [x] Add automated lifecycle tests for expiry, stale-player disconnect, abandonment cancellation, and idempotent cleanup (gated pending dedicated database execution).
 - [x] Add a transport-level test for SSE disconnect, reconnect, and state resynchronization.
 - [ ] Run the dedicated database lifecycle suite and restart/recovery verification when `NIMIQ_ARENA_TEST_DATABASE_URL` is available.
+- [ ] Run the dedicated database lifecycle suite when `NIMIQ_ARENA_TEST_DATABASE_URL` is supplied; do not claim persisted-row verification before then.
+- [ ] Verify restart recovery and lifecycle cleanup behavior independently of the deferred database suite.
