@@ -1,6 +1,5 @@
-export type MatchMode = 'solo' | 'challenge' | 'quick' | 'ranked';
-
 export type Screen = 'splash' | 'home' | 'games' | 'match' | 'challenge' | 'ludo' | 'result' | 'leaderboard' | 'profile';
+export type MatchMode = 'solo' | 'challenge' | 'quick' | 'ranked';
 
 export interface PlayerProfile {
   handle: string;
@@ -24,10 +23,4 @@ export interface MatchSummary {
   mode: MatchMode;
   opponent: string;
   status: 'development-preview';
-}
-
-export interface NimiqWalletPort {
-  readonly status: 'not-configured';
-  connect(): Promise<never>;
-  requestPayment(): Promise<never>;
 }

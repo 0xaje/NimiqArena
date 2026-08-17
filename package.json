@@ -11,6 +11,7 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
+    "@nimiq/mini-app-sdk": "^0.1.0",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "react": "latest",

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@nimiq/mini-app-sdk':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@vitejs/plugin-react':
         specifier: latest
         version: 6.0.5(vite@8.2.1)
@@ -41,6 +44,9 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@nimiq/mini-app-sdk@0.1.0':
+    resolution: {integrity: sha512-QR5GGrL25U5xRkWdDhDMqY6npRXMtIu07Fe0cTXon5dLLlAuPhIaJU2egwASYITwFH1RXpYCE0JnufO88SleKA==}
 
   '@oxc-project/types@0.144.0':
     resolution: {integrity: sha512-nuhZIOLuI6TFQ32I/WnUx+SCPY7SdSKwgnFHydAuoS1+Z4BRcaP+RRJmGzl9lw+0OFF7UmaESf7KQRXaNLHypg==}
@@ -609,6 +615,8 @@ packages:
 snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@nimiq/mini-app-sdk@0.1.0': {}
 
   '@oxc-project/types@0.144.0': {}
 
