@@ -1,0 +1,101 @@
+import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+
+export default function JoinMatch() {
+  const [, navigate] = useLocation();
+  const [joinCode, setJoinCode] = useState("");
+  const join = trpc.match.joinByCode.useMutation();
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    try {
+      const result = await join.mutateAsync({
+        joinCode: joinCode.trim().toUpperCase(),
+      });
+      toast.success("Match joined", {
+        description: `You joined as Player ${result.seat + 1}.`,
+      });
+      navigate(`/matches/${result.id}`);
+    } catch (error) {
+      toast.error("Join request rejected", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "The challenge code is invalid or unavailable.",
+      });
+    }
+  }
+
+  return (
+    <div className="detail-page">
+      <header className="detail-header">
+        <Link href="/" className="back-link">
+          <ArrowLeft size={15} /> Arena home
+        </Link>
+        <span className="detail-brand">NIMIQ ARENA / JOIN</span>
+        <span className="detail-state">PROTECTED FLOW</span>
+      </header>
+      <main className="detail-main join-main">
+        <section className="room-hero">
+          <span className="stamp orange">CHALLENGE FRIEND</span>
+          <p className="eyebrow">JOIN A REAL MATCH</p>
+          <h1>
+            Enter the
+            <br />
+            <em>code.</em>
+          </h1>
+          <p className="detail-lede">
+            Use the invite code shared by a friend. The server validates the
+            code, checks the match capacity and expiry, then assigns your real
+            player seat.
+          </p>
+        </section>
+        <form className="join-card" onSubmit={submit}>
+          <div className="join-icon">
+            <KeyRound size={20} />
+          </div>
+          <label htmlFor="join-code" className="card-label">
+            INVITE CODE
+          </label>
+          <input
+            id="join-code"
+            value={joinCode}
+            onChange={event =>
+              setJoinCode(
+                event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12)
+              )
+            }
+            placeholder="AB12CD34"
+            autoComplete="one-time-code"
+            required
+            minLength={6}
+            maxLength={12}
+          />
+          <button
+            className="primary-action"
+            type="submit"
+            disabled={join.isPending || joinCode.length < 6}
+          >
+            {join.isPending ? "Validating code…" : "Join match"}
+          </button>
+          <div className="trust-line">
+            <ShieldCheck size={15} />
+            <span>
+              No opponent is created locally. A successful response must come
+              from the protected backend.
+            </span>
+          </div>
+        </form>
+      </main>
+      <footer className="detail-footer">
+        <span>
+          Invalid, full, expired, and unauthorized joins are rejected.
+        </span>
+        <Link href="/">Return to Arena</Link>
+      </footer>
+    </div>
+  );
+}

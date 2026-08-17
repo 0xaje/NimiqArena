@@ -2,7 +2,7 @@
 
 ## Status
 
-The deterministic Ludo engine is implemented as `shared/game/ludo-engine.ts`. It is a pure module with no network, wallet, or UI dependencies. The current vertical slice persists its initial snapshot when a match is created, but does not yet expose server gameplay commands or a playable board UI.
+The deterministic Ludo engine is implemented as `shared/game/ludo-engine.ts`. It is a pure module with no network, wallet, or UI dependencies. The server now invokes it for protected roll and move commands, persists the resulting snapshot and event transactionally, and the match room renders that returned authoritative state. Push real-time transport, reconnect subscriptions, and production fairness randomness remain incomplete.
 
 ## Target engine contract
 
@@ -22,4 +22,4 @@ Before money is enabled, the product must choose and document whether dice outco
 
 ## Required test categories
 
-The current suite covers deterministic initial snapshots, server-supplied dice, base-entry requirements, stale versions, duplicate nonces, captures, extra turns on six/capture, and win detection in `client/src/game/ludo-engine.test.ts`. Remaining engine work includes server command persistence, reconnects, timeouts, event-log replay, and property-based rule checks. The module currently uses a two-player track model with four pieces per player, a 52-square track, home progress, safe squares, and exact home-boundary validation.
+The current suite covers deterministic initial snapshots, server-supplied dice, base-entry requirements, stale versions, duplicate nonces, captures, extra turns on six/capture, and win detection in `client/src/game/ludo-engine.test.ts`. API validation also covers malformed IDs, challenge codes, and command payloads. Remaining engine/system work includes reconnects, timeouts, event-log replay checks, property-based rules, and a documented fairness protocol for money-enabled play. The module currently uses a two-player track model with four pieces per player, a 52-square track, home progress, safe squares, and exact home-boundary validation.

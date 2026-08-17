@@ -62,7 +62,6 @@ Verification performed: `pnpm check`, `pnpm build`, and desktop/mobile screensho
 
 Implement the trusted server-side Nimiq transaction verification worker and connect verified payment intents to real match creation. In parallel, add real game records and availability data to replace the current frontend-only game index.
 
-
 ### Milestone 04 — Real Ludo game and Challenge Friend vertical slice
 
 **Date:** 2026-08-17
@@ -79,7 +78,27 @@ Verification performed: `pnpm check` passed, `pnpm test` passed with 7 test file
 
 Add the authenticated friend-join flow, then expose server-authoritative Ludo commands through an atomic match-event API. Only after that should the playable board UI and real matchmaking queue be connected.
 
-
 ### Milestone commit
 
 The verified vertical slice was committed as `fbada1b` with message `feat: add real ludo match vertical slice`.
+
+### Milestone 05 — Real friend join and authoritative Ludo state boundary
+
+**Date:** 2026-08-17
+
+Matches now persist host and joined-player rows in `match_players`, while `match_events` stores append-only command outcomes with unique `(matchId, version)` and `(matchId, commandNonce)` constraints. Challenge codes are validated server-side for format, expiry, capacity, duplicate joins, and seat assignment. A successful second join transitions the match from `waiting` to `in_progress`; no opponent is created locally.
+
+Protected tRPC procedures now include `match.joinByCode`, participant-only `match.getById`, participant-only `match.state`, and `match.command`. Roll and move requests carry an expected version and nonce. The server supplies the authenticated seat, runs the shared Ludo engine, updates the snapshot with an optimistic version check, and appends the event transactionally. Duplicate nonces replay the prior event rather than applying a command twice.
+
+The frontend now includes `/join` for real challenge-code entry and a match room that renders only the protected authoritative snapshot. The board shows actual server state, server turn, dice, player seats, and rule-derived piece labels. Roll and move controls are enabled only when the snapshot says the authenticated player may act. The room uses short polling and manual refresh as a synchronization foundation; production push transport and reconnect subscriptions are not claimed.
+
+Verification performed: `pnpm check` passed, `pnpm test` passed with 7 test files and 20 tests, `pnpm build` passed with the existing large-chunk warning, and the join/match routes were visually verified at a mobile breakpoint. The current milestone still does not implement Solo, Quick Match, public matchmaking, production real-time push, reconnect heartbeats, abandoned-match cleanup, ratings, settlement, or a documented fairness protocol for money-enabled dice.
+
+### Next milestone
+
+Add authenticated reconnect/presence semantics and a real push transport, then test two real clients joining the same match and receiving the same persisted snapshots before expanding matchmaking.
+
+
+### Milestone 05 correction
+
+The event table now also persists `snapshotJson` for each command event. Duplicate nonce replay returns the original post-command snapshot and event rather than the latest match snapshot. Migration `0003_natural_carlie_cooper.sql` was reviewed and applied. Formatting checks now pass on all changed files; TypeScript checks, 20 tests, and the production build pass. Backend tests currently cover protected input validation; database-backed success, stale-version, unauthorized-participant, duplicate-replay, and concurrent-conflict integration cases remain required before claiming the command API production-ready.

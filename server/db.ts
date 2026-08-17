@@ -1,9 +1,26 @@
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, games, matches, paymentIntents, users, type Game, type Match, type PaymentIntent } from "../drizzle/schema";
-import { createLudoSnapshot } from "../shared/game/ludo-engine";
+import {
+  InsertUser,
+  games,
+  matchEvents,
+  matchPlayers,
+  matches,
+  paymentIntents,
+  users,
+  type Game,
+  type Match,
+  type PaymentIntent,
+} from "../drizzle/schema";
+import {
+  applyCommand,
+  createLudoSnapshot,
+  type LudoCommand,
+  type LudoEvent,
+  type LudoSnapshot,
+} from "../shared/game/ludo-engine";
 import { nanoid } from "nanoid";
-import { ENV } from './_core/env';
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -58,8 +75,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+      values.role = "admin";
+      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
@@ -86,7 +103,11 @@ export async function getUserByOpenId(openId: string) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }
@@ -94,33 +115,50 @@ export async function getUserByOpenId(openId: string) {
 export async function getGameBySlug(slug: string): Promise<Game | undefined> {
   const db = await getDb();
   if (!db) throw new Error("Game service is unavailable.");
-  const result = await db.select().from(games).where(eq(games.slug, slug)).limit(1);
+  const result = await db
+    .select()
+    .from(games)
+    .where(eq(games.slug, slug))
+    .limit(1);
   return result[0];
 }
 
-export async function createChallengeMatch(input: { userId: number; gameSlug: string }): Promise<Match> {
+export async function createChallengeMatch(input: {
+  userId: number;
+  gameSlug: string;
+}): Promise<Match> {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
   const game = await getGameBySlug(input.gameSlug);
-  if (!game || game.status !== "active") throw new Error("This game is not available for match creation.");
+  if (!game || game.status !== "active")
+    throw new Error("This game is not available for match creation.");
 
   const id = nanoid(20);
-  const joinCode = nanoid(8).toUpperCase();
+  const joinCode = nanoid(10).replace(/[-_]/g, "A").toUpperCase();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
   const snapshot = createLudoSnapshot(id);
-  await db.insert(matches).values({
-    id,
-    gameId: game.id,
-    hostUserId: input.userId,
-    joinCode,
-    visibility: "challenge_friend",
-    status: "waiting",
-    engineVersion: "ludo-v1",
-    stateVersion: snapshot.version,
-    stateJson: JSON.stringify(snapshot),
-    expiresAt,
+  await db.transaction(async tx => {
+    await tx.insert(matches).values({
+      id,
+      gameId: game.id,
+      hostUserId: input.userId,
+      joinCode,
+      visibility: "challenge_friend",
+      status: "waiting",
+      engineVersion: "ludo-v1",
+      stateVersion: snapshot.version,
+      stateJson: JSON.stringify(snapshot),
+      expiresAt,
+    });
+    await tx
+      .insert(matchPlayers)
+      .values({ matchId: id, userId: input.userId, seat: 0, status: "joined" });
   });
-  const created = await db.select().from(matches).where(eq(matches.id, id)).limit(1);
+  const created = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, id))
+    .limit(1);
   if (!created[0]) throw new Error("Match could not be created.");
   return created[0];
 }
@@ -128,8 +166,201 @@ export async function createChallengeMatch(input: { userId: number; gameSlug: st
 export async function getMatchById(id: string): Promise<Match | undefined> {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
-  const result = await db.select().from(matches).where(eq(matches.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, id))
+    .limit(1);
   return result[0];
+}
+
+export async function getMatchPlayer(matchId: string, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const result = await db
+    .select()
+    .from(matchPlayers)
+    .where(
+      and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, userId))
+    )
+    .limit(1);
+  return result[0];
+}
+
+export async function joinMatchByCode(input: {
+  userId: number;
+  joinCode: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  return db.transaction(async tx => {
+    const found = await tx
+      .select()
+      .from(matches)
+      .where(eq(matches.joinCode, input.joinCode.toUpperCase()))
+      .limit(1);
+    const match = found[0];
+    if (!match) throw new Error("Challenge code is invalid.");
+    if (
+      match.expiresAt.getTime() <= Date.now() ||
+      match.status === "expired" ||
+      match.status === "cancelled"
+    ) {
+      if (match.status !== "expired")
+        await tx
+          .update(matches)
+          .set({ status: "expired" })
+          .where(eq(matches.id, match.id));
+      throw new Error("This match is no longer available.");
+    }
+    const existing = await tx
+      .select()
+      .from(matchPlayers)
+      .where(
+        and(
+          eq(matchPlayers.matchId, match.id),
+          eq(matchPlayers.userId, input.userId)
+        )
+      )
+      .limit(1);
+    if (existing[0]) return { match, player: existing[0] };
+    const seats = await tx
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.matchId, match.id));
+    if (seats.length >= 2)
+      throw new Error("This match already has two players.");
+    await tx.insert(matchPlayers).values({
+      matchId: match.id,
+      userId: input.userId,
+      seat: 1,
+      status: "joined",
+    });
+    await tx
+      .update(matches)
+      .set({ status: "in_progress" })
+      .where(eq(matches.id, match.id));
+    const player = (
+      await tx
+        .select()
+        .from(matchPlayers)
+        .where(
+          and(
+            eq(matchPlayers.matchId, match.id),
+            eq(matchPlayers.userId, input.userId)
+          )
+        )
+        .limit(1)
+    )[0];
+    if (!player) throw new Error("Player could not be joined.");
+    return { match: { ...match, status: "in_progress" as const }, player };
+  });
+}
+
+export async function getMatchPlayers(matchId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  return db
+    .select()
+    .from(matchPlayers)
+    .where(eq(matchPlayers.matchId, matchId));
+}
+
+type LudoServerCommand =
+  | Omit<Extract<LudoCommand, { kind: "roll" }>, "matchId" | "playerId">
+  | Omit<Extract<LudoCommand, { kind: "move" }>, "matchId" | "playerId">;
+
+export async function applyLudoMatchCommand(input: {
+  matchId: string;
+  userId: number;
+  command: LudoServerCommand;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const { randomInt } = await import("node:crypto");
+  return db.transaction(async tx => {
+    const match = (
+      await tx
+        .select()
+        .from(matches)
+        .where(eq(matches.id, input.matchId))
+        .limit(1)
+    )[0];
+    if (!match) throw new Error("Match not found.");
+    const player = (
+      await tx
+        .select()
+        .from(matchPlayers)
+        .where(
+          and(
+            eq(matchPlayers.matchId, input.matchId),
+            eq(matchPlayers.userId, input.userId)
+          )
+        )
+        .limit(1)
+    )[0];
+    if (!player || player.status !== "joined")
+      throw new Error("You are not a joined player in this match.");
+    const previousEvent = (
+      await tx
+        .select()
+        .from(matchEvents)
+        .where(
+          and(
+            eq(matchEvents.matchId, input.matchId),
+            eq(matchEvents.commandNonce, input.command.nonce)
+          )
+        )
+        .limit(1)
+    )[0];
+    if (previousEvent)
+      return {
+        snapshot: JSON.parse(previousEvent.snapshotJson) as LudoSnapshot,
+        event: JSON.parse(previousEvent.eventJson) as LudoEvent,
+        status: match.status,
+        idempotent: true,
+      };
+    if (match.status !== "in_progress")
+      throw new Error("Match is not ready for gameplay.");
+    const snapshot = JSON.parse(match.stateJson) as LudoSnapshot;
+    const command: LudoCommand = {
+      ...input.command,
+      matchId: input.matchId,
+      playerId: player.seat as 0 | 1,
+    };
+    const result = applyCommand(snapshot, command, () => randomInt(1, 7));
+    if (!result.ok) throw new Error(`${result.code}: ${result.reason}`);
+    const updated = await tx
+      .update(matches)
+      .set({
+        stateVersion: result.snapshot.version,
+        stateJson: JSON.stringify(result.snapshot),
+        status: result.snapshot.winner === null ? "in_progress" : "finished",
+      })
+      .where(
+        and(
+          eq(matches.id, input.matchId),
+          eq(matches.stateVersion, snapshot.version)
+        )
+      );
+    if (updated[0]?.affectedRows !== 1)
+      throw new Error("Match state changed; retry with the latest state.");
+    await tx.insert(matchEvents).values({
+      matchId: input.matchId,
+      version: result.snapshot.version,
+      userId: input.userId,
+      commandNonce: input.command.nonce,
+      commandJson: JSON.stringify(command),
+      eventJson: JSON.stringify(result.event),
+      snapshotJson: JSON.stringify(result.snapshot),
+    });
+    return {
+      snapshot: result.snapshot,
+      event: result.event,
+      status: result.snapshot.winner === null ? "in_progress" : "finished",
+      idempotent: false,
+    };
+  });
 }
 
 export async function createPaymentIntent(input: {
@@ -138,18 +369,28 @@ export async function createPaymentIntent(input: {
 }): Promise<PaymentIntent> {
   const db = await getDb();
   if (!db) throw new Error("Payment service is unavailable.");
-  if (!ENV.nimiqPaymentRecipient) throw new Error("Nimiq payment recipient is not configured.");
+  if (!ENV.nimiqPaymentRecipient)
+    throw new Error("Nimiq payment recipient is not configured.");
 
-  if (!Number.isSafeInteger(ENV.nimiqArenaEntryValueLuna) || ENV.nimiqArenaEntryValueLuna <= 0) {
+  if (
+    !Number.isSafeInteger(ENV.nimiqArenaEntryValueLuna) ||
+    ENV.nimiqArenaEntryValueLuna <= 0
+  ) {
     throw new Error("Arena entry amount is not configured.");
   }
 
   const existing = await db
     .select()
     .from(paymentIntents)
-    .where(and(eq(paymentIntents.userId, input.userId), eq(paymentIntents.clientNonce, input.clientNonce)))
+    .where(
+      and(
+        eq(paymentIntents.userId, input.userId),
+        eq(paymentIntents.clientNonce, input.clientNonce)
+      )
+    )
     .limit(1);
-  if (existing[0] && existing[0].expiresAt.getTime() > Date.now()) return existing[0];
+  if (existing[0] && existing[0].expiresAt.getTime() > Date.now())
+    return existing[0];
 
   const id = nanoid(20);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -162,7 +403,11 @@ export async function createPaymentIntent(input: {
     status: "created",
     expiresAt,
   });
-  const created = await db.select().from(paymentIntents).where(eq(paymentIntents.id, id)).limit(1);
+  const created = await db
+    .select()
+    .from(paymentIntents)
+    .where(eq(paymentIntents.id, id))
+    .limit(1);
   if (!created[0]) throw new Error("Payment intent could not be created.");
   return created[0];
 }
@@ -178,10 +423,18 @@ export async function getPaymentIntentForUser(id: string, userId: number) {
   return result[0];
 }
 
-export async function updatePaymentIntent(id: string, userId: number, values: Partial<Pick<PaymentIntent, "status" | "transactionHash" | "failureCode">>) {
+export async function updatePaymentIntent(
+  id: string,
+  userId: number,
+  values: Partial<
+    Pick<PaymentIntent, "status" | "transactionHash" | "failureCode">
+  >
+) {
   const db = await getDb();
   if (!db) throw new Error("Payment service is unavailable.");
-  await db.update(paymentIntents).set(values).where(and(eq(paymentIntents.id, id), eq(paymentIntents.userId, userId)));
+  await db
+    .update(paymentIntents)
+    .set(values)
+    .where(and(eq(paymentIntents.id, id), eq(paymentIntents.userId, userId)));
   return getPaymentIntentForUser(id, userId);
 }
-

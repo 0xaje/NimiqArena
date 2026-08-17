@@ -27,3 +27,16 @@
 - [x] Clarify the public game-detail procedure and protected Challenge Friend procedure in the milestone history.
 - [x] Visually verify the Ludo detail page and match-room unavailable state at desktop and mobile widths.
 - [x] Create and record the Ludo vertical-slice git commit.
+- [x] Extend matches with real player slots, join state, and authoritative event/state persistence.
+- [x] Implement secure Challenge Friend join-by-code with authorization and duplicate-join protection.
+- [x] Implement server-authoritative roll/move command procedures using the shared Ludo engine.
+- [x] Add a synchronized state polling boundary and document reconnect transport as NOT LIVE.
+- [x] Connect the match room to authoritative state and render a real Ludo board, with unsupported actions marked NOT LIVE.
+- [ ] Add critical join/command/concurrency/recovery tests and update API specification documentation.
+- [x] Run formatting/lint-equivalent, TypeScript, tests, production build, and responsive route verification.
+- [ ] Create a meaningful git commit for the next Ludo milestone.
+- [ ] Persist the original post-command snapshot for every match event so duplicate nonce replay returns the same authoritative result.
+- [ ] Add backend tests for successful commands, stale versions, unauthorized participants, duplicate nonce replay, and concurrent conflicts.
+- [ ] Re-run formatting, TypeScript, tests, and production build after the idempotency fix and API coverage expansion.
+- [ ] Create the next Ludo milestone commit after resolving the remaining gaps.
+- [ ] Implement real push transport, reconnect subscriptions, and recovery semantics in a future milestone.

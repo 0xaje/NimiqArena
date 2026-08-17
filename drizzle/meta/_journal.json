@@ -15,6 +15,20 @@
       "when": 1786972689682,
       "tag": "0001_true_gamora",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786974163203,
+      "tag": "0002_overconfident_greymalkin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1786974777834,
+      "tag": "0003_natural_carlie_cooper",
+      "breakpoints": true
     }
   ]
 }
