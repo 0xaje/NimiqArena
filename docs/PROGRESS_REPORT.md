@@ -102,12 +102,16 @@ Add authenticated reconnect/presence semantics and a real push transport, then t
 
 The event table now also persists `snapshotJson` for each command event. Duplicate nonce replay returns the original post-command snapshot and event rather than the latest match snapshot. Migration `0003_natural_carlie_cooper.sql` was reviewed and applied. Formatting checks now pass on all changed files; TypeScript checks, 20 tests, and the production build pass. Backend tests currently cover protected input validation; database-backed success, stale-version, unauthorized-participant, duplicate-replay, and concurrent-conflict integration cases remain required before claiming the command API production-ready.
 
-
 ### Milestone 05 final correction
 
 `match_events` now also stores `resultStatus`. Duplicate nonce replay uses the stored snapshot, event, and original result status, so a later match transition cannot change the replay response. Migration `0004_pretty_shaman.sql` was reviewed and applied. The shared replay regression is included in Vitest; final verification now reports 8 test files and 21 passing tests, with formatting, TypeScript, and production build checks passing.
 
-
 ### Follow-up commit
 
 The exact replay-status correction was committed as `d31350d` with message `fix: preserve exact ludo command replay`.
+
+### Milestone 05 final verification
+
+The backend integration suite now covers successful Challenge Friend join, expired and full-match rejection, duplicate join idempotency, unauthorized command rejection, successful roll, stale-version conflict, duplicate command replay, and concurrent conflict handling. The authenticated SSE stream at `/api/matches/:id/events` is registered server-side and consumed by the match room, with polling/manual refresh fallback. The gated database integration test `server/match.database.integration.test.ts` verifies exact command replay when run with `RUN_DB_INTEGRATION_TESTS=1` against a dedicated test database; the default verification intentionally skips it to avoid touching a non-dedicated database.
+
+The latest default verification reports 10 test files, 31 passing tests, and 1 intentionally skipped database integration test, with formatting, TypeScript, and production build checks passing. No opponent, online presence, matchmaking result, rating, payout, settlement, or production reconnect guarantee is fabricated.

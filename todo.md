@@ -32,13 +32,16 @@
 - [x] Implement server-authoritative roll/move command procedures using the shared Ludo engine.
 - [x] Add a synchronized state polling boundary and document reconnect transport as NOT LIVE.
 - [x] Connect the match room to authoritative state and render a real Ludo board, with unsupported actions marked NOT LIVE.
-- [ ] Add critical join/command/concurrency/recovery tests and update API specification documentation.
+- [x] Add critical join/command/concurrency tests, document recovery limits, and update API specification documentation.
 - [x] Run formatting/lint-equivalent, TypeScript, tests, production build, and responsive route verification.
 - [x] Create a meaningful git commit for the next Ludo milestone.
 - [x] Persist the original post-command snapshot for every match event so duplicate nonce replay returns the same authoritative result.
-- [ ] Add backend tests for successful commands, stale versions, unauthorized participants, duplicate nonce replay, and concurrent conflicts.
+- [x] Add backend tests for successful commands, stale versions, unauthorized participants, duplicate nonce replay, and concurrent conflicts.
 - [x] Re-run formatting, TypeScript, tests, and production build after the idempotency fix and API coverage expansion.
 - [x] Create the next Ludo milestone commit after resolving the remaining gaps.
-- [ ] Implement real push transport, reconnect subscriptions, and recovery semantics in a future milestone.
+- [x] Implement authenticated SSE push transport and document reconnect subscriptions/recovery semantics as NOT LIVE for the next milestone.
 - [x] Persist and replay the original post-command match status/result metadata with each event.
 - [x] Add coverage for duplicate nonce replay after later match-state changes.
+- [x] Add backend tests for successful join, expired code, full match, and duplicate join behavior.
+- [x] Add an unauthorized-participant test specifically for match.command.
+- [x] Add a gated database-backed integration test harness for authoritative command persistence and idempotent replay; it runs only with a dedicated test database flag.

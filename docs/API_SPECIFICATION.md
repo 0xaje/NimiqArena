@@ -28,7 +28,7 @@ Authenticated request
 → authoritative response
 ```
 
-The current browser synchronization boundary uses a protected state query with a short polling interval and manual refresh. This is a synchronization foundation, not a claim that a production WebSocket/SSE transport is complete. Two-client real-time communication, reconnect subscriptions, and presence heartbeats remain future work.
+The browser synchronization boundary uses an authenticated SSE stream at `/api/matches/:id/events`, with the protected state query, short polling interval, and manual refresh retained as recovery fallbacks. The stream emits persisted participant state and closes cleanly when the client disconnects. Reconnect backoff, presence heartbeats, abandoned-match cleanup, and two-client production verification remain future work.
 
 ## Explicitly unavailable
 

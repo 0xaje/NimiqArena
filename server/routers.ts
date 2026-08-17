@@ -204,7 +204,7 @@ export const appRouter = router({
               : "Match command was rejected.";
           const code = /stale|changed|duplicate/i.test(message)
             ? "CONFLICT"
-            : /not found|participant/i.test(message)
+            : /not found|participant|joined player/i.test(message)
               ? "FORBIDDEN"
               : "BAD_REQUEST";
           throw new TRPCError({ code, message });

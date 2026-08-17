@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -29,6 +30,18 @@ export default function MatchRoom() {
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
   const state = stateQuery.data;
+
+  useEffect(() => {
+    if (!matchId || stateQuery.isError) return;
+    const stream = new EventSource(`/api/matches/${matchId}/events`);
+    const onState = () => void utils.match.state.invalidate({ id: matchId });
+    stream.addEventListener("state", onState);
+    return () => {
+      stream.removeEventListener("state", onState);
+      stream.close();
+    };
+  }, [matchId, stateQuery.isError, utils]);
+
   const snapshot = state?.snapshot as
     | {
         currentPlayer: number;
