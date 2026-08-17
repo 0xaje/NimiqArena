@@ -106,3 +106,8 @@ The event table now also persists `snapshotJson` for each command event. Duplica
 ### Milestone 05 final correction
 
 `match_events` now also stores `resultStatus`. Duplicate nonce replay uses the stored snapshot, event, and original result status, so a later match transition cannot change the replay response. Migration `0004_pretty_shaman.sql` was reviewed and applied. The shared replay regression is included in Vitest; final verification now reports 8 test files and 21 passing tests, with formatting, TypeScript, and production build checks passing.
+
+
+### Follow-up commit
+
+The exact replay-status correction was committed as `d31350d` with message `fix: preserve exact ludo command replay`.
