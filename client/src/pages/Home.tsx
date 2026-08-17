@@ -322,22 +322,46 @@ export default function Home() {
         <div className="sidebar-rule" />
         <p className="sidebar-kicker">THE GAME ROOM / 001</p>
         <nav className="side-nav" aria-label="Primary navigation">
-          <a className="side-nav-link active" href="#featured">
+          <a
+            className="side-nav-link active"
+            href="#featured"
+            onClick={() => setMobileMenu(false)}
+          >
             Discover <span>01</span>
           </a>
-          <a className="side-nav-link" href="#games">
+          <a
+            className="side-nav-link"
+            href="#games"
+            onClick={() => setMobileMenu(false)}
+          >
             Game library <span>03</span>
           </a>
-          <Link className="side-nav-link" href="/games/ludo-league">
+          <Link
+            className="side-nav-link"
+            href="/games/ludo-league"
+            onClick={() => setMobileMenu(false)}
+          >
             Ludo League <span>PLAY</span>
           </Link>
-          <Link className="side-nav-link" href="/join">
+          <Link
+            className="side-nav-link"
+            href="/join"
+            onClick={() => setMobileMenu(false)}
+          >
             Join a friend <span>JOIN</span>
           </Link>
-          <a className="side-nav-link" href="#leaderboard">
+          <a
+            className="side-nav-link"
+            href="#leaderboard"
+            onClick={() => setMobileMenu(false)}
+          >
             Leaderboard <span>TOP</span>
           </a>
-          <a className="side-nav-link" href="#profile">
+          <a
+            className="side-nav-link"
+            href="#profile"
+            onClick={() => setMobileMenu(false)}
+          >
             Player Profile <span>STATS</span>
           </a>
         </nav>
@@ -366,6 +390,13 @@ export default function Home() {
           </button>
         </div>
       </aside>
+      {mobileMenu && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileMenu(false)}
+          aria-hidden="true"
+        />
+      )}
 
       <main className="arena-main">
         <header className="topbar">

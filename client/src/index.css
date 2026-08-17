@@ -790,6 +790,15 @@ h1 em,
   }
   .arena-sidebar.is-open {
     transform: translateX(0);
+    z-index: 100;
+  }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(18, 40, 63, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 99;
+    animation: fadeIn 0.2s ease-out;
   }
   .mobile-trigger,
   .mobile-close {
