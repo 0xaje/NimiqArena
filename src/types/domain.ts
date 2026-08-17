@@ -1,6 +1,6 @@
-export type Screen = 'home' | 'games' | 'match' | 'challenge' | 'ludo' | 'result' | 'leaderboard' | 'profile';
-
 export type MatchMode = 'solo' | 'challenge' | 'quick' | 'ranked';
+
+export type Screen = 'splash' | 'home' | 'games' | 'match' | 'challenge' | 'ludo' | 'result' | 'leaderboard' | 'profile';
 
 export interface PlayerProfile {
   handle: string;

@@ -2,32 +2,40 @@
 
 ## Milestone
 
-Frontend foundation and connected product journey.
+Frontend experience refinement and verified product journey.
 
 ## What was built
 
-The empty repository now contains a React, TypeScript, and Vite application with a mobile-first premium dark interface. The connected journey includes Arena home, game selection, match type selection, challenge-friend room preview, Ludo board presentation, result preview, leaderboard, and profile.
+The existing React, TypeScript, and Vite application now presents a complete mobile-first Arena journey: splash entrance, Arena home, game selection, match type selection, challenge-friend preview, Ludo match presentation, result preview, leaderboard, and profile.
 
-Reusable UI primitives cover avatars, badges, navigation buttons, stat rows, match cards, leaderboard rows, challenge state, dice, and board pieces. The Ludo presentation is deliberately separated from the future deterministic engine boundary.
+The frontend uses reusable presentation primitives for avatars, badges, navigation, leaderboard rows, development notices, challenge states, dice, and Ludo board pieces. The Ludo screen remains a presentation layer; it does not contain authoritative game rules or claim a connected opponent.
 
-Development-only data is isolated and visibly labeled. Nimiq wallet and payment behavior is represented by a typed service port that rejects calls as NOT IMPLEMENTED; no blockchain operation, balance, user account, or settlement is fabricated.
+The splash screen establishes the Nimiq Arena identity with the tagline `PLAY. CHALLENGE. COMPETE.` and transitions into the home screen. All development data and preview outcomes remain explicitly labelled. The app does not fabricate wallet connections, balances, NIM transfers, matchmaking, live users, ratings, or blockchain settlement.
 
 ## Files changed
 
-The implementation includes `package.json`, `pnpm-lock.yaml`, `index.html`, `vite.config.ts`, `tsconfig.json`, `src/App.tsx`, `src/main.tsx`, `src/styles.css`, typed domain/data/service modules, unit tests, and the required engineering documentation under `docs/`.
+The main implementation changes are in `src/App.tsx`, `src/styles.css`, and `src/types/domain.ts`. `App.tsx` now includes the splash route, preview notices, improved match-mode messaging, a dice interaction, and clearer result/profile/leaderboard boundaries. `styles.css` adds the splash entrance, responsive refinements, reduced-motion handling, focus styling, and press feedback. The domain model now includes the splash screen state.
 
 ## Tests performed
 
-`pnpm check` passed. `pnpm test` passed with 2 tests. `pnpm build` passed and generated the production bundle. A browser smoke test verified the home, games, match-type, and challenge-preview journey at the local Vite server.
+The following commands passed after the implementation changes:
+
+| Check | Result |
+|---|---|
+| `pnpm check` | Passed: TypeScript emitted no errors. |
+| `pnpm test` | Passed: 2 Vitest tests. |
+| `pnpm build` | Passed: Vite generated the production bundle. |
+
+The existing domain tests continue to verify development leaderboard consistency and the explicit NOT IMPLEMENTED wallet boundary.
 
 ## Known issues
 
-The repository has no backend, database, authoritative Ludo engine, realtime transport, production authentication, Nimiq SDK integration, matchmaking, leaderboard service, or transaction settlement. The current Ludo interaction is a presentation preview. The challenge code is not a real room identifier, and result values are not recorded anywhere.
+This milestone intentionally has no backend, database, authoritative deterministic Ludo engine, realtime transport, production authentication, Nimiq SDK integration, matchmaking, live leaderboard service, or transaction settlement. The challenge code is a presentation-only value, the Ludo board is not an online multiplayer match, and result values are not recorded.
 
-## Decisions
+## Security posture
 
-The first milestone honors the supplied frontend-only scope and the master engineering rules by making every missing production capability explicit rather than presenting a simulation as live behavior. Official Nimiq Mini App research is recorded in `docs/NIMIQ_INTEGRATION.md` and `docs/nimiq-research-notes.md`.
+The client remains untrusted by design. No frontend action is treated as proof of a move, payment, identity, rating update, or match result. The existing typed wallet port continues to reject connection and payment calls as NOT IMPLEMENTED rather than simulating success.
 
 ## Next step
 
-Review the production bundle, commit the milestone with a meaningful message, and push it to the selected GitHub repository. After that, the next engineering milestone should define the server-authoritative Ludo state model and API contracts before adding multiplayer.
+The next engineering milestone should define and test the server-authoritative Ludo state model, command validation, idempotency keys, reconnect/resync behavior, match authorization, and backend API contracts before adding multiplayer or real Nimiq settlement.
