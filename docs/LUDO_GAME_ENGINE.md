@@ -2,7 +2,7 @@
 
 ## Status
 
-The playable Ludo engine is **not implemented** in this frontend slice. The visual board preview is artwork only and cannot move pieces or produce a match result.
+The deterministic Ludo engine is implemented as `shared/game/ludo-engine.ts`. It is a pure module with no network, wallet, or UI dependencies. The current vertical slice persists its initial snapshot when a match is created, but does not yet expose server gameplay commands or a playable board UI.
 
 ## Target engine contract
 
@@ -22,4 +22,4 @@ Before money is enabled, the product must choose and document whether dice outco
 
 ## Required test categories
 
-The future suite must cover legal moves, illegal moves, exact boundary positions, captures, extra turns, simultaneous requests, duplicate nonces, reconnects, timeouts, and deterministic replay from the event log. Property-based tests should verify that no piece leaves the board model or skips a turn without a rule-approved transition.
+The current suite covers deterministic initial snapshots, server-supplied dice, base-entry requirements, stale versions, duplicate nonces, captures, extra turns on six/capture, and win detection in `client/src/game/ludo-engine.test.ts`. Remaining engine work includes server command persistence, reconnects, timeouts, event-log replay, and property-based rule checks. The module currently uses a two-player track model with four pieces per player, a 52-square track, home progress, safe squares, and exact home-boundary validation.

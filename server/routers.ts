@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createPaymentIntent, getPaymentIntentForUser, updatePaymentIntent } from "./db";
+import { createChallengeMatch, createPaymentIntent, getGameBySlug, getMatchById, getPaymentIntentForUser, updatePaymentIntent } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -28,6 +28,42 @@ export const appRouter = router({
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
+    }),
+  }),
+  game: router({
+    getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(64) })).query(async ({ input }) => {
+      const game = await getGameBySlug(input.slug);
+      if (!game) throw new TRPCError({ code: "NOT_FOUND", message: "Game not found." });
+      return game;
+    }),
+  }),
+  match: router({
+    createChallenge: protectedProcedure
+      .input(z.object({ gameSlug: z.string().min(1).max(64) }))
+      .mutation(async ({ ctx, input }) => {
+        const match = await createChallengeMatch({ userId: ctx.user.id, gameSlug: input.gameSlug });
+        return {
+          id: match.id,
+          joinCode: match.joinCode,
+          status: match.status,
+          visibility: match.visibility,
+          engineVersion: match.engineVersion,
+          expiresAt: match.expiresAt,
+        };
+      }),
+    getById: protectedProcedure.input(z.object({ id: z.string().min(16).max(32) })).query(async ({ ctx, input }) => {
+      const match = await getMatchById(input.id);
+      if (!match) throw new TRPCError({ code: "NOT_FOUND", message: "Match not found." });
+      if (match.hostUserId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "You are not a participant in this match." });
+      return {
+        id: match.id,
+        joinCode: match.joinCode,
+        status: match.status,
+        visibility: match.visibility,
+        engineVersion: match.engineVersion,
+        stateVersion: match.stateVersion,
+        expiresAt: match.expiresAt,
+      };
     }),
   }),
   payment: router({

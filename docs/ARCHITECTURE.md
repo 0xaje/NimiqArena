@@ -43,3 +43,10 @@ The payment state machine is:
 `created → confirmation_pending → submitted → verified`
 
 Failure branches are `confirmation_pending → rejected`, `confirmation_pending → failed`, and `created/confirmation_pending → expired`. Only a trusted verification worker may produce `verified`; no public procedure accepts that state.
+
+
+## Ludo vertical slice
+
+The database now contains a real `games` catalog and `matches` table. The seeded product record is `ludo-league`; it is an active Ludo game record, not a simulated live match. A Challenge Friend request creates a backend-owned match ID, unique invite code, `waiting` status, engine version, expiry, and the initial serialized Ludo snapshot.
+
+The frontend reads game detail through the public `game.getBySlug` procedure. Match creation and match-room reads use protected procedures. The client may display the returned identifier and invite code, but it cannot create an opponent, advance turns, write a result, or mark settlement. The next server slice must add authenticated join-by-code, atomic command handling, event persistence, and reconnection semantics.

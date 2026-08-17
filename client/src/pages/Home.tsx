@@ -5,22 +5,22 @@ import { init } from "@nimiq/mini-app-sdk";
 import { ArrowUpRight, ChevronRight, CircleHelp, Coins, Gamepad2, Menu, Radio, Search, ShieldCheck, Sparkles, Trophy, WalletCards, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Link } from "wouter";
 
 type ProviderState = "checking" | "ready" | "browser" | "error";
 
 type GameCard = {
   title: string;
   genre: string;
-  status: "FEATURED" | "COMING SOON" | "CONCEPT";
+  status: "FEATURED" | "COMING SOON" | "CONCEPT" | "UNAVAILABLE";
   image: string;
   accent: string;
   description: string;
 };
 
-const games: GameCard[] = [
-  { title: "Ludo League", genre: "STRATEGY / SOCIAL", status: "FEATURED", image: "https://images.unsplash.com/photo-1605870445919-838d190e8e1b?auto=format&fit=crop&w=900&q=85", accent: "orange", description: "The first Arena table. Server-authoritative multiplayer is being connected in order." },
-  { title: "Arena Blitz", genre: "ARCADE / DUEL", status: "COMING SOON", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=85", accent: "blue", description: "A fast round-based format for quick NIM-powered matches." },
-  { title: "Hex Relay", genre: "TACTICS / TURN-BASED", status: "CONCEPT", image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=85", accent: "green", description: "A planning game on a changing board. Rules are not implemented yet." },
+const futureGames: GameCard[] = [
+  { title: "Arena Blitz", genre: "ARCADE / DUEL", status: "COMING SOON", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=85", accent: "blue", description: "A future round-based format. No playable build exists yet." },
+  { title: "Hex Relay", genre: "TACTICS / TURN-BASED", status: "CONCEPT", image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=85", accent: "green", description: "A planning game concept. Rules and implementation are not available yet." },
 ];
 
 function formatAddress(address: string) {
@@ -35,6 +35,11 @@ function providerError(value: unknown) {
 
 export default function Home() {
   useAuth();
+  const ludoQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
+  const gameCards: GameCard[] = [
+    { title: ludoQuery.data?.name ?? "Ludo League", genre: "STRATEGY / SOCIAL", status: ludoQuery.data ? "FEATURED" : "UNAVAILABLE", image: "https://images.unsplash.com/photo-1605870445919-838d190e8e1b?auto=format&fit=crop&w=900&q=85", accent: "orange", description: ludoQuery.data?.description ?? "The real Ludo game record is unavailable right now." },
+    ...futureGames,
+  ];
   const nimiqPromise = useRef<ReturnType<typeof init> | null>(null);
   const [providerState, setProviderState] = useState<ProviderState>("checking");
   const [providerMessage, setProviderMessage] = useState("Waiting for Nimiq Pay to initialize the provider…");
@@ -153,10 +158,10 @@ export default function Home() {
 
         <section className="platform-intro" id="featured">
           <div className="intro-copy"><div className="stamp-row"><span className="stamp orange">SEASON 01</span><span className="stamp">OPENING TABLES</span></div><p className="eyebrow">A NIM-POWERED GAME ROOM</p><h1>Find your next<br /><em>favorite game.</em></h1><p className="hero-dek">Nimiq Arena is a growing home for games with real ownership, honest competition, and room for more than one kind of player.</p><div className="hero-actions"><a className="primary-action" href="#games">Browse the games <ArrowUpRight size={17} /></a><button className="text-action" onClick={() => document.getElementById("status")?.scrollIntoView({ behavior: "smooth" })}>Check live status <ChevronRight size={16} /></button></div><div className="trust-line"><ShieldCheck size={15} /><span>Live players, balances, and match results appear only when verified systems are connected.</span></div></div>
-          <div className="feature-stage"><div className="feature-art"><img src={games[0].image} alt="Ludo table preview" /><div className="feature-wash" /><div className="feature-copy"><span className="card-label">01 / FEATURED GAME</span><h2>Ludo<br /><em>League</em></h2><p>Strategy, luck, and the long way around.</p><button className="stage-button" onClick={() => unavailable("Ludo matchmaking")}><Gamepad2 size={15} /> View game</button></div><span className="feature-chip">FEATURED / NOT LIVE</span></div><div className="feature-footer"><span><Zap size={13} /> FIRST ON THE TABLE</span><span>STRATEGY / SOCIAL</span></div></div>
+          <div className="feature-stage"><div className="feature-art"><img src={gameCards[0].image} alt="Ludo table preview" /><div className="feature-wash" /><div className="feature-copy"><span className="card-label">01 / FEATURED GAME</span><h2>{ludoQuery.data?.name ?? "Ludo"}<br /><em>League</em></h2><p>Strategy, luck, and the long way around.</p><Link className="stage-button" href="/games/ludo-league"><Gamepad2 size={15} /> View game</Link></div><span className="feature-chip">FEATURED / NOT LIVE</span></div><div className="feature-footer"><span><Zap size={13} /> FIRST ON THE TABLE</span><span>STRATEGY / SOCIAL</span></div></div>
         </section>
 
-        <section className="section-block" id="games"><div className="section-topline"><div><p className="eyebrow">THE ARENA INDEX</p><h2>Pick a room.<br /><em>Stay for the games.</em></h2></div><button className="browse-link" onClick={() => unavailable("Full game library")}><span>View all games</span><ArrowUpRight size={15} /></button></div><div className="game-grid">{games.map((game, index) => <article className={`game-card ${game.status === "FEATURED" ? "featured-card" : ""}`} key={game.title}><div className={`game-card-art ${game.accent}`}><img src={game.image} alt="" /><div className="game-card-shade" /><span className="game-status">{game.status}</span><span className="game-index">0{index + 1}</span></div><div className="game-card-body"><div><span className="card-label">{game.genre}</span><h3>{game.title}</h3></div><button className="round-arrow" onClick={() => game.status === "FEATURED" ? unavailable("Ludo matchmaking") : unavailable(game.title)} aria-label={`Open ${game.title}`}><ArrowUpRight size={15} /></button><p>{game.description}</p></div></article>)}</div></section>
+        <section className="section-block" id="games"><div className="section-topline"><div><p className="eyebrow">THE ARENA INDEX</p><h2>Pick a room.<br /><em>Stay for the games.</em></h2></div><button className="browse-link" onClick={() => unavailable("Full game library")}><span>View all games</span><ArrowUpRight size={15} /></button></div><div className="game-grid">{gameCards.map((game, index) => <article className={`game-card ${game.status === "FEATURED" ? "featured-card" : ""}`} key={game.title}><div className={`game-card-art ${game.accent}`}><img src={game.image} alt="" /><div className="game-card-shade" /><span className="game-status">{game.status}</span><span className="game-index">0{index + 1}</span></div><div className="game-card-body"><div><span className="card-label">{game.genre}</span><h3>{game.title}</h3></div><button className="round-arrow" onClick={() => game.status === "FEATURED" ? (window.location.href = "/games/ludo-league") : unavailable(game.title)} aria-label={`Open ${game.title}`}><ArrowUpRight size={15} /></button><p>{game.description}</p></div></article>)}</div></section>
 
         <section className="arena-rails"><div className="rail-card rail-dark"><span className="card-label">THE POINT OF THE ARENA</span><h3>Play something<br /><em>worth coming back to.</em></h3><p>Games are the beginning. Community, progression, and fair competition are the long game.</p><button className="rail-link" onClick={() => unavailable("Arena community")}><Sparkles size={14} /> Explore the vision</button></div><div className="rail-card"><span className="card-label">NIMIQ PAY / LIVE STATUS</span><div className="rail-status"><span className={`status-dot ${providerState === "ready" ? "ready" : ""}`} /><strong>{providerLabel}</strong></div><h3>{providerState === "ready" ? "Your wallet host is ready." : "The host wallet is not connected."}</h3><p>{providerMessage}</p><button className="rail-link" onClick={connectWallet}><WalletCards size={14} /> {address ? "Wallet connected" : "Connect a wallet"}</button></div></section>
 

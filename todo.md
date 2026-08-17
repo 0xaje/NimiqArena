@@ -15,3 +15,15 @@
 - [x] Redesign the frontend shell around a game library, featured play, and future game slots.
 - [x] Preserve truthful wallet, payment, multiplayer, and availability states in the redesigned UI.
 - [x] Verify desktop/mobile visuals and rerun frontend checks after the redesign.
+- [x] Replace frontend-only game cards with a real Game domain and Ludo game record.
+- [x] Add database structure for games and matches and apply the migration.
+- [x] Implement the deterministic Ludo engine as a separate tested module.
+- [x] Add protected game-detail and Challenge Friend match-creation procedures.
+- [x] Build the Ludo detail page and real match-code display without simulating an opponent.
+- [x] Keep matchmaking, results, ratings, and settlement explicitly unavailable until real dependencies exist.
+- [x] Update architecture, Ludo engine, decisions, and progress documentation.
+- [x] Run TypeScript, tests, production build, and visual verification.
+- [x] Create a git commit for the milestone.
+- [x] Clarify the public game-detail procedure and protected Challenge Friend procedure in the milestone history.
+- [x] Visually verify the Ludo detail page and match-room unavailable state at desktop and mobile widths.
+- [ ] Create and record the Ludo vertical-slice git commit.

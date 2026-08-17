@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, paymentIntents, users, type PaymentIntent } from "../drizzle/schema";
+import { InsertUser, games, matches, paymentIntents, users, type Game, type Match, type PaymentIntent } from "../drizzle/schema";
+import { createLudoSnapshot } from "../shared/game/ludo-engine";
 import { nanoid } from "nanoid";
 import { ENV } from './_core/env';
 
@@ -88,6 +89,47 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getGameBySlug(slug: string): Promise<Game | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Game service is unavailable.");
+  const result = await db.select().from(games).where(eq(games.slug, slug)).limit(1);
+  return result[0];
+}
+
+export async function createChallengeMatch(input: { userId: number; gameSlug: string }): Promise<Match> {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const game = await getGameBySlug(input.gameSlug);
+  if (!game || game.status !== "active") throw new Error("This game is not available for match creation.");
+
+  const id = nanoid(20);
+  const joinCode = nanoid(8).toUpperCase();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+  const snapshot = createLudoSnapshot(id);
+  await db.insert(matches).values({
+    id,
+    gameId: game.id,
+    hostUserId: input.userId,
+    joinCode,
+    visibility: "challenge_friend",
+    status: "waiting",
+    engineVersion: "ludo-v1",
+    stateVersion: snapshot.version,
+    stateJson: JSON.stringify(snapshot),
+    expiresAt,
+  });
+  const created = await db.select().from(matches).where(eq(matches.id, id)).limit(1);
+  if (!created[0]) throw new Error("Match could not be created.");
+  return created[0];
+}
+
+export async function getMatchById(id: string): Promise<Match | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const result = await db.select().from(matches).where(eq(matches.id, id)).limit(1);
+  return result[0];
 }
 
 export async function createPaymentIntent(input: {

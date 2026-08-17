@@ -11,3 +11,25 @@ The current project remains frontend-only. No fake balances, players, ratings, l
 ## 2026-08-17 — Official SDK boundary
 
 The project installs and uses `@nimiq/mini-app-sdk` with the documented `init()` and `listAccounts()` flow. Payment and settlement are deferred until a trusted backend and policy exist; the Hub API is documented as a candidate official payment integration path, not silently approximated.
+
+
+## 2026-08-17 — Real game records before visual availability
+
+The Arena index now reads Ludo from the backend `games` table. Future titles remain frontend-only informational cards until their own records and availability contracts exist. This prevents the catalog from presenting concepts as playable products.
+
+## 2026-08-17 — Challenge Friend creates a waiting match only
+
+Challenge Friend creates a real backend match ID and invite code with a persisted initial Ludo snapshot. It does not create an opponent, auto-join a second player, start gameplay, or fabricate a result. Joining, command execution, and reconnection are intentionally deferred.
+
+## 2026-08-17 — Shared deterministic engine
+
+The Ludo rules module lives under `shared/game/ludo-engine.ts` so server and client can share the same pure contract while the server remains authoritative. Every command carries a match ID, expected version, player ID, and nonce. Server-owned randomness is passed into the engine rather than generated in the UI.
+
+
+## 2026-08-17 — Public game detail, protected match access
+
+Game detail is intentionally public because it describes a catalog record and availability, not a user-owned asset. Challenge Friend creation and match-room reads remain protected because they expose user-owned match identifiers and invite state.
+
+## 2026-08-17 — Route verification scope
+
+The Ludo detail page and match-room unavailable state were verified at desktop and mobile breakpoints. The screenshots validate layout and honest loading/error states; they do not claim authenticated match creation or friend joining without a real session.

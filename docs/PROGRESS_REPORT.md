@@ -61,3 +61,20 @@ Verification performed: `pnpm check`, `pnpm build`, and desktop/mobile screensho
 ### Next step
 
 Implement the trusted server-side Nimiq transaction verification worker and connect verified payment intents to real match creation. In parallel, add real game records and availability data to replace the current frontend-only game index.
+
+
+### Milestone 04 — Real Ludo game and Challenge Friend vertical slice
+
+**Date:** 2026-08-17
+
+The product now has a real backend Game domain and Match domain. The database contains `games` and `matches`; the migration registers the active `ludo-league` product record and persists match IDs, unique invite codes, waiting status, engine version, expiry, state version, and serialized initial Ludo snapshots.
+
+The shared deterministic engine is implemented in `shared/game/ludo-engine.ts`. It validates match identity, expected version, command nonce, turn ownership, dice lifecycle, base entry, home-boundary movement, captures, safe squares, extra turns, and win detection. It returns typed rejections instead of mutating state. Six engine tests cover the core rule and concurrency-safety behaviors.
+
+The backend exposes `game.getBySlug`, protected `match.createChallenge`, and protected `match.getById` procedures. The new Ludo detail page reads the real game record and creates a real Challenge Friend waiting match when authenticated. The match room displays the returned ID and invite code, but explicitly does not simulate a friend, gameplay, results, ratings, matchmaking, or settlement.
+
+Verification performed: `pnpm check` passed, `pnpm test` passed with 7 test files and 18 tests, the Ludo detail page was browser-verified at desktop width, and the production build remains the final required check before checkpointing. The known gaps are authenticated join-by-code, server gameplay-command persistence, reconnection, matchmaking, and trusted on-chain settlement verification.
+
+### Next milestone
+
+Add the authenticated friend-join flow, then expose server-authoritative Ludo commands through an atomic match-event API. Only after that should the playable board UI and real matchmaking queue be connected.
