@@ -80,11 +80,26 @@ export async function ensureDefaultGamesSeeded(db: ReturnType<typeof drizzle>) {
   }
 }
 
+let _initDbPromise: Promise<void> | null = null;
+
+async function bootstrapDatabase(db: ReturnType<typeof drizzle>) {
+  try {
+    await ensureDefaultGamesSeeded(db);
+    await ensureDefaultSeasonsSeeded(db);
+  } catch (err) {
+    console.warn("[Database] Bootstrapping tables/seeds failed:", err);
+  }
+}
+
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       _db = drizzle(process.env.DATABASE_URL);
+      if (!_initDbPromise) {
+        _initDbPromise = bootstrapDatabase(_db);
+      }
+      await _initDbPromise;
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
