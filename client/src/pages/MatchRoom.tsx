@@ -20,6 +20,9 @@ import { LudoDice } from "@/components/game/LudoDice";
 import { Connect4Board2D } from "@/components/game/Connect4Board2D";
 import { EscrowDepositModal } from "@/components/game/EscrowDepositModal";
 import { VictoryPayoutBanner } from "@/components/game/VictoryPayoutBanner";
+import { EmoteWheel } from "@/components/game/EmoteWheel";
+import { EmoteOverlay } from "@/components/game/EmoteOverlay";
+import { useMatchStream } from "@/lib/useMatchStream";
 
 export default function MatchRoom() {
   const [, params] = useRoute("/matches/:id");
@@ -27,7 +30,7 @@ export default function MatchRoom() {
   const utils = trpc.useUtils();
   const stateQuery = trpc.match.state.useQuery(
     { id: matchId },
-    { enabled: Boolean(matchId), refetchInterval: 4_000 }
+    { enabled: Boolean(matchId), refetchInterval: 6_000 } // Fallback sync
   );
   const escrowQuery = trpc.match.escrowDetails.useQuery(
     { matchId },
@@ -36,6 +39,29 @@ export default function MatchRoom() {
   const authQuery = trpc.auth.me.useQuery();
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const escrow = escrowQuery.data;
+
+  // Real-time zero latency SSE event stream
+  const {
+    isConnected: isStreamConnected,
+    activeEmotes,
+    activeChats,
+  } = useMatchStream({
+    matchId,
+    enabled: Boolean(matchId),
+    onStateUpdate: streamState => {
+      utils.match.state.setData({ id: matchId }, prev => {
+        if (!prev) return streamState;
+        return { ...prev, ...streamState };
+      });
+    },
+    onEmote: () => {
+      soundEngine.playCapture();
+    },
+    onChat: () => {
+      soundEngine.playPieceMove();
+    },
+  });
+
   const command = trpc.match.command.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
@@ -327,6 +353,34 @@ export default function MatchRoom() {
         </Link>
         <span className="detail-brand">NIMIQ ARENA / MATCH ROOM</span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {isStreamConnected && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                fontFamily: "IBM Plex Mono, monospace",
+                fontSize: "11px",
+                color: "#2ecc71",
+                background: "rgba(46, 204, 113, 0.15)",
+                border: "1px solid rgba(46, 204, 113, 0.3)",
+                borderRadius: "12px",
+                padding: "2px 8px",
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "#2ecc71",
+                  boxShadow: "0 0 8px #2ecc71",
+                }}
+              />
+              LIVE
+            </span>
+          )}
+          <EmoteWheel matchId={matchId} />
           <button
             type="button"
             className="sound-toggle-btn"
@@ -546,7 +600,15 @@ export default function MatchRoom() {
 
             <section className="ludo-live-2d-layout">
               {/* Left Column: 2D Interactive Board */}
-              <article className="ludo-board-2d-container">
+              <article
+                className="ludo-board-2d-container"
+                style={{ position: "relative", overflow: "hidden" }}
+              >
+                <EmoteOverlay
+                  emotes={activeEmotes}
+                  chats={activeChats}
+                  yourSeat={yourSeat}
+                />
                 <div className="board-heading">
                   <div>
                     <span className="card-label">

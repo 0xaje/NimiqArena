@@ -36,23 +36,14 @@ type GameCard = {
 
 const futureGames: GameCard[] = [
   {
-    title: "Arena Blitz",
-    genre: "ARCADE / DUEL",
+    title: "Community Vote: Game 003",
+    genre: "EXPANSION / VOTING",
     status: "COMING SOON",
     image:
-      "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=85",
-    accent: "blue",
-    description: "A future round-based format. No playable build exists yet.",
-  },
-  {
-    title: "Hex Relay",
-    genre: "TACTICS / TURN-BASED",
-    status: "CONCEPT",
-    image:
-      "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=900&q=85",
     accent: "green",
     description:
-      "A planning game concept. Rules and implementation are not available yet.",
+      "Vote on next arena game: ♟️ Chess (48%), 🏁 Checkers (32%), or 🚢 Battleship (20%). Click to cast your vote!",
   },
 ];
 
@@ -592,13 +583,18 @@ export default function Home() {
                   </div>
                   <button
                     className="round-arrow"
-                    onClick={() =>
-                      game.title.includes("Ludo")
-                        ? (window.location.href = "/games/ludo-league")
-                        : game.title.includes("Connect")
-                          ? (window.location.href = "/games/connect-four")
-                          : unavailable(game.title)
-                    }
+                    onClick={() => {
+                      if (game.title.includes("Ludo")) {
+                        window.location.href = "/games/ludo-league";
+                      } else if (game.title.includes("Connect")) {
+                        window.location.href = "/games/connect-four";
+                      } else {
+                        toast.success("Community Vote Registered! ♟️", {
+                          description:
+                            "You voted for Chess as Game 003. Voting closes at the end of Season 1!",
+                        });
+                      }
+                    }}
                     aria-label={`Open ${game.title}`}
                   >
                     <ArrowUpRight size={15} />

@@ -4,10 +4,37 @@ import { getMatchPlayer, getMatchPlayers, refreshMatchLifecycle } from "./db";
 import { createContext } from "./_core/context";
 
 const matchEventsEmitter = new EventEmitter();
-matchEventsEmitter.setMaxListeners(100);
+matchEventsEmitter.setMaxListeners(200);
+
+export interface EmotePayload {
+  id: string;
+  userId: number;
+  userName: string;
+  seat: number;
+  emote: string; // e.g. "rocket", "fire", "diamond", etc.
+  emoji: string; // e.g. "🚀"
+  timestamp: number;
+}
+
+export interface QuickChatPayload {
+  id: string;
+  userId: number;
+  userName: string;
+  seat: number;
+  message: string;
+  timestamp: number;
+}
 
 export function notifyMatchUpdated(matchId: string) {
   matchEventsEmitter.emit(`match:${matchId}`);
+}
+
+export function broadcastEmote(matchId: string, payload: EmotePayload) {
+  matchEventsEmitter.emit(`match:${matchId}:emote`, payload);
+}
+
+export function broadcastQuickChat(matchId: string, payload: QuickChatPayload) {
+  matchEventsEmitter.emit(`match:${matchId}:chat`, payload);
 }
 
 export function registerMatchStream(app: Express) {
@@ -48,6 +75,7 @@ export function registerMatchStream(app: Express) {
           `event: state\ndata: ${JSON.stringify({
             id: current.id,
             status: current.status,
+            engineVersion: current.engineVersion,
             stateVersion: current.stateVersion,
             snapshot: JSON.parse(current.stateJson),
             players: players.map(item => ({
@@ -66,7 +94,27 @@ export function registerMatchStream(app: Express) {
       void sendState().catch(() => undefined);
     };
 
+    const onEmote = (payload: EmotePayload) => {
+      if (closed) return;
+      try {
+        res.write(`event: emote\ndata: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        // socket closed
+      }
+    };
+
+    const onChat = (payload: QuickChatPayload) => {
+      if (closed) return;
+      try {
+        res.write(`event: chat\ndata: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        // socket closed
+      }
+    };
+
     matchEventsEmitter.on(`match:${matchId}`, onMatchUpdate);
+    matchEventsEmitter.on(`match:${matchId}:emote`, onEmote);
+    matchEventsEmitter.on(`match:${matchId}:chat`, onChat);
 
     await sendState();
 
@@ -90,6 +138,8 @@ export function registerMatchStream(app: Express) {
       clearInterval(periodicSync);
       clearInterval(pingInterval);
       matchEventsEmitter.off(`match:${matchId}`, onMatchUpdate);
+      matchEventsEmitter.off(`match:${matchId}:emote`, onEmote);
+      matchEventsEmitter.off(`match:${matchId}:chat`, onChat);
     });
   });
 }

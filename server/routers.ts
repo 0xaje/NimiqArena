@@ -33,6 +33,8 @@ import {
   upsertUser,
   verifyPaymentIntent,
 } from "./db";
+import { broadcastEmote, broadcastQuickChat } from "./match-stream";
+import { nanoid } from "nanoid";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
@@ -551,6 +553,77 @@ export const appRouter = router({
               : "BAD_REQUEST";
           throw new TRPCError({ code, message });
         }
+      }),
+    sendEmote: protectedProcedure
+      .input(
+        z.object({
+          matchId: matchIdSchema,
+          emote: z.enum([
+            "bullseye",
+            "rocket",
+            "diamond",
+            "shock",
+            "gg",
+            "crown",
+            "fire",
+            "skull",
+          ]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const player = await getMatchPlayer(input.matchId, ctx.user.id);
+        if (!player || player.status !== "joined") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You are not an active player in this match.",
+          });
+        }
+        const emojiMap: Record<string, string> = {
+          bullseye: "🎯",
+          rocket: "🚀",
+          diamond: "💎",
+          shock: "😱",
+          gg: "👏",
+          crown: "👑",
+          fire: "🔥",
+          skull: "💀",
+        };
+        const emoji = emojiMap[input.emote] ?? "✨";
+        broadcastEmote(input.matchId, {
+          id: nanoid(12),
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? `Player ${player.seat + 1}`,
+          seat: player.seat,
+          emote: input.emote,
+          emoji,
+          timestamp: Date.now(),
+        });
+        return { ok: true as const };
+      }),
+    sendQuickChat: protectedProcedure
+      .input(
+        z.object({
+          matchId: matchIdSchema,
+          message: z.string().trim().min(1).max(64),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const player = await getMatchPlayer(input.matchId, ctx.user.id);
+        if (!player || player.status !== "joined") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You are not an active player in this match.",
+          });
+        }
+        broadcastQuickChat(input.matchId, {
+          id: nanoid(12),
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? `Player ${player.seat + 1}`,
+          seat: player.seat,
+          message: input.message,
+          timestamp: Date.now(),
+        });
+        return { ok: true as const };
       }),
   }),
   payment: router({
