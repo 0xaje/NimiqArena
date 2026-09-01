@@ -17,12 +17,12 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 
-export default function LudoDetail() {
+export default function Connect4Detail() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
-  const gameQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
+  const gameQuery = trpc.game.getBySlug.useQuery({ slug: "connect-four" });
   const createChallenge = trpc.match.createChallenge.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
@@ -62,7 +62,7 @@ export default function LudoDetail() {
       }
       toast.info(`Creating ${selectedStake} NIM Wagered Table…`);
       const res = await createWagered.mutateAsync({
-        gameSlug: "ludo-league",
+        gameSlug: "connect-four",
         stakeNim: selectedStake,
       });
       setIsStakeModalOpen(false);
@@ -89,8 +89,8 @@ export default function LudoDetail() {
         }
         await utils.auth.me.invalidate();
       }
-      toast.info("Launching Practice Table vs Arena Bot…");
-      const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
+      toast.info("Launching Practice Table vs Connect NIM Bot…");
+      const match = await createSolo.mutateAsync({ gameSlug: "connect-four" });
       navigate(`/matches/${match.id}`);
     } catch (err) {
       toast.error("Failed to launch solo practice", {
@@ -115,7 +115,7 @@ export default function LudoDetail() {
         await utils.auth.me.invalidate();
       }
       const match = await createChallenge.mutateAsync({
-        gameSlug: "ludo-league",
+        gameSlug: "connect-four",
       });
       setCreatedMatch({ id: match.id, joinCode: match.joinCode });
       toast.success("Challenge match created", {
@@ -153,31 +153,67 @@ export default function LudoDetail() {
       <QuickMatchModal
         isOpen={isQuickMatchOpen}
         onClose={() => setIsQuickMatchOpen(false)}
-        gameSlug="ludo-league"
+        gameSlug="connect-four"
       />
 
       {/* Wager Stake Selection Modal */}
       {isStakeModalOpen && (
-        <div className="quickmatch-modal-overlay" onClick={() => setIsStakeModalOpen(false)}>
-          <div className="quickmatch-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: "440px" }}>
+        <div
+          className="quickmatch-modal-overlay"
+          onClick={() => setIsStakeModalOpen(false)}
+        >
+          <div
+            className="quickmatch-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: "440px" }}
+          >
             <div className="quickmatch-modal-header">
               <div className="quickmatch-header-left">
                 <Coins className="radar-header-icon" size={20} />
-                <span style={{ fontFamily: "IBM Plex Mono, monospace", fontWeight: 600, fontSize: "13px" }}>
+                <span
+                  style={{
+                    fontFamily: "IBM Plex Mono, monospace",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   SELECT WAGER STAKE
                 </span>
               </div>
-              <button className="quickmatch-close-btn" onClick={() => setIsStakeModalOpen(false)}>
+              <button
+                className="quickmatch-close-btn"
+                onClick={() => setIsStakeModalOpen(false)}
+              >
                 ✕
               </button>
             </div>
-            <div className="quickmatch-modal-body" style={{ textAlign: "center", padding: "24px" }}>
-              <h2 style={{ margin: "0 0 8px", fontSize: "22px" }}>Choose Your Entry Stake</h2>
-              <p style={{ color: "rgba(251, 248, 241, 0.7)", fontSize: "13px", margin: "0 0 20px" }}>
-                Both players deposit matching stakes into smart escrow. Winner takes the full pot!
+            <div
+              className="quickmatch-modal-body"
+              style={{ textAlign: "center", padding: "24px" }}
+            >
+              <h2 style={{ margin: "0 0 8px", fontSize: "22px" }}>
+                Choose Your Entry Stake
+              </h2>
+              <p
+                style={{
+                  color: "rgba(251, 248, 241, 0.7)",
+                  fontSize: "13px",
+                  margin: "0 0 20px",
+                }}
+              >
+                Both players deposit matching stakes into smart escrow. Winner
+                takes the full pot!
               </p>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px", width: "100%", marginBottom: "20px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: "10px",
+                  width: "100%",
+                  marginBottom: "20px",
+                }}
+              >
                 {[10, 50, 100, 500].map(stake => (
                   <button
                     key={stake}
@@ -185,7 +221,10 @@ export default function LudoDetail() {
                     onClick={() => setSelectedStake(stake)}
                     style={{
                       padding: "16px",
-                      background: selectedStake === stake ? "rgba(230, 93, 35, 0.2)" : "rgba(0, 0, 0, 0.25)",
+                      background:
+                        selectedStake === stake
+                          ? "rgba(230, 93, 35, 0.2)"
+                          : "rgba(0, 0, 0, 0.25)",
                       border: `2px solid ${selectedStake === stake ? "var(--orange)" : "rgba(251, 248, 241, 0.15)"}`,
                       borderRadius: "8px",
                       color: "var(--paper-bright)",
@@ -195,10 +234,25 @@ export default function LudoDetail() {
                       transition: "all 0.15s ease",
                     }}
                   >
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: selectedStake === stake ? "var(--orange)" : "inherit" }}>
+                    <div
+                      style={{
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                        color:
+                          selectedStake === stake
+                            ? "var(--orange)"
+                            : "inherit",
+                      }}
+                    >
                       {stake} NIM
                     </div>
-                    <div style={{ fontSize: "11px", color: "rgba(251, 248, 241, 0.6)", marginTop: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "rgba(251, 248, 241, 0.6)",
+                        marginTop: "4px",
+                      }}
+                    >
                       Pot: {stake * 2} NIM
                     </div>
                   </button>
@@ -209,9 +263,18 @@ export default function LudoDetail() {
                 className="primary-action"
                 onClick={handleStartWageredMatch}
                 disabled={createWagered.isPending}
-                style={{ width: "100%", justifyContent: "center", background: "var(--orange)", padding: "14px", fontSize: "14px" }}
+                style={{
+                  width: "100%",
+                  justifyContent: "center",
+                  background: "var(--orange)",
+                  padding: "14px",
+                  fontSize: "14px",
+                }}
               >
-                <Coins size={16} /> {createWagered.isPending ? "Creating Wagered Table…" : `Create ${selectedStake} NIM Match`}
+                <Coins size={16} />{" "}
+                {createWagered.isPending
+                  ? "Creating Wagered Table…"
+                  : `Create ${selectedStake} NIM Match`}
               </button>
             </div>
           </div>
@@ -222,7 +285,7 @@ export default function LudoDetail() {
         <Link href="/" className="back-link">
           <ArrowLeft size={15} /> Arena home
         </Link>
-        <span className="detail-brand">NIMIQ ARENA / GAME 001</span>
+        <span className="detail-brand">NIMIQ ARENA / GAME 002</span>
         <span className="detail-state">
           {user ? `PLAYING AS: ${user.name || "PLAYER 1"}` : "GUEST MODE"}
         </span>
@@ -230,14 +293,17 @@ export default function LudoDetail() {
       <main className="detail-main">
         <section className="detail-hero">
           <div className="detail-hero-copy">
-            <span className="stamp orange">STRATEGY / SOCIAL</span>
+            <span className="stamp orange">STRATEGY / TACTICAL</span>
             <p className="eyebrow">GAME DETAIL / REAL RECORD</p>
-            <h1>{game?.name ?? "Ludo League"}</h1>
+            <h1>{game?.name ?? "Connect NIM"}</h1>
             <p className="detail-lede">
               {game?.description ??
-                "A server-authoritative Ludo game for real Arena matches."}
+                "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally."}
             </p>
-            <div className="detail-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
+            <div
+              className="detail-actions"
+              style={{ flexWrap: "wrap", gap: "12px" }}
+            >
               <button
                 className="primary-action"
                 onClick={handleOpenQuickMatch}
@@ -250,23 +316,34 @@ export default function LudoDetail() {
                 className="secondary-chip"
                 onClick={() => setIsStakeModalOpen(true)}
                 disabled={!game || game.status !== "active"}
-                style={{ padding: "12px 16px", borderColor: "var(--orange)", color: "var(--orange)" }}
+                style={{
+                  padding: "12px 16px",
+                  borderColor: "var(--orange)",
+                  color: "var(--orange)",
+                }}
               >
                 <Coins size={16} /> 💰 Wager NIM Match
               </button>
               <button
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
-                disabled={createSolo.isPending || !game || game.status !== "active"}
+                disabled={
+                  createSolo.isPending || !game || game.status !== "active"
+                }
                 style={{ padding: "12px 16px" }}
               >
-                🤖 {createSolo.isPending ? "Starting…" : "Solo Practice (vs AI)"}
+                🤖{" "}
+                {createSolo.isPending
+                  ? "Starting…"
+                  : "Solo Practice (vs AI)"}
               </button>
               <button
                 className="secondary-chip"
                 onClick={createMatch}
                 disabled={
-                  createChallenge.isPending || !game || game.status !== "active"
+                  createChallenge.isPending ||
+                  !game ||
+                  game.status !== "active"
                 }
                 style={{ padding: "12px 16px" }}
               >
@@ -282,114 +359,64 @@ export default function LudoDetail() {
             <div className="trust-line">
               <ShieldCheck size={15} />
               <span>
-                Quick Match automatically matches you with an online opponent of similar Elo rating.
+                Deterministic server-authoritative engine. Every drop and victory
+                line is verified.
               </span>
             </div>
           </div>
-          <div className="detail-board">
-            <img
-              src="https://images.unsplash.com/photo-1605870445919-838d190e8e1b?auto=format&fit=crop&w=1200&q=85"
-              alt="Ludo game table preview"
-            />
-            <div className="detail-board-wash" />
-            <span className="detail-board-label">LOBBY / WAITING ROOM</span>
-            <strong>
-              One table.
-              <br />
-              <em>Two real players.</em>
-            </strong>
-          </div>
-        </section>
 
-        <section className="detail-grid">
-          <article className="detail-panel">
-            <span className="card-label">MATCH CREATION</span>
-            <h2>Start a private table.</h2>
-            <p>
-              Challenge Friend creates the match on the backend and returns a
-              unique match ID and invite code. Joining a friend, turn execution,
-              and reconnection are separate dependencies and remain unavailable
-              until implemented.
-            </p>
-            {createdMatch ? (
-              <div className="match-created">
-                <div>
-                  <span className="card-label">REAL MATCH ID</span>
-                  <strong>{createdMatch.id}</strong>
+          <div className="detail-hero-card">
+            <div className="card-topline">
+              <span className="card-label">AVAILABLE ACTIONS</span>
+              <span className="status-indicator">
+                <span className="status-dot green"></span>
+                ACTIVE PROTOCOL
+              </span>
+            </div>
+
+            <div className="feature-grid">
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <Gamepad2 size={20} />
                 </div>
                 <div>
-                  <span className="card-label">INVITE CODE</span>
-                  <strong>{createdMatch.joinCode}</strong>
+                  <h4>7x6 Vertical Grid</h4>
+                  <p>
+                    Vertical gravity drop physics with horizontal, vertical,
+                    and diagonal win detection.
+                  </p>
                 </div>
-                <button className="copy-code" onClick={copyCode}>
-                  <Copy size={15} /> Copy code
-                </button>
-                <button
-                  className="open-match"
-                  onClick={() => navigate(`/matches/${createdMatch.id}`)}
-                >
-                  Open room <ArrowUpRight size={14} />
-                </button>
               </div>
-            ) : (
-              <div className="availability-note">
-                <LockKeyhole size={15} />
-                <span>
-                  Authentication is required before a match can be created.
-                </span>
-              </div>
-            )}
-          </article>
-          <article className="detail-panel detail-panel-dark">
-            <span className="card-label">WHAT IS REAL HERE</span>
-            <ul className="detail-list">
-              <li>
-                <Check size={14} /> Game record comes from the database.
-              </li>
-              <li>
-                <Check size={14} /> Match ID and code come from the backend.
-              </li>
-              <li>
-                <Check size={14} /> Initial engine snapshot is persisted.
-              </li>
-              <li>
-                <span className="unavailable-dot" /> Opponent, turns, and
-                results are not live yet.
-              </li>
-            </ul>
-          </article>
-        </section>
 
-        <section className="detail-specs">
-          <div>
-            <span className="card-label">ENGINE</span>
-            <strong>ludo-v1</strong>
-            <p>Deterministic shared rules module.</p>
-          </div>
-          <div>
-            <span className="card-label">PLAYERS</span>
-            <strong>2 planned</strong>
-            <p>Match currently waits for a real join.</p>
-          </div>
-          <div>
-            <span className="card-label">ENTRY / NIM</span>
-            <strong>Not settled</strong>
-            <p>Payment remains separate from match creation.</p>
-          </div>
-          <div>
-            <span className="card-label">SAFETY</span>
-            <strong>Server first</strong>
-            <p>Client never owns authoritative state.</p>
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <Coins size={20} />
+                </div>
+                <div>
+                  <h4>Wagered NIM Escrow</h4>
+                  <p>
+                    Stake 10 to 500 NIM per match. Winner automatically claims
+                    100% of the pot on-chain.
+                  </p>
+                </div>
+              </div>
+
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <h4>Tactical AI Engine</h4>
+                  <p>
+                    Practice against an intelligent heuristic bot that detects
+                    tactical forks and blocks.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
-      <footer className="detail-footer">
-        <span>
-          <WalletCards size={14} /> Nimiq Pay status is still determined by the
-          host app.
-        </span>
-        <Link href="/">Return to Arena</Link>
-      </footer>
     </div>
   );
 }

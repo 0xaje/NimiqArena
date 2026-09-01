@@ -21,6 +21,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
+import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 
 type ProviderState = "checking" | "ready" | "browser" | "error";
 
@@ -76,6 +77,7 @@ export default function Home() {
   const guestLogin = trpc.auth.guestLogin.useMutation();
   const user = authQuery.data;
   const ludoQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
+  const connect4Query = trpc.game.getBySlug.useQuery({ slug: "connect-four" });
   const gameCards: GameCard[] = [
     {
       title: ludoQuery.data?.name ?? "Ludo League",
@@ -88,6 +90,17 @@ export default function Home() {
         ludoQuery.data?.description ??
         "The real Ludo game record is unavailable right now.",
     },
+    {
+      title: connect4Query.data?.name ?? "Connect NIM",
+      genre: "TACTICAL / STRATEGY",
+      status: connect4Query.data ? "FEATURED" : "UNAVAILABLE",
+      image:
+        "https://images.unsplash.com/photo-1611996575749-79a3a250f948?auto=format&fit=crop&w=900&q=85",
+      accent: "blue",
+      description:
+        connect4Query.data?.description ??
+        "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally.",
+    },
     ...futureGames,
   ];
   const nimiqPromise = useRef<ReturnType<typeof init> | null>(null);
@@ -98,6 +111,7 @@ export default function Home() {
   const [address, setAddress] = useState<string | null>(null);
   const [language, setLanguage] = useState("en");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
   const [clientNonce, setClientNonce] = useState(createPaymentNonce);
   const createIntent = trpc.payment.createIntent.useMutation();
@@ -106,6 +120,7 @@ export default function Home() {
   const failIntent = trpc.payment.failIntent.useMutation();
   const submitTransaction = trpc.payment.submitTransaction.useMutation();
   const verifyPayment = trpc.payment.verify.useMutation();
+  const createSolo = trpc.match.createSoloMatch.useMutation();
 
   const seasonQuery = trpc.season.getActive.useQuery();
   const leaderboardQuery = trpc.leaderboard.getTop.useQuery({
@@ -115,6 +130,31 @@ export default function Home() {
     { gameSlug: "ludo-league" },
     { enabled: Boolean(user) }
   );
+
+  async function handleStartSoloPractice() {
+    try {
+      if (!user) {
+        toast.info("Signing in as Player 1…");
+        const loginRes = await guestLogin.mutateAsync({
+          name: "Player 1 (Solo)",
+        });
+        if (loginRes.token) {
+          sessionStorage.setItem(
+            "manus-cookie",
+            `manus-session=${loginRes.token}`
+          );
+        }
+        await utils.auth.me.invalidate();
+      }
+      toast.info("Launching Practice Table vs Arena Bot…");
+      const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
+      window.location.href = `/matches/${match.id}`;
+    } catch (err) {
+      toast.error("Failed to launch solo practice", {
+        description: err instanceof Error ? err.message : "Try again.",
+      });
+    }
+  }
 
   async function switchPlayer(name: string) {
     try {
@@ -298,6 +338,11 @@ export default function Home() {
 
   return (
     <div className="arena-app">
+      <QuickMatchModal
+        isOpen={isQuickMatchOpen}
+        onClose={() => setIsQuickMatchOpen(false)}
+        gameSlug="ludo-league"
+      />
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="sidebar-topline">
           <div className="brand-lockup" aria-label="Nimiq Arena">
@@ -450,9 +495,26 @@ export default function Home() {
               Nimiq Arena is a growing home for games with real ownership,
               honest competition, and room for more than one kind of player.
             </p>
-            <div className="hero-actions">
-              <Link className="primary-action" href="/games/ludo-league">
-                Play Ludo League <ArrowUpRight size={17} />
+            <div className="hero-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => setIsQuickMatchOpen(true)}
+                style={{ background: "var(--orange)", border: "none", cursor: "pointer" }}
+              >
+                <Zap size={17} /> Quick Match (Find Opponent)
+              </button>
+              <button
+                type="button"
+                className="secondary-chip"
+                onClick={handleStartSoloPractice}
+                disabled={createSolo.isPending}
+                style={{ padding: "12px 16px" }}
+              >
+                🤖 {createSolo.isPending ? "Starting…" : "Solo Practice (vs AI)"}
+              </button>
+              <Link className="secondary-chip" href="/games/ludo-league" style={{ padding: "12px 16px" }}>
+                Game Info <ArrowUpRight size={17} />
               </Link>
               <Link className="text-action" href="/join">
                 Join a friend's table <ChevronRight size={16} />
@@ -531,9 +593,11 @@ export default function Home() {
                   <button
                     className="round-arrow"
                     onClick={() =>
-                      game.status === "FEATURED"
+                      game.title.includes("Ludo")
                         ? (window.location.href = "/games/ludo-league")
-                        : unavailable(game.title)
+                        : game.title.includes("Connect")
+                          ? (window.location.href = "/games/connect-four")
+                          : unavailable(game.title)
                     }
                     aria-label={`Open ${game.title}`}
                   >

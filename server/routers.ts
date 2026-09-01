@@ -2,16 +2,24 @@ import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
+  applyConnect4MatchCommand,
   applyLudoMatchCommand,
+  cancelWaitingMatch,
   claimVerifiedPaymentForMatch,
   createChallengeMatch,
   createPaymentIntent,
+  createSoloPracticeMatch,
+  createWageredChallengeMatch,
+  executeBotTurn,
+  findOrCreateQuickMatch,
   getActiveSeason,
   getGameBySlug,
   getLeaderboardTop,
   getMatchById,
+  getMatchEscrowDetails,
   getMatchPlayer,
   getMatchPlayers,
+  getMatchQueueStatus,
   getPlayerStats,
   getUserByOpenId,
   heartbeatMatchPlayer,
@@ -20,6 +28,7 @@ import {
   getPaymentIntentWithAudit,
   joinMatchByCode,
   refreshMatchLifecycle,
+  settleMatchWinnerPayout,
   updatePaymentIntent,
   upsertUser,
   verifyPaymentIntent,
@@ -53,6 +62,12 @@ const ludoCommandSchema = z.discriminatedUnion("kind", [
     pieceIndex: z.number().int().min(0).max(3),
   }),
 ]);
+
+const connect4CommandSchema = z.object({
+  column: z.number().int().min(0).max(6),
+  expectedVersion: z.number().int().nonnegative(),
+  nonce: clientNonceSchema,
+});
 
 async function requireIntent(id: string, userId: number) {
   const intent = await getPaymentIntentForUser(id, userId);
@@ -199,6 +214,196 @@ export const appRouter = router({
           expiresAt: match.expiresAt,
         };
       }),
+    findOrCreateQuickMatch: protectedProcedure
+      .input(z.object({ gameSlug: z.string().min(1).max(64) }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await findOrCreateQuickMatch({
+            userId: ctx.user.id,
+            gameSlug: input.gameSlug,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to queue for quick match.",
+          });
+        }
+      }),
+    cancelWaitingMatch: protectedProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        const res = await cancelWaitingMatch({
+          userId: ctx.user.id,
+          matchId: input.matchId,
+        });
+        if (!res.ok) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: res.reason || "Could not cancel match search.",
+          });
+        }
+        return { success: true };
+      }),
+    queueStatus: protectedProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .query(async ({ ctx, input }) => {
+        try {
+          return await getMatchQueueStatus({
+            userId: ctx.user.id,
+            matchId: input.matchId,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Match was not found.",
+          });
+        }
+      }),
+    createSoloMatch: protectedProcedure
+      .input(z.object({ gameSlug: z.string().min(1).max(64) }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const match = await createSoloPracticeMatch({
+            userId: ctx.user.id,
+            gameSlug: input.gameSlug,
+          });
+          return {
+            id: match.id,
+            joinCode: match.joinCode,
+            status: match.status,
+            visibility: match.visibility,
+            engineVersion: match.engineVersion,
+            expiresAt: match.expiresAt,
+          };
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to create practice match.",
+          });
+        }
+      }),
+    triggerBotTurn: protectedProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await executeBotTurn({
+            matchId: input.matchId,
+            userId: ctx.user.id,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to execute bot turn.",
+          });
+        }
+      }),
+    createWageredMatch: protectedProcedure
+      .input(
+        z.object({
+          gameSlug: z.string().min(1).max(64),
+          stakeNim: z.number().int().min(1).max(10000),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const res = await createWageredChallengeMatch({
+            userId: ctx.user.id,
+            gameSlug: input.gameSlug,
+            stakeNim: input.stakeNim,
+          });
+          return {
+            id: res.match.id,
+            joinCode: res.match.joinCode,
+            status: res.match.status,
+            hostPaymentIntentId: res.hostPaymentIntentId,
+            stakeNim: res.stakeNim,
+            valueLuna: res.valueLuna,
+            expiresAt: res.match.expiresAt,
+          };
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to create wagered match.",
+          });
+        }
+      }),
+    escrowDetails: protectedProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .query(async ({ input }) => {
+        try {
+          return await getMatchEscrowDetails(input.matchId);
+        } catch (error) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Escrow details not found.",
+          });
+        }
+      }),
+    claimPayment: protectedProcedure
+      .input(
+        z.object({
+          matchId: matchIdSchema,
+          paymentIntentId: z.string().min(1).max(32),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await claimVerifiedPaymentForMatch({
+            matchId: input.matchId,
+            userId: ctx.user.id,
+            paymentIntentId: input.paymentIntentId,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to claim payment for match.",
+          });
+        }
+      }),
+    settlePayout: protectedProcedure
+      .input(
+        z.object({
+          matchId: matchIdSchema,
+          winnerUserId: z.number().int().positive(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          return await settleMatchWinnerPayout({
+            matchId: input.matchId,
+            winnerUserId: input.winnerUserId,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to settle payout.",
+          });
+        }
+      }),
     joinByCode: protectedProcedure
       .input(z.object({ joinCode: challengeCodeSchema }))
       .mutation(async ({ ctx, input }) => {
@@ -271,6 +476,7 @@ export const appRouter = router({
           id: match.id,
           joinCode: match.joinCode,
           status: match.status,
+          engineVersion: match.engineVersion,
           stateVersion: match.stateVersion,
           snapshot: JSON.parse(match.stateJson),
           players: players.map(current => ({
@@ -316,6 +522,28 @@ export const appRouter = router({
             error instanceof Error
               ? error.message
               : "Match command was rejected.";
+          const code = /stale|changed|duplicate/i.test(message)
+            ? "CONFLICT"
+            : /not found|participant|joined player/i.test(message)
+              ? "FORBIDDEN"
+              : "BAD_REQUEST";
+          throw new TRPCError({ code, message });
+        }
+      }),
+    connect4Command: protectedProcedure
+      .input(z.object({ id: matchIdSchema, command: connect4CommandSchema }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await applyConnect4MatchCommand({
+            matchId: input.id,
+            userId: ctx.user.id,
+            command: input.command,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Connect 4 command was rejected.";
           const code = /stale|changed|duplicate/i.test(message)
             ? "CONFLICT"
             : /not found|participant|joined player/i.test(message)

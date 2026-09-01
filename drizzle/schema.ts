@@ -28,7 +28,7 @@ export const games = mysqlTable(
     id: varchar("id", { length: 32 }).primaryKey(),
     slug: varchar("slug", { length: 64 }).notNull(),
     name: varchar("name", { length: 128 }).notNull(),
-    kind: mysqlEnum("kind", ["ludo"]).notNull(),
+    kind: mysqlEnum("kind", ["ludo", "connect4"]).notNull(),
     status: mysqlEnum("status", [
       "active",
       "coming_soon",

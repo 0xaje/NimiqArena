@@ -1,23 +1,25 @@
 import {
   ArrowLeft,
+  Coins,
   Copy,
   LockKeyhole,
   RefreshCw,
   ShieldCheck,
   Users,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { reconnectDelayMs, shouldResync } from "@/lib/reconnect-policy";
-
-function positionLabel(position: number) {
-  if (position < 0) return "BASE";
-  if (position >= 57) return "HOME";
-  if (position >= 52) return `HOME ${position - 51}/6`;
-  return `TRACK ${position + 1}/52`;
-}
+import { soundEngine } from "@/lib/audio";
+import { LudoBoard2D } from "@/components/game/LudoBoard2D";
+import { LudoDice } from "@/components/game/LudoDice";
+import { Connect4Board2D } from "@/components/game/Connect4Board2D";
+import { EscrowDepositModal } from "@/components/game/EscrowDepositModal";
+import { VictoryPayoutBanner } from "@/components/game/VictoryPayoutBanner";
 
 export default function MatchRoom() {
   const [, params] = useRoute("/matches/:id");
@@ -27,7 +29,20 @@ export default function MatchRoom() {
     { id: matchId },
     { enabled: Boolean(matchId), refetchInterval: 4_000 }
   );
+  const escrowQuery = trpc.match.escrowDetails.useQuery(
+    { matchId },
+    { enabled: Boolean(matchId), refetchInterval: 5_000 }
+  );
+  const authQuery = trpc.auth.me.useQuery();
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const escrow = escrowQuery.data;
   const command = trpc.match.command.useMutation({
+    onSuccess: () => utils.match.state.invalidate({ id: matchId }),
+  });
+  const c4Command = trpc.match.connect4Command.useMutation({
+    onSuccess: () => utils.match.state.invalidate({ id: matchId }),
+  });
+  const triggerBotTurn = trpc.match.triggerBotTurn.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
   const heartbeat = trpc.match.heartbeat.useMutation();
@@ -35,8 +50,23 @@ export default function MatchRoom() {
   const [connectionStatus, setConnectionStatus] = useState<
     "connecting" | "connected" | "reconnecting" | "offline"
   >(stateQuery.data ? "connecting" : "offline");
+  const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const reconnectTimer = useRef<number | null>(null);
   const state = stateQuery.data;
+
+  // Track previous state for sound effects & animations
+  const prevSnapshotRef = useRef<{
+    dice: number | null;
+    currentPlayer: number;
+    winner: number | null;
+    version: number;
+  } | null>(null);
+
+  const toggleSound = () => {
+    const muted = soundEngine.toggleMute();
+    setIsMuted(muted);
+    toast.info(muted ? "Sound Muted" : "Sound Enabled");
+  };
 
   useEffect(() => {
     if (!matchId || stateQuery.isError || !stateQuery.data) {
@@ -126,17 +156,73 @@ export default function MatchRoom() {
         dice: number | null;
         winner: number | null;
         players: [
-          { pieces: { position: number }[] },
-          { pieces: { position: number }[] },
+          { id: 0; pieces: { position: number }[] },
+          { id: 1; pieces: { position: number }[] },
         ];
       }
     | undefined;
   const yourSeat = state?.yourSeat ?? -1;
+  const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
   const isYourTurn = Boolean(
     snapshot &&
       state?.status === "in_progress" &&
       snapshot.currentPlayer === yourSeat
   );
+
+  const isBotTurn = Boolean(
+    isBotMatch &&
+      state?.status === "in_progress" &&
+      snapshot &&
+      snapshot.currentPlayer === 1 &&
+      snapshot.winner === null
+  );
+
+  // Auto-trigger bot step with pacing delay
+  useEffect(() => {
+    if (!isBotTurn || triggerBotTurn.isPending) return;
+
+    const timer = window.setTimeout(() => {
+      void triggerBotTurn.mutateAsync({ matchId });
+    }, 750);
+
+    return () => window.clearTimeout(timer);
+  }, [isBotTurn, matchId, state?.stateVersion, triggerBotTurn]);
+
+  // Sound triggers on state mutations
+  useEffect(() => {
+    if (!snapshot) return;
+
+    const prev = prevSnapshotRef.current;
+    if (prev) {
+      // Dice rolled
+      if (snapshot.dice !== null && prev.dice !== snapshot.dice) {
+        soundEngine.playDiceRoll();
+      }
+      // Winner declared
+      if (snapshot.winner !== null && prev.winner === null) {
+        soundEngine.playVictoryFanfare();
+      }
+      // Turn changed to you
+      if (
+        snapshot.currentPlayer === yourSeat &&
+        prev.currentPlayer !== yourSeat &&
+        snapshot.winner === null
+      ) {
+        soundEngine.playTurnAlert();
+      }
+      // Pieces moved or captured
+      if (state?.stateVersion && state.stateVersion > prev.version) {
+        soundEngine.playPieceMove();
+      }
+    }
+
+    prevSnapshotRef.current = {
+      dice: snapshot.dice,
+      currentPlayer: snapshot.currentPlayer,
+      winner: snapshot.winner,
+      version: state?.stateVersion ?? 0,
+    };
+  }, [snapshot, state?.stateVersion, yourSeat]);
 
   const createChallenge = trpc.match.createChallenge.useMutation();
 
@@ -178,8 +264,12 @@ export default function MatchRoom() {
   async function handleRematch() {
     try {
       toast.info("Creating fresh rematch room…");
-      const newMatch = await createChallenge.mutateAsync({ gameSlug: "ludo-league" });
-      toast.success("Rematch Created!", { description: `Code: ${newMatch.joinCode}` });
+      const newMatch = await createChallenge.mutateAsync({
+        gameSlug: "ludo-league",
+      });
+      toast.success("Rematch Created!", {
+        description: `Code: ${newMatch.joinCode}`,
+      });
       window.location.href = `/matches/${newMatch.id}`;
     } catch (err) {
       toast.error("Failed to create rematch", {
@@ -209,6 +299,26 @@ export default function MatchRoom() {
     }
   }
 
+  async function sendConnect4Drop(column: number) {
+    if (!state) return;
+    try {
+      await c4Command.mutateAsync({
+        id: matchId,
+        command: {
+          column,
+          expectedVersion: state.stateVersion,
+          nonce: crypto.randomUUID().replace(/-/g, ""),
+        },
+      });
+      soundEngine.playPieceMove();
+    } catch (error) {
+      toast.error("Server rejected the drop", {
+        description:
+          error instanceof Error ? error.message : "Refresh and try again.",
+      });
+    }
+  }
+
   return (
     <div className="detail-page match-room-page">
       <header className="detail-header">
@@ -216,13 +326,23 @@ export default function MatchRoom() {
           <ArrowLeft size={15} /> Ludo detail
         </Link>
         <span className="detail-brand">NIMIQ ARENA / MATCH ROOM</span>
-        <span className="detail-state">
-          {stateQuery.isLoading
-            ? "LOADING"
-            : stateQuery.isError
-              ? "UNAVAILABLE"
-              : state?.status?.toUpperCase()}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button
+            type="button"
+            className="sound-toggle-btn"
+            onClick={toggleSound}
+            title={isMuted ? "Unmute sound effects" : "Mute sound effects"}
+          >
+            {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+          </button>
+          <span className="detail-state">
+            {stateQuery.isLoading
+              ? "LOADING"
+              : stateQuery.isError
+                ? "UNAVAILABLE"
+                : state?.status?.toUpperCase()}
+          </span>
+        </div>
       </header>
       <main className="detail-main">
         <section className="room-hero">
@@ -261,8 +381,8 @@ export default function MatchRoom() {
               : stateQuery.isError || !state
                 ? "A live room is only shown to an authenticated participant. No opponent, move, result, rating, or settlement is created locally."
                 : state.status === "waiting"
-                  ? "Share your invite link or 10-character code with your opponent. As soon as they join, the table goes live."
-                  : "This room renders the persisted match snapshot. No opponent, move, result, rating, or settlement is created locally."}
+                  ? "Share your invite link or code with your opponent. As soon as they join, the table goes live."
+                  : "This room renders the authoritative 2D Ludo board. Every dice roll and move is verified on-chain and backend."}
           </p>
         </section>
 
@@ -306,15 +426,22 @@ export default function MatchRoom() {
                 <button className="copy-code" onClick={shareChallenge}>
                   <Copy size={15} /> Share Invite Link
                 </button>
-                <button className="copy-code secondary-chip" onClick={copyCode} title="Copy Code Only">
+                <button
+                  className="copy-code secondary-chip"
+                  onClick={copyCode}
+                  title="Copy Code Only"
+                >
                   Code: {(state as { joinCode?: string }).joinCode ?? "—"}
                 </button>
               </div>
             </section>
+
             <section className="authoritative-strip">
               <div>
                 <span className="card-label">YOUR SEAT</span>
-                <strong>{yourSeat < 0 ? "—" : `PLAYER ${yourSeat + 1}`}</strong>
+                <strong className={`seat-highlight p${yourSeat}-text`}>
+                  {yourSeat < 0 ? "—" : `PLAYER ${yourSeat + 1}`}
+                </strong>
               </div>
               <div>
                 <span className="card-label">TURN</span>
@@ -330,6 +457,14 @@ export default function MatchRoom() {
                 <span className="card-label">PLAYERS</span>
                 <strong>{state?.players.length ?? 0}/2</strong>
               </div>
+              {escrow?.isWagered && (
+                <div>
+                  <span className="card-label">ESCROW POT</span>
+                  <strong style={{ color: "var(--orange)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <Coins size={13} /> {escrow.totalPotNim} NIM
+                  </strong>
+                </div>
+              )}
               <div>
                 <span className="card-label">SYNC</span>
                 <strong>{connectionStatus.toUpperCase()}</strong>
@@ -338,137 +473,264 @@ export default function MatchRoom() {
                 className="refresh-state"
                 onClick={() => stateQuery.refetch()}
               >
-                <RefreshCw size={14} /> Refresh state
+                <RefreshCw size={14} /> Refresh
               </button>
             </section>
-            <section className="ludo-live-grid">
-              <article className="ludo-board-panel">
+
+            {/* Escrow Deposit Modal */}
+            <EscrowDepositModal
+              isOpen={isDepositModalOpen}
+              onClose={() => setIsDepositModalOpen(false)}
+              matchId={matchId}
+              stakeNim={escrow?.stakeNim || 10}
+              onDepositSuccess={() => {
+                void escrowQuery.refetch();
+                void stateQuery.refetch();
+              }}
+            />
+
+            {/* Wager Deposit Prompt Banner */}
+            {escrow?.isWagered && !escrow.allVerified && (
+              <div
+                style={{
+                  background: "rgba(230, 93, 35, 0.12)",
+                  border: "1px solid var(--orange)",
+                  borderRadius: "8px",
+                  padding: "14px 20px",
+                  marginBottom: "16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                  fontFamily: "IBM Plex Mono, monospace",
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--orange)", fontWeight: 600, fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Coins size={16} /> WAGERED MATCH ESCROW ({escrow.stakeNim} NIM STAKE)
+                  </span>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "rgba(251, 248, 241, 0.75)" }}>
+                    {escrow.playerStatuses.find(p => p.seat === yourSeat)?.verified
+                      ? "✓ Your stake is locked in smart escrow. Waiting for opponent deposit…"
+                      : "Deposit your entry stake to lock the pot and activate the board."}
+                  </p>
+                </div>
+                {!escrow.playerStatuses.find(p => p.seat === yourSeat)?.verified && (
+                  <button
+                    className="primary-action"
+                    onClick={() => setIsDepositModalOpen(true)}
+                    style={{ background: "var(--orange)", padding: "8px 16px", fontSize: "12px" }}
+                  >
+                    Deposit {escrow.stakeNim} NIM Stake
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Winner Payout Banner */}
+            {snapshot?.winner !== null &&
+              snapshot?.winner !== undefined &&
+              escrow?.isWagered &&
+              escrow.totalPotNim > 0 && (
+                <VictoryPayoutBanner
+                  matchId={matchId}
+                  winnerUserId={
+                    escrow.playerStatuses.find(p => p.seat === snapshot.winner)?.userId ??
+                    (snapshot.winner === yourSeat ? authQuery.data?.id ?? 0 : 0)
+                  }
+                  yourUserId={authQuery.data?.id ?? 0}
+                  totalPotNim={escrow.totalPotNim}
+                />
+              )}
+
+            <section className="ludo-live-2d-layout">
+              {/* Left Column: 2D Interactive Board */}
+              <article className="ludo-board-2d-container">
                 <div className="board-heading">
                   <div>
                     <span className="card-label">
-                      LUDO BOARD / {state?.status?.toUpperCase()}
+                      {state?.engineVersion === "connect4-v1" ? "2D CONNECT NIM" : "2D LUDO BOARD"} / {state?.status?.toUpperCase()}
                     </span>
                     <h2>
-                      {snapshot?.winner !== null &&
-                      snapshot?.winner !== undefined
-                        ? `Player ${snapshot.winner + 1} wins!`
+                      {(snapshot as any)?.winner !== null &&
+                      (snapshot as any)?.winner !== undefined
+                        ? (snapshot as any).winner === "draw"
+                          ? "🤝 Game Ended in a Draw!"
+                          : `🎉 Player ${Number((snapshot as any).winner) + 1} Wins!`
                         : isYourTurn
-                          ? snapshot?.dice
-                            ? "Choose a piece to move."
-                            : "Roll the server dice."
-                          : "Waiting for opponent turn."}
+                          ? state?.engineVersion === "connect4-v1"
+                            ? "Click any column to drop your disc."
+                            : snapshot?.dice
+                              ? "Click your highlighted piece to move."
+                              : "Roll the server dice below."
+                          : isBotTurn
+                            ? "🤖 Arena Bot is thinking…"
+                            : "Waiting for opponent turn…"}
                     </h2>
                   </div>
                   <span
-                    className={`state-chip ${isYourTurn ? "good" : "muted"}`}
+                    className={`state-chip ${isYourTurn ? "good" : isBotTurn ? "orange" : "muted"}`}
                   >
-                    {isYourTurn ? "YOUR TURN" : "OPPONENT TURN"}
+                    {isYourTurn
+                      ? "YOUR TURN"
+                      : isBotTurn
+                        ? "BOT TURN (AI)"
+                        : "OPPONENT TURN"}
                   </span>
                 </div>
-                <div className="ludo-board">
-                  <div className="board-track">
-                    {Array.from({ length: 52 }, (_, index) => (
-                      <span
-                        className={`track-cell ${index % 13 === 0 ? "safe-cell" : ""}`}
-                        key={index}
-                        title={index % 13 === 0 ? "Safe Square (Protected from capture)" : `Square ${index + 1}`}
-                      >
-                        {index + 1}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="piece-lanes">
-                    {[0, 1].map(seat => (
-                      <div
-                        className={`piece-lane ${seat === yourSeat ? "your-lane" : ""}`}
-                        key={seat}
-                      >
-                        <div className="lane-label">
-                          P{seat + 1} /{" "}
-                          {state?.players.find(player => player.seat === seat)
-                            ?.status ?? "not joined"}
-                        </div>
-                        {snapshot?.players[seat].pieces.map(
-                          (piece, pieceIndex) => (
-                            <button
-                              className={`piece-token p${seat}`}
-                              key={pieceIndex}
-                              disabled={
-                                !(
-                                  isYourTurn &&
-                                  yourSeat === seat &&
-                                  snapshot.dice !== null
-                                )
-                              }
-                              onClick={() =>
-                                sendCommand({ kind: "move", pieceIndex })
-                              }
-                              title={positionLabel(piece.position)}
-                            >
-                              <span>{pieceIndex + 1}</span>
-                              <small>{positionLabel(piece.position)}</small>
-                            </button>
-                          )
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="board-actions">
-                  {snapshot?.winner !== null &&
-                  snapshot?.winner !== undefined ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "12px",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <button className="primary-action" onClick={handleRematch} disabled={createChallenge.isPending}>
-                        ⚔️ {createChallenge.isPending ? "Creating Rematch…" : "Challenge Again (Rematch)"}
-                      </button>
-                      <Link className="secondary-chip" href="/leaderboard">
-                        🏆 Full Leaderboard
-                      </Link>
-                      <Link className="secondary-chip" href="/profile">
-                        👤 View Rating History
-                      </Link>
-                    </div>
+
+                {snapshot && (
+                  state?.engineVersion === "connect4-v1" ? (
+                    <Connect4Board2D
+                      board={(snapshot as any).board || []}
+                      currentPlayer={(snapshot as any).currentPlayer ?? 0}
+                      winner={(snapshot as any).winner ?? null}
+                      winningLine={(snapshot as any).winningLine ?? null}
+                      yourSeat={yourSeat}
+                      isYourTurn={isYourTurn}
+                      onDropDisc={sendConnect4Drop}
+                      disabled={c4Command.isPending || isBotTurn}
+                    />
                   ) : (
-                    <button
-                      className="primary-action"
-                      disabled={
-                        !isYourTurn ||
-                        snapshot?.dice !== null ||
-                        command.isPending
+                    <LudoBoard2D
+                      players={(snapshot as any).players || []}
+                      currentPlayer={(snapshot as any).currentPlayer ?? 0}
+                      dice={(snapshot as any).dice ?? null}
+                      yourSeat={yourSeat}
+                      isYourTurn={isYourTurn}
+                      onMovePiece={pieceIndex =>
+                        sendCommand({ kind: "move", pieceIndex })
                       }
-                      onClick={() => sendCommand({ kind: "roll" })}
-                    >
-                      {command.isPending ? "Submitting…" : "🎲 Roll Server Dice"}
-                    </button>
-                  )}
-                  <p>
-                    {snapshot?.winner !== null && snapshot?.winner !== undefined
-                      ? "Match finished. Official Elo rating, streaks, and seasonal rankings have been calculated."
-                      : "Rules: Roll a 6 to release a piece from Base. Safe squares protect pieces. Capturing opponent pieces awards a bonus turn."}
-                  </p>
-                </div>
+                      disabled={command.isPending || isBotTurn}
+                    />
+                  )
+                )}
               </article>
-              <aside className="room-panel room-panel-dark">
-                <div className="room-panel-icon">
-                  <ShieldCheck size={18} />
-                </div>
-                <span className="card-label">COMPETITIVE INTEGRITY</span>
-                <h2>Server-Authoritative Match</h2>
-                <p>
-                  Every dice roll and piece move is verified on the backend. Rating updates, win streaks, and leaderboard positions are computed using official FIDE Elo calculations ($K=32$).
-                </p>
-                <div className="state-chip muted">
-                  {state?.stateVersion === 0
-                    ? "INITIAL SNAPSHOT"
-                    : `STATE VERSION ${state?.stateVersion}`}
-                </div>
+
+              {/* Right Column: Player Controls & Match Info */}
+              <aside className="room-controls-sidebar">
+                {state?.engineVersion === "connect4-v1" ? (
+                  <div className="dice-control-card">
+                    <span className="card-label">TACTICAL STATUS</span>
+                    <div style={{ padding: "16px 0", textAlign: "left", fontFamily: "IBM Plex Mono, monospace" }}>
+                      <h3 style={{ margin: "0 0 8px", fontSize: "16px", color: "var(--paper-bright)" }}>
+                        {isYourTurn
+                          ? "Your turn to drop a disc"
+                          : isBotTurn
+                            ? "🤖 Arena Bot is evaluating grid…"
+                            : `Player ${(snapshot?.currentPlayer ?? 0) + 1}'s turn`}
+                      </h3>
+                      <p style={{ fontSize: "12px", color: "rgba(251, 248, 241, 0.7)", margin: "0 0 16px" }}>
+                        {isYourTurn
+                          ? "Hover over any column 1-7 and click to drop. Connect 4 discs in a line to win."
+                          : "Please wait while your opponent chooses their column."}
+                      </p>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <span className="secondary-chip" style={{ fontSize: "11px" }}>
+                          Grid: 7x6
+                        </span>
+                        <span className="secondary-chip" style={{ fontSize: "11px" }}>
+                          Goal: 4 in a row
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="dice-control-card">
+                    <span className="card-label">ACTION / SERVER DICE</span>
+                    <div className="dice-action-zone">
+                      <LudoDice
+                        value={snapshot?.dice ?? null}
+                        isRolling={command.isPending || isBotTurn}
+                        canRoll={isYourTurn && snapshot?.dice === null}
+                        onRoll={() => sendCommand({ kind: "roll" })}
+                        playerSeat={snapshot?.currentPlayer ?? 0}
+                      />
+                      <div className="dice-action-details">
+                        <h3>
+                          {isYourTurn
+                            ? snapshot?.dice
+                              ? `Rolled a ${snapshot.dice}!`
+                              : "Your turn to roll"
+                            : isBotTurn
+                              ? "🤖 Arena Bot is playing…"
+                              : `Player ${(snapshot?.currentPlayer ?? 0) + 1}'s turn`}
+                        </h3>
+                        <p>
+                          {isYourTurn
+                            ? snapshot?.dice
+                              ? "Select a highlighted token on the board."
+                              : "Roll the dice to advance or release a piece."
+                            : isBotTurn
+                              ? "The AI is evaluating legal moves authoritatively."
+                              : "Please wait while your opponent plays."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Match Status and Game Outcome */}
+                {snapshot?.winner !== null &&
+                snapshot?.winner !== undefined ? (
+                  <div className="match-outcome-card">
+                    <span className="card-label">MATCH COMPLETE</span>
+                    <h2>Player {snapshot.winner + 1} Victorious!</h2>
+                    <p>
+                      Official Elo ratings and seasonal standings have been
+                      updated in the database.
+                    </p>
+                    <div className="outcome-actions">
+                      <button
+                        className="primary-action"
+                        onClick={handleRematch}
+                        disabled={createChallenge.isPending}
+                      >
+                        ⚔️{" "}
+                        {createChallenge.isPending
+                          ? "Creating Rematch…"
+                          : "Challenge Again (Rematch)"}
+                      </button>
+                      <div className="outcome-links">
+                        <Link className="secondary-chip" href="/leaderboard">
+                          🏆 Leaderboard
+                        </Link>
+                        <Link className="secondary-chip" href="/profile">
+                          👤 Rating History
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rules-recap-card">
+                    <div className="room-panel-icon">
+                      <ShieldCheck size={18} />
+                    </div>
+                    <span className="card-label">LUDO RULES</span>
+                    <h4>How to Play</h4>
+                    <ul>
+                      <li>
+                        <strong>Roll a 6</strong> to leave your base nest.
+                      </li>
+                      <li>
+                        <strong>Rolling a 6</strong> awards a bonus turn.
+                      </li>
+                      <li>
+                        <strong>Capturing</strong> an opponent piece returns it to
+                        their base and awards a bonus turn.
+                      </li>
+                      <li>
+                        <strong>Shield squares</strong> protect pieces from
+                        being captured.
+                      </li>
+                      <li>
+                        First player to move all 4 pieces to the{" "}
+                        <strong>Center Home Goal</strong> wins!
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </aside>
             </section>
           </>
@@ -476,7 +738,7 @@ export default function MatchRoom() {
       </main>
       <footer className="detail-footer">
         <span>
-          <Users size={14} /> Real multiplayer table. No bots or simulated players.
+          <Users size={14} /> Real multiplayer table. Server-authoritative state.
         </span>
         <Link href="/">Return to Arena</Link>
       </footer>

@@ -5,6 +5,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import LudoDetail from "./pages/LudoDetail";
+import Connect4Detail from "./pages/Connect4Detail";
 import JoinMatch from "./pages/JoinMatch";
 import MatchRoom from "./pages/MatchRoom";
 import Leaderboard from "./pages/Leaderboard";
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/games/ludo-league" component={LudoDetail} />
+      <Route path="/games/connect-four" component={Connect4Detail} />
       <Route path="/matches/:id" component={MatchRoom} />
       <Route path="/join" component={JoinMatch} />
       <Route path="/leaderboard" component={Leaderboard} />
