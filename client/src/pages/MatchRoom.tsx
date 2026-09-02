@@ -79,8 +79,17 @@ export default function MatchRoom() {
   });
   const heartbeat = trpc.match.heartbeat.useMutation();
   const disconnect = trpc.match.disconnect.useMutation();
+  const heartbeatRef = useRef(heartbeat);
+  heartbeatRef.current = heartbeat;
+  const disconnectRef = useRef(disconnect);
+  disconnectRef.current = disconnect;
+  const triggerBotRef = useRef(triggerBotTurn);
+  triggerBotRef.current = triggerBotTurn;
+
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const state = stateQuery.data;
+  const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
+
   const connectionStatus = isStreamConnected
     ? "connected"
     : stateQuery.isLoading
@@ -104,12 +113,12 @@ export default function MatchRoom() {
   };
 
   useEffect(() => {
-    if (!matchId || stateQuery.isError || !stateQuery.data) return;
+    if (!matchId) return;
     let closed = false;
     let timer: number | null = null;
     const tick = () => {
       if (closed) return;
-      heartbeat.mutate(
+      heartbeatRef.current.mutate(
         { id: matchId },
         {
           onSettled: () => {
@@ -122,9 +131,11 @@ export default function MatchRoom() {
     return () => {
       closed = true;
       if (timer !== null) window.clearTimeout(timer);
-      void disconnect.mutate({ id: matchId });
+      if (!isBotMatch) {
+        disconnectRef.current.mutate({ id: matchId });
+      }
     };
-  }, [disconnect, heartbeat, matchId, stateQuery.data, stateQuery.isError]);
+  }, [matchId, isBotMatch]);
 
   const snapshot = state?.snapshot as
     | {
@@ -143,7 +154,6 @@ export default function MatchRoom() {
       }
     | undefined;
   const yourSeat = state?.yourSeat ?? -1;
-  const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
   const isYourTurn = Boolean(
     snapshot &&
       state?.status === "in_progress" &&
@@ -207,14 +217,14 @@ export default function MatchRoom() {
 
   // Auto-trigger bot step with pacing delay
   useEffect(() => {
-    if (!isBotTurn || triggerBotTurn.isPending) return;
+    if (!isBotTurn || triggerBotRef.current.isPending) return;
 
     const timer = window.setTimeout(() => {
-      void triggerBotTurn.mutateAsync({ matchId });
+      void triggerBotRef.current.mutateAsync({ matchId });
     }, 750);
 
     return () => window.clearTimeout(timer);
-  }, [isBotTurn, matchId, state?.stateVersion, triggerBotTurn]);
+  }, [isBotTurn, matchId, state?.stateVersion]);
 
   // Sound triggers on state mutations
   useEffect(() => {
