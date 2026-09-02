@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Shield, Sparkles, Trophy } from "lucide-react";
-import { LUDO_SAFE_SQUARES } from "@shared/game/ludo-engine";
+import { Star, Trophy, ArrowRight, ArrowDown, ArrowLeft, ArrowUp, Bot } from "lucide-react";
 import { soundEngine } from "@/lib/audio";
 
 interface Piece {
@@ -19,107 +18,165 @@ interface LudoBoard2DProps {
   isYourTurn: boolean;
   onMovePiece: (pieceIndex: number) => void;
   disabled?: boolean;
+  isBotMatch?: boolean;
 }
 
-// 52-Cell Perimeter Track Mapping (row, col) on 15x15 grid
+// Official Nimiq 3D Faceted Hexagon Emblem
+export function NimiqHexLogo({ size = 28, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}
+    >
+      {/* Facet 1 (Top Left) */}
+      <polygon points="50,6 50,52 10,29" fill="#FFC72C" />
+      {/* Facet 2 (Top Right) */}
+      <polygon points="50,6 90,29 50,52" fill="#FFA300" />
+      {/* Facet 3 (Bottom Right) */}
+      <polygon points="50,52 90,29 90,75 50,98" fill="#EC9918" />
+      {/* Facet 4 (Bottom Left) */}
+      <polygon points="50,52 50,98 10,75 10,29" fill="#D97706" />
+    </svg>
+  );
+}
+
+// 52-Cell Perimeter Track Mapping (row, col) on standard 15x15 Ludo grid
 const TRACK_COORDINATES: Array<{ row: number; col: number }> = [
-  // Index 0 to 4 (Left Arm Top Row, going Right)
-  { row: 6, col: 1 }, // 0 - Safe / P0 Start
-  { row: 6, col: 2 }, // 1
-  { row: 6, col: 3 }, // 2
-  { row: 6, col: 4 }, // 3
-  { row: 6, col: 5 }, // 4
-  // Index 5 to 10 (Top Arm Left Col, going Up)
-  { row: 5, col: 6 }, // 5
-  { row: 4, col: 6 }, // 6
-  { row: 3, col: 6 }, // 7
-  { row: 2, col: 6 }, // 8
-  { row: 1, col: 6 }, // 9
-  { row: 0, col: 6 }, // 10
-  // Index 11 to 12 (Top Arm Top Edge)
-  { row: 0, col: 7 }, // 11
-  { row: 0, col: 8 }, // 12
-  // Index 13 to 17 (Top Arm Right Col, going Down)
-  { row: 1, col: 8 }, // 13 - Safe Star
-  { row: 2, col: 8 }, // 14
-  { row: 3, col: 8 }, // 15
-  { row: 4, col: 8 }, // 16
-  { row: 5, col: 8 }, // 17
-  // Index 18 to 23 (Right Arm Top Row, going Right)
-  { row: 6, col: 9 }, // 18
+  // 0 to 4: Left Arm Top Row (Going Right)
+  { row: 6, col: 1 },  // 0  - RED Start (Safe)
+  { row: 6, col: 2 },  // 1
+  { row: 6, col: 3 },  // 2
+  { row: 6, col: 4 },  // 3
+  { row: 6, col: 5 },  // 4
+  // 5 to 10: Top Arm Left Col (Going Up)
+  { row: 5, col: 6 },  // 5
+  { row: 4, col: 6 },  // 6
+  { row: 3, col: 6 },  // 7
+  { row: 2, col: 6 },  // 8  - Star Safe
+  { row: 1, col: 6 },  // 9
+  { row: 0, col: 6 },  // 10
+  // 11 to 12: Top Arm Top Edge
+  { row: 0, col: 7 },  // 11
+  { row: 0, col: 8 },  // 12
+  // 13 to 17: Top Arm Right Col (Going Down)
+  { row: 1, col: 8 },  // 13 - GREEN Start (Safe)
+  { row: 2, col: 8 },  // 14
+  { row: 3, col: 8 },  // 15
+  { row: 4, col: 8 },  // 16
+  { row: 5, col: 8 },  // 17
+  // 18 to 23: Right Arm Top Row (Going Right)
+  { row: 6, col: 9 },  // 18
   { row: 6, col: 10 }, // 19
   { row: 6, col: 11 }, // 20
-  { row: 6, col: 12 }, // 21
+  { row: 6, col: 12 }, // 21 - Star Safe
   { row: 6, col: 13 }, // 22
   { row: 6, col: 14 }, // 23
-  // Index 24 to 25 (Right Arm Right Edge)
+  // 24 to 25: Right Arm Right Edge
   { row: 7, col: 14 }, // 24
   { row: 8, col: 14 }, // 25
-  // Index 26 to 30 (Right Arm Bottom Row, going Left)
-  { row: 8, col: 13 }, // 26 - Safe / P1 Start
+  // 26 to 30: Right Arm Bottom Row (Going Left)
+  { row: 8, col: 13 }, // 26 - YELLOW / GOLD Start (Safe)
   { row: 8, col: 12 }, // 27
   { row: 8, col: 11 }, // 28
   { row: 8, col: 10 }, // 29
-  { row: 8, col: 9 }, // 30
-  // Index 31 to 36 (Bottom Arm Right Col, going Down)
-  { row: 9, col: 8 }, // 31
+  { row: 8, col: 9 },  // 30
+  // 31 to 36: Bottom Arm Right Col (Going Down)
+  { row: 9, col: 8 },  // 31
   { row: 10, col: 8 }, // 32
   { row: 11, col: 8 }, // 33
-  { row: 12, col: 8 }, // 34
+  { row: 12, col: 8 }, // 34 - Star Safe
   { row: 13, col: 8 }, // 35
   { row: 14, col: 8 }, // 36
-  // Index 37 to 38 (Bottom Arm Bottom Edge)
+  // 37 to 38: Bottom Arm Bottom Edge
   { row: 14, col: 7 }, // 37
   { row: 14, col: 6 }, // 38
-  // Index 39 to 43 (Bottom Arm Left Col, going Up)
-  { row: 13, col: 6 }, // 39 - Safe Star
+  // 39 to 43: Bottom Arm Left Col (Going Up)
+  { row: 13, col: 6 }, // 39 - BLUE Start (Safe)
   { row: 12, col: 6 }, // 40
   { row: 11, col: 6 }, // 41
   { row: 10, col: 6 }, // 42
-  { row: 9, col: 6 }, // 43
-  // Index 44 to 49 (Left Arm Bottom Row, going Left)
-  { row: 8, col: 5 }, // 44
-  { row: 8, col: 4 }, // 45
-  { row: 8, col: 3 }, // 46
-  { row: 8, col: 2 }, // 47
-  { row: 8, col: 1 }, // 48
-  { row: 8, col: 0 }, // 49
-  // Index 50 to 51 (Left Arm Left Edge)
-  { row: 7, col: 0 }, // 50
-  { row: 6, col: 0 }, // 51
+  { row: 9, col: 6 },  // 43
+  // 44 to 49: Left Arm Bottom Row (Going Left)
+  { row: 8, col: 5 },  // 44
+  { row: 8, col: 4 },  // 45
+  { row: 8, col: 3 },  // 46
+  { row: 8, col: 2 },  // 47 - Star Safe
+  { row: 8, col: 1 },  // 48
+  { row: 8, col: 0 },  // 49
+  // 50 to 51: Left Arm Left Edge
+  { row: 7, col: 0 },  // 50
+  { row: 6, col: 0 },  // 51
 ];
 
-// Home Column Steps (Progress 52..56)
-const HOME_COLUMNS: Record<number, Array<{ row: number; col: number }>> = {
-  0: [
-    { row: 7, col: 1 }, // 52
-    { row: 7, col: 2 }, // 53
-    { row: 7, col: 3 }, // 54
-    { row: 7, col: 4 }, // 55
-    { row: 7, col: 5 }, // 56
+// The 8 Classic Ludo Star / Safe Track Indices
+const CLASSIC_STAR_INDICES = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
+
+// 4 Colored Home Columns (5 steps into center)
+const ALL_HOME_COLUMNS = {
+  // Red (Player 0) Home Stretch
+  red: [
+    { row: 7, col: 1 },
+    { row: 7, col: 2 },
+    { row: 7, col: 3 },
+    { row: 7, col: 4 },
+    { row: 7, col: 5 },
   ],
-  1: [
-    { row: 7, col: 13 }, // 52
-    { row: 7, col: 12 }, // 53
-    { row: 7, col: 11 }, // 54
-    { row: 7, col: 10 }, // 55
-    { row: 7, col: 9 }, // 56
+  // Green Home Stretch
+  green: [
+    { row: 1, col: 7 },
+    { row: 2, col: 7 },
+    { row: 3, col: 7 },
+    { row: 4, col: 7 },
+    { row: 5, col: 7 },
+  ],
+  // Yellow / Gold (Player 1 / AI) Home Stretch
+  yellow: [
+    { row: 7, col: 13 },
+    { row: 7, col: 12 },
+    { row: 7, col: 11 },
+    { row: 7, col: 10 },
+    { row: 7, col: 9 },
+  ],
+  // Blue Home Stretch
+  blue: [
+    { row: 13, col: 7 },
+    { row: 12, col: 7 },
+    { row: 11, col: 7 },
+    { row: 10, col: 7 },
+    { row: 9, col: 7 },
   ],
 };
 
-// Base Nests
-const BASE_NESTS: Record<number, Array<{ row: number; col: number }>> = {
-  0: [
-    { row: 1, col: 1 },
-    { row: 1, col: 4 },
-    { row: 4, col: 1 },
-    { row: 4, col: 4 },
+// 4 Yard Nest Slot Positions (Row, Col on 15x15 grid)
+const YARD_NEST_POSITIONS = {
+  red: [
+    { row: 2, col: 2 },
+    { row: 2, col: 3 },
+    { row: 3, col: 2 },
+    { row: 3, col: 3 },
   ],
-  1: [
-    { row: 10, col: 10 },
-    { row: 10, col: 13 },
-    { row: 13, col: 10 },
-    { row: 13, col: 13 },
+  green: [
+    { row: 2, col: 11 },
+    { row: 2, col: 12 },
+    { row: 3, col: 11 },
+    { row: 3, col: 12 },
+  ],
+  yellow: [
+    { row: 11, col: 11 },
+    { row: 11, col: 12 },
+    { row: 12, col: 11 },
+    { row: 12, col: 12 },
+  ],
+  blue: [
+    { row: 11, col: 2 },
+    { row: 11, col: 3 },
+    { row: 12, col: 2 },
+    { row: 12, col: 3 },
   ],
 };
 
@@ -131,6 +188,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   isYourTurn,
   onMovePiece,
   disabled = false,
+  isBotMatch = true,
 }) => {
   const [hoveredPiece, setHoveredPiece] = useState<{
     player: number;
@@ -170,13 +228,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     if (nextPos >= 52) {
       return { type: "home", index: nextPos - 52 };
     }
-    const globalTrack = ( (playerSeat === 0 ? 0 : 26) + nextPos ) % 52;
+    const globalTrack = ((playerSeat === 0 ? 0 : 26) + nextPos) % 52;
     return { type: "track", index: globalTrack };
   };
 
-  // Identify targeted cell when hovering over a movable piece
-  let previewTarget: { type: "track" | "home" | "goal"; index: number } | null =
-    null;
+  let previewTarget: { type: "track" | "home" | "goal"; index: number } | null = null;
   if (hoveredPiece && dice !== null && hoveredPiece.player === yourSeat) {
     const piece = players[hoveredPiece.player]?.pieces[hoveredPiece.pieceIndex];
     if (piece && canMovePiece(hoveredPiece.player, piece)) {
@@ -184,285 +240,348 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     }
   }
 
+  // Count finished pieces in Goal
+  const p0Finished = players[0]?.pieces.filter(p => p.position === 57).length ?? 0;
+  const p1Finished = players[1]?.pieces.filter(p => p.position === 57).length ?? 0;
+
   return (
-    <div className="ludo-board-2d-wrapper">
-      <div className="ludo-board-2d-grid">
-        {/* 1. Base 0 (Top-Left, Player 0) */}
-        <div className="board-quadrant base-0">
-          <div className="base-inner">
-            <div className="base-header">
-              <span className="base-tag">PLAYER 1 (AMBER)</span>
-            </div>
-            <div className="base-nests">
-              {BASE_NESTS[0].map((coord, idx) => {
-                const piece = players[0]?.pieces[idx];
-                const isInBase = piece?.position === -1;
-                const isMovable = isInBase && canMovePiece(0, piece);
+    <div className="ludo-standard-board-wrapper">
+      <div className="ludo-standard-board-frame">
+        <div className="ludo-standard-grid">
+          {/* ========================================================
+              1. TOP-LEFT YARD: CLASSIC RED (Player 0 / Human)
+             ======================================================== */}
+          <div className="classic-yard red-yard" style={{ gridRow: "1 / span 6", gridColumn: "1 / span 6" }}>
+            <div className="yard-plate">
+              <div className="yard-badge">
+                <span className="yard-badge-dot red-dot" />
+                <span className="yard-label">PLAYER 1</span>
+              </div>
+              <div className="yard-pockets-grid">
+                {YARD_NEST_POSITIONS.red.map((_, idx) => {
+                  const piece = players[0]?.pieces[idx];
+                  const inBase = piece?.position === -1;
+                  const isMovable = inBase && canMovePiece(0, piece);
 
-                return (
-                  <div
-                    key={idx}
-                    className="base-nest-slot"
-                    style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
-                  >
-                    {isInBase && (
-                      <button
-                        type="button"
-                        className={`board-piece-token p0 ${
-                          isMovable ? "movable-pulse" : ""
-                        }`}
-                        disabled={!isMovable}
-                        onClick={() => handlePieceMove(idx)}
-                        onMouseEnter={() =>
-                          setHoveredPiece({ player: 0, pieceIndex: idx })
-                        }
-                        onMouseLeave={() => setHoveredPiece(null)}
-                        title={`P1 Piece #${idx + 1} (In Base)`}
-                      >
-                        <span>{idx + 1}</span>
-                      </button>
-                    )}
+                  return (
+                    <div key={`red-pocket-${idx}`} className="yard-pocket red-pocket">
+                      {inBase && (
+                        <button
+                          type="button"
+                          className={`ludo-3d-pawn pawn-red ${isMovable ? "pawn-movable-glow" : ""}`}
+                          disabled={!isMovable}
+                          onClick={() => handlePieceMove(idx)}
+                          onMouseEnter={() => setHoveredPiece({ player: 0, pieceIndex: idx })}
+                          onMouseLeave={() => setHoveredPiece(null)}
+                          title={`Player 1 Piece #${idx + 1} (In Yard)`}
+                        >
+                          <span className="pawn-head" />
+                          <span className="pawn-ring" />
+                          <span className="pawn-body" />
+                          <span className="pawn-number">{idx + 1}</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================
+              2. TOP-RIGHT YARD: CLASSIC GREEN
+             ======================================================== */}
+          <div className="classic-yard green-yard" style={{ gridRow: "1 / span 6", gridColumn: "10 / span 6" }}>
+            <div className="yard-plate">
+              <div className="yard-badge">
+                <span className="yard-badge-dot green-dot" />
+                <span className="yard-label">GREEN YARD</span>
+              </div>
+              <div className="yard-pockets-grid">
+                {YARD_NEST_POSITIONS.green.map((_, idx) => (
+                  <div key={`green-pocket-${idx}`} className="yard-pocket green-pocket">
+                    <div className="pawn-placeholder green-ph" />
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* 2. Base Neutral Top-Right */}
-        <div className="board-quadrant base-neutral-top">
-          <div className="base-inner neutral-inner">
-            <Sparkles size={24} className="neutral-icon" />
-            <span className="neutral-tag">NIMIQ ARENA</span>
-          </div>
-        </div>
-
-        {/* 3. Base Neutral Bottom-Left */}
-        <div className="board-quadrant base-neutral-bottom">
-          <div className="base-inner neutral-inner">
-            <Sparkles size={24} className="neutral-icon" />
-            <span className="neutral-tag">COURTLINE V2</span>
-          </div>
-        </div>
-
-        {/* 4. Base 1 (Bottom-Right, Player 1) */}
-        <div className="board-quadrant base-1">
-          <div className="base-inner">
-            <div className="base-header">
-              <span className="base-tag">PLAYER 2 (INDIGO)</span>
-            </div>
-            <div className="base-nests">
-              {BASE_NESTS[1].map((coord, idx) => {
-                const piece = players[1]?.pieces[idx];
-                const isInBase = piece?.position === -1;
-                const isMovable = isInBase && canMovePiece(1, piece);
-
-                return (
-                  <div
-                    key={idx}
-                    className="base-nest-slot"
-                    style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
-                  >
-                    {isInBase && (
-                      <button
-                        type="button"
-                        className={`board-piece-token p1 ${
-                          isMovable ? "movable-pulse" : ""
-                        }`}
-                        disabled={!isMovable}
-                        onClick={() => handlePieceMove(idx)}
-                        onMouseEnter={() =>
-                          setHoveredPiece({ player: 1, pieceIndex: idx })
-                        }
-                        onMouseLeave={() => setHoveredPiece(null)}
-                        title={`P2 Piece #${idx + 1} (In Base)`}
-                      >
-                        <span>{idx + 1}</span>
-                      </button>
-                    )}
+          {/* ========================================================
+              3. BOTTOM-LEFT YARD: CLASSIC BLUE
+             ======================================================== */}
+          <div className="classic-yard blue-yard" style={{ gridRow: "10 / span 6", gridColumn: "1 / span 6" }}>
+            <div className="yard-plate">
+              <div className="yard-badge">
+                <span className="yard-badge-dot blue-dot" />
+                <span className="yard-label">BLUE YARD</span>
+              </div>
+              <div className="yard-pockets-grid">
+                {YARD_NEST_POSITIONS.blue.map((_, idx) => (
+                  <div key={`blue-pocket-${idx}`} className="yard-pocket blue-pocket">
+                    <div className="pawn-placeholder blue-ph" />
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* 5. Center Home Goal Triangle (Rows 7..9, Cols 7..9) */}
-        <div
-          className={`board-center-goal ${
-            previewTarget?.type === "goal" ? "target-highlight" : ""
-          }`}
-          style={{ gridRow: "7 / span 3", gridColumn: "7 / span 3" }}
-        >
-          <div className="goal-triangle goal-p0">
-            <Trophy size={16} />
-            <span className="goal-score">
-              {players[0]?.pieces.filter(p => p.position === 57).length}/4
-            </span>
+          {/* ========================================================
+              4. BOTTOM-RIGHT YARD: GOLD / NIMIQ AI (Player 1 / AI)
+             ======================================================== */}
+          <div className="classic-yard yellow-yard" style={{ gridRow: "10 / span 6", gridColumn: "10 / span 6" }}>
+            <div className="yard-plate">
+              <div className="yard-badge gold-badge">
+                {isBotMatch ? (
+                  <>
+                    <NimiqHexLogo size={18} />
+                    <span className="yard-label nimiq-label">NIMIQ AI BOT</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="yard-badge-dot yellow-dot" />
+                    <span className="yard-label">PLAYER 2</span>
+                  </>
+                )}
+              </div>
+              <div className="yard-pockets-grid">
+                {YARD_NEST_POSITIONS.yellow.map((_, idx) => {
+                  const piece = players[1]?.pieces[idx];
+                  const inBase = piece?.position === -1;
+                  const isMovable = inBase && canMovePiece(1, piece);
+
+                  return (
+                    <div key={`yellow-pocket-${idx}`} className="yard-pocket yellow-pocket">
+                      {inBase && (
+                        <button
+                          type="button"
+                          className={`ludo-3d-pawn pawn-yellow ${isMovable ? "pawn-movable-glow" : ""}`}
+                          disabled={!isMovable}
+                          onClick={() => handlePieceMove(idx)}
+                          onMouseEnter={() => setHoveredPiece({ player: 1, pieceIndex: idx })}
+                          onMouseLeave={() => setHoveredPiece(null)}
+                          title={`${isBotMatch ? "Nimiq AI" : "Player 2"} Piece #${idx + 1} (In Yard)`}
+                        >
+                          <span className="pawn-head" />
+                          <span className="pawn-ring" />
+                          <span className="pawn-body" />
+                          <span className="pawn-number">{idx + 1}</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <div className="goal-triangle goal-p1">
-            <Trophy size={16} />
-            <span className="goal-score">
-              {players[1]?.pieces.filter(p => p.position === 57).length}/4
-            </span>
-          </div>
-        </div>
 
-        {/* 6. Perimeter Track Cells (52 squares) */}
-        {TRACK_COORDINATES.map((coord, trackIdx) => {
-          const isSafe = LUDO_SAFE_SQUARES.has(trackIdx);
-          const isP0Start = trackIdx === 0;
-          const isP1Start = trackIdx === 26;
-          const isTargeted =
-            previewTarget?.type === "track" && previewTarget.index === trackIdx;
+          {/* ========================================================
+              5. 52-CELL PERIMETER TRACK CELLS
+             ======================================================== */}
+          {TRACK_COORDINATES.map((coord, trackIdx) => {
+            const isStar = CLASSIC_STAR_INDICES.has(trackIdx);
+            const isRedStart = trackIdx === 0;
+            const isGreenStart = trackIdx === 13;
+            const isYellowStart = trackIdx === 26;
+            const isBlueStart = trackIdx === 39;
+            const isTargeted = previewTarget?.type === "track" && previewTarget.index === trackIdx;
 
-          // Find pieces currently on this track square
-          const piecesOnCell: Array<{
-            player: number;
-            pieceIndex: number;
-            piece: Piece;
-          }> = [];
+            // Find all pieces currently stationed on this track square
+            const piecesOnCell: Array<{
+              player: number;
+              pieceIndex: number;
+              piece: Piece;
+            }> = [];
 
-          players.forEach((player, pIdx) => {
-            player.pieces.forEach((piece, pieceIdx) => {
-              if (piece.position >= 0 && piece.position < 52) {
-                const globalPos =
-                  ((pIdx === 0 ? 0 : 26) + piece.position) % 52;
-                if (globalPos === trackIdx) {
-                  piecesOnCell.push({ player: pIdx, pieceIndex: pieceIdx, piece });
+            players.forEach((player, pIdx) => {
+              player.pieces.forEach((piece, pieceIdx) => {
+                if (piece.position >= 0 && piece.position < 52) {
+                  const globalPos = ((pIdx === 0 ? 0 : 26) + piece.position) % 52;
+                  if (globalPos === trackIdx) {
+                    piecesOnCell.push({ player: pIdx, pieceIndex: pieceIdx, piece });
+                  }
                 }
-              }
+              });
             });
-          });
 
-          return (
+            return (
+              <div
+                key={`track-${trackIdx}`}
+                className={`classic-track-cell ${
+                  isRedStart ? "cell-start-red" : ""
+                } ${isGreenStart ? "cell-start-green" : ""} ${
+                  isYellowStart ? "cell-start-yellow" : ""
+                } ${isBlueStart ? "cell-start-blue" : ""} ${
+                  isStar && !isRedStart && !isGreenStart && !isYellowStart && !isBlueStart ? "cell-star" : ""
+                } ${isTargeted ? "cell-target-highlight" : ""}`}
+                style={{
+                  gridRow: coord.row + 1,
+                  gridColumn: coord.col + 1,
+                }}
+              >
+                {/* Start Arrow Indicators */}
+                {isRedStart && <ArrowRight size={14} className="start-arrow" />}
+                {isGreenStart && <ArrowDown size={14} className="start-arrow" />}
+                {isYellowStart && <ArrowLeft size={14} className="start-arrow" />}
+                {isBlueStart && <ArrowUp size={14} className="start-arrow" />}
+
+                {/* Star / Safe Icon */}
+                {isStar && !isRedStart && !isGreenStart && !isYellowStart && !isBlueStart && (
+                  <Star size={13} className="safe-star-icon" />
+                )}
+
+                {/* Stack of Pieces on this cell */}
+                <div className="cell-pawns-stack">
+                  {piecesOnCell.map(({ player, pieceIndex, piece }) => {
+                    const isMovable = canMovePiece(player, piece);
+                    return (
+                      <button
+                        key={`${player}-${pieceIndex}`}
+                        type="button"
+                        className={`ludo-3d-pawn ${player === 0 ? "pawn-red" : "pawn-yellow"} ${
+                          isMovable ? "pawn-movable-glow" : ""
+                        }`}
+                        disabled={!isMovable}
+                        onClick={() => handlePieceMove(pieceIndex)}
+                        onMouseEnter={() => setHoveredPiece({ player, pieceIndex })}
+                        onMouseLeave={() => setHoveredPiece(null)}
+                        title={`P${player + 1} Piece #${pieceIndex + 1}`}
+                      >
+                        <span className="pawn-head" />
+                        <span className="pawn-ring" />
+                        <span className="pawn-body" />
+                        <span className="pawn-number">{pieceIndex + 1}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ========================================================
+              6. THE 4 COLORED HOME RUNS (5 cells each leading to center)
+             ======================================================== */}
+          {/* Red Home Stretch (Player 0) */}
+          {ALL_HOME_COLUMNS.red.map((coord, idx) => {
+            const stepPos = 52 + idx;
+            const isTargeted = previewTarget?.type === "home" && hoveredPiece?.player === 0 && previewTarget.index === idx;
+            const pieces = players[0]?.pieces
+              .map((piece, pieceIndex) => ({ piece, pieceIndex }))
+              .filter(({ piece }) => piece.position === stepPos);
+
+            return (
+              <div
+                key={`home-red-${idx}`}
+                className={`classic-track-cell home-stretch-red ${isTargeted ? "cell-target-highlight" : ""}`}
+                style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
+              >
+                <div className="cell-pawns-stack">
+                  {pieces.map(({ piece, pieceIndex }) => {
+                    const isMovable = canMovePiece(0, piece);
+                    return (
+                      <button
+                        key={pieceIndex}
+                        type="button"
+                        className={`ludo-3d-pawn pawn-red ${isMovable ? "pawn-movable-glow" : ""}`}
+                        disabled={!isMovable}
+                        onClick={() => handlePieceMove(pieceIndex)}
+                        onMouseEnter={() => setHoveredPiece({ player: 0, pieceIndex })}
+                        onMouseLeave={() => setHoveredPiece(null)}
+                      >
+                        <span className="pawn-head" />
+                        <span className="pawn-ring" />
+                        <span className="pawn-body" />
+                        <span className="pawn-number">{pieceIndex + 1}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Green Home Stretch */}
+          {ALL_HOME_COLUMNS.green.map((coord, idx) => (
             <div
-              key={trackIdx}
-              className={`track-cell-2d ${isSafe ? "safe-track-cell" : ""} ${
-                isP0Start ? "p0-start-cell" : ""
-              } ${isP1Start ? "p1-start-cell" : ""} ${
-                isTargeted ? "target-preview-cell" : ""
-              }`}
-              style={{
-                gridRow: coord.row + 1,
-                gridColumn: coord.col + 1,
-              }}
-            >
-              {isSafe && <Shield size={10} className="safe-badge-icon" />}
-              {piecesOnCell.map(({ player, pieceIndex, piece }) => {
-                const isMovable = canMovePiece(player, piece);
-                return (
-                  <button
-                    key={`${player}-${pieceIndex}`}
-                    type="button"
-                    className={`board-piece-token p${player} ${
-                      isMovable ? "movable-pulse" : ""
-                    }`}
-                    disabled={!isMovable}
-                    onClick={() => handlePieceMove(pieceIndex)}
-                    onMouseEnter={() =>
-                      setHoveredPiece({ player, pieceIndex })
-                    }
-                    onMouseLeave={() => setHoveredPiece(null)}
-                    title={`P${player + 1} Piece #${pieceIndex + 1}`}
-                  >
-                    <span>{pieceIndex + 1}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
-
-        {/* 7. Home Columns for Player 0 (5 cells) */}
-        {HOME_COLUMNS[0].map((coord, stepIdx) => {
-          const stepPos = 52 + stepIdx;
-          const isTargeted =
-            previewTarget?.type === "home" &&
-            hoveredPiece?.player === 0 &&
-            previewTarget.index === stepIdx;
-
-          const piecesOnCell = players[0]?.pieces
-            .map((piece, pieceIndex) => ({ piece, pieceIndex }))
-            .filter(({ piece }) => piece.position === stepPos);
-
-          return (
-            <div
-              key={`home-p0-${stepIdx}`}
-              className={`home-stretch-cell p0-home ${
-                isTargeted ? "target-preview-cell" : ""
-              }`}
+              key={`home-green-${idx}`}
+              className="classic-track-cell home-stretch-green"
               style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
-            >
-              {piecesOnCell.map(({ piece, pieceIndex }) => {
-                const isMovable = canMovePiece(0, piece);
-                return (
-                  <button
-                    key={pieceIndex}
-                    type="button"
-                    className={`board-piece-token p0 ${
-                      isMovable ? "movable-pulse" : ""
-                    }`}
-                    disabled={!isMovable}
-                    onClick={() => handlePieceMove(pieceIndex)}
-                    onMouseEnter={() =>
-                      setHoveredPiece({ player: 0, pieceIndex })
-                    }
-                    onMouseLeave={() => setHoveredPiece(null)}
-                    title={`P1 Home Run #${pieceIndex + 1}`}
-                  >
-                    <span>{pieceIndex + 1}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
+            />
+          ))}
 
-        {/* 8. Home Columns for Player 1 (5 cells) */}
-        {HOME_COLUMNS[1].map((coord, stepIdx) => {
-          const stepPos = 52 + stepIdx;
-          const isTargeted =
-            previewTarget?.type === "home" &&
-            hoveredPiece?.player === 1 &&
-            previewTarget.index === stepIdx;
+          {/* Yellow / Gold Home Stretch (Player 1 / AI) */}
+          {ALL_HOME_COLUMNS.yellow.map((coord, idx) => {
+            const stepPos = 52 + idx;
+            const isTargeted = previewTarget?.type === "home" && hoveredPiece?.player === 1 && previewTarget.index === idx;
+            const pieces = players[1]?.pieces
+              .map((piece, pieceIndex) => ({ piece, pieceIndex }))
+              .filter(({ piece }) => piece.position === stepPos);
 
-          const piecesOnCell = players[1]?.pieces
-            .map((piece, pieceIndex) => ({ piece, pieceIndex }))
-            .filter(({ piece }) => piece.position === stepPos);
+            return (
+              <div
+                key={`home-yellow-${idx}`}
+                className={`classic-track-cell home-stretch-yellow ${isTargeted ? "cell-target-highlight" : ""}`}
+                style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
+              >
+                <div className="cell-pawns-stack">
+                  {pieces.map(({ piece, pieceIndex }) => {
+                    const isMovable = canMovePiece(1, piece);
+                    return (
+                      <button
+                        key={pieceIndex}
+                        type="button"
+                        className={`ludo-3d-pawn pawn-yellow ${isMovable ? "pawn-movable-glow" : ""}`}
+                        disabled={!isMovable}
+                        onClick={() => handlePieceMove(pieceIndex)}
+                        onMouseEnter={() => setHoveredPiece({ player: 1, pieceIndex })}
+                        onMouseLeave={() => setHoveredPiece(null)}
+                      >
+                        <span className="pawn-head" />
+                        <span className="pawn-ring" />
+                        <span className="pawn-body" />
+                        <span className="pawn-number">{pieceIndex + 1}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
 
-          return (
+          {/* Blue Home Stretch */}
+          {ALL_HOME_COLUMNS.blue.map((coord, idx) => (
             <div
-              key={`home-p1-${stepIdx}`}
-              className={`home-stretch-cell p1-home ${
-                isTargeted ? "target-preview-cell" : ""
-              }`}
+              key={`home-blue-${idx}`}
+              className="classic-track-cell home-stretch-blue"
               style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
-            >
-              {piecesOnCell.map(({ piece, pieceIndex }) => {
-                const isMovable = canMovePiece(1, piece);
-                return (
-                  <button
-                    key={pieceIndex}
-                    type="button"
-                    className={`board-piece-token p1 ${
-                      isMovable ? "movable-pulse" : ""
-                    }`}
-                    disabled={!isMovable}
-                    onClick={() => handlePieceMove(pieceIndex)}
-                    onMouseEnter={() =>
-                      setHoveredPiece({ player: 1, pieceIndex })
-                    }
-                    onMouseLeave={() => setHoveredPiece(null)}
-                    title={`P2 Home Run #${pieceIndex + 1}`}
-                  >
-                    <span>{pieceIndex + 1}</span>
-                  </button>
-                );
-              })}
+            />
+          ))}
+
+          {/* ========================================================
+              7. CENTER HOME TRIANGLE (3x3 Center: Rows 7..9, Cols 7..9)
+             ======================================================== */}
+          <div
+            className={`classic-center-goal ${previewTarget?.type === "goal" ? "goal-targeted" : ""}`}
+            style={{ gridRow: "7 / span 3", gridColumn: "7 / span 3" }}
+          >
+            {/* 4 Colored Triangles */}
+            <div className="center-tri tri-red">
+              <span className="tri-score">{p0Finished}/4</span>
             </div>
-          );
-        })}
+            <div className="center-tri tri-green" />
+            <div className="center-tri tri-yellow">
+              <span className="tri-score">{p1Finished}/4</span>
+            </div>
+            <div className="center-tri tri-blue" />
+
+            {/* Center Golden Nimiq Medallion */}
+            <div className="center-medallion">
+              <NimiqHexLogo size={32} />
+              <span className="center-medallion-text">NIMIQ</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

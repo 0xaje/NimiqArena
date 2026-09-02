@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bot,
   Coins,
   Copy,
   LockKeyhole,
@@ -87,6 +88,8 @@ export default function MatchRoom() {
   triggerBotRef.current = triggerBotTurn;
 
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
+  const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
+  const [isBotRolling, setIsBotRolling] = useState(false);
   const state = stateQuery.data;
   const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
 
@@ -215,15 +218,48 @@ export default function MatchRoom() {
       snapshot.winner === null
   );
 
-  // Auto-trigger bot step with pacing delay
+  // Auto-trigger bot step with pacing delay and realistic visual feedback
   useEffect(() => {
-    if (!isBotTurn || triggerBotRef.current.isPending) return;
+    if (!isBotTurn) {
+      setIsBotRolling(false);
+      return;
+    }
 
-    const timer = window.setTimeout(() => {
-      void triggerBotRef.current.mutateAsync({ matchId });
-    }, 750);
+    setBotActionMessage("🤖 Nimiq AI is thinking…");
+    setIsBotRolling(true);
 
-    return () => window.clearTimeout(timer);
+    const rollSoundTimer = window.setTimeout(() => {
+      soundEngine.playDiceRoll();
+    }, 450);
+
+    const stepTimer = window.setTimeout(async () => {
+      try {
+        const res = await triggerBotRef.current.mutateAsync({ matchId });
+        setIsBotRolling(false);
+        const lastRoll = (res as any)?.snapshot?.lastRoll;
+        if (lastRoll && lastRoll.playerId === 1) {
+          if (!lastRoll.hadLegalMoves) {
+            setBotActionMessage(
+              `🤖 Nimiq AI rolled ${lastRoll.value} — No moves possible (requires a 6 to enter track). Passing turn…`
+            );
+            toast.info(`🤖 Nimiq AI Rolled a ${lastRoll.value}`, {
+              description: "Requires a 6 to enter track. Passing turn to you!",
+            });
+          } else {
+            setBotActionMessage(`🤖 Nimiq AI rolled ${lastRoll.value} and moved a piece!`);
+            soundEngine.playPieceMove();
+          }
+        }
+      } catch {
+        setIsBotRolling(false);
+        setBotActionMessage("🤖 Ready to advance AI turn.");
+      }
+    }, 1150);
+
+    return () => {
+      window.clearTimeout(rollSoundTimer);
+      window.clearTimeout(stepTimer);
+    };
   }, [isBotTurn, matchId, state?.stateVersion]);
 
   // Sound triggers on state mutations
@@ -320,6 +356,9 @@ export default function MatchRoom() {
     commandInput: { kind: "roll" } | { kind: "move"; pieceIndex: number }
   ) {
     if (!snapshot || !state) return;
+    if (commandInput.kind === "roll") {
+      setBotActionMessage(null);
+    }
     try {
       const res = await command.mutateAsync({
         id: matchId,
@@ -710,6 +749,25 @@ export default function MatchRoom() {
                   </span>
                 </div>
 
+                {isBotMatch && (isBotTurn || botActionMessage) && (
+                  <div className="bot-status-alert">
+                    <div className="bot-status-inner">
+                      <Bot size={18} className={isBotRolling ? "bot-icon-spin" : "bot-icon"} />
+                      <span>{botActionMessage || (isBotTurn ? "🤖 Nimiq AI is evaluating the board…" : "")}</span>
+                    </div>
+                    {isBotTurn && (
+                      <button
+                        type="button"
+                        className="bot-fast-step-btn"
+                        onClick={() => void triggerBotRef.current.mutateAsync({ matchId })}
+                        title="Force AI step immediately"
+                      >
+                        Fast Step
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {snapshot && (
                   state?.engineVersion === "connect4-v1" ? (
                     <Connect4Board2D
@@ -733,6 +791,7 @@ export default function MatchRoom() {
                         sendCommand({ kind: "move", pieceIndex })
                       }
                       disabled={command.isPending || isBotTurn}
+                      isBotMatch={isBotMatch}
                     />
                   )
                 )}
@@ -775,7 +834,7 @@ export default function MatchRoom() {
                           snapshot?.dice ??
                           (snapshot?.lastRoll ? snapshot.lastRoll.value : null)
                         }
-                        isRolling={command.isPending || isBotTurn}
+                        isRolling={command.isPending || isBotTurn || isBotRolling}
                         canRoll={
                           isYourTurn &&
                           snapshot?.dice === null &&
@@ -795,7 +854,9 @@ export default function MatchRoom() {
                                 ? `Opponent rolled ${snapshot.lastRoll.value} (No moves) — Your turn!`
                                 : "Your turn to roll"
                             : isBotTurn
-                              ? "🤖 Arena Bot is playing…"
+                              ? isBotRolling
+                                ? "🤖 Nimiq AI is rolling…"
+                                : "🤖 Nimiq AI is thinking…"
                               : snapshot?.lastRoll &&
                                   snapshot.lastRoll.playerId === yourSeat &&
                                   !snapshot.lastRoll.hadLegalMoves

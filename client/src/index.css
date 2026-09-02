@@ -1810,244 +1810,492 @@ h1 em,
   box-shadow: 8px 8px 0 var(--paper-deep);
 }
 
-/* 15x15 Grid 2D Ludo Board */
-.ludo-board-2d-wrapper {
+/* ==========================================================================
+   CLASSIC STANDARD LUDO BOARD (OPay / Ludo King Standard)
+   ========================================================================== */
+
+.ludo-standard-board-wrapper {
   width: 100%;
   max-width: 580px;
   margin: 0 auto;
   aspect-ratio: 1 / 1;
-  background: #1c2833;
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
-.ludo-board-2d-grid {
+.ludo-standard-board-frame {
+  width: 100%;
+  height: 100%;
+  background: #111827;
+  padding: 10px;
+  border-radius: 18px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  border: 3px solid #374151;
+  display: flex;
+}
+
+.ludo-standard-grid {
   display: grid;
   grid-template-columns: repeat(15, 1fr);
   grid-template-rows: repeat(15, 1fr);
-  gap: 2px;
+  gap: 1.5px;
   width: 100%;
   height: 100%;
-  background: #2c3e50;
-  border: 2px solid #34495e;
+  background: #cbd5e1;
+  border: 2px solid #94a3b8;
+  border-radius: 10px;
+  overflow: hidden;
   position: relative;
   user-select: none;
 }
 
-/* Quadrants (Bases) */
-.board-quadrant {
-  padding: 6px;
+/* Bot Status Alert Banner */
+.bot-status-alert {
   display: flex;
-}
-.base-0 {
-  grid-row: 1 / span 6;
-  grid-column: 1 / span 6;
-  background: rgba(239, 101, 61, 0.15);
-  border-right: 2px solid #34495e;
-  border-bottom: 2px solid #34495e;
-}
-.base-neutral-top {
-  grid-row: 1 / span 6;
-  grid-column: 10 / span 6;
-  background: rgba(41, 128, 185, 0.08);
-  border-left: 2px solid #34495e;
-  border-bottom: 2px solid #34495e;
-}
-.base-neutral-bottom {
-  grid-row: 10 / span 6;
-  grid-column: 1 / span 6;
-  background: rgba(41, 128, 185, 0.08);
-  border-right: 2px solid #34495e;
-  border-top: 2px solid #34495e;
-}
-.base-1 {
-  grid-row: 10 / span 6;
-  grid-column: 10 / span 6;
-  background: rgba(52, 152, 219, 0.15);
-  border-left: 2px solid #34495e;
-  border-top: 2px solid #34495e;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.12));
+  border: 1.5px solid rgba(245, 158, 11, 0.45);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12);
+  animation: botAlertGlow 2s infinite alternate;
 }
 
-.base-inner {
-  flex: 1;
-  background: rgba(251, 248, 241, 0.95);
+@keyframes botAlertGlow {
+  from { border-color: rgba(245, 158, 11, 0.35); box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1); }
+  to { border-color: rgba(245, 158, 11, 0.7); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25); }
+}
+
+.bot-status-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 700 13px "IBM Plex Mono", monospace;
+  color: #f59e0b;
+}
+
+.bot-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.bot-icon-spin {
+  color: #f59e0b;
+  flex-shrink: 0;
+  animation: spin 1s linear infinite;
+}
+
+.bot-fast-step-btn {
+  background: #f59e0b;
+  color: #111827;
+  font: 800 11px "IBM Plex Mono", monospace;
+  letter-spacing: 0.05em;
+  padding: 5px 12px;
   border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.bot-fast-step-btn:hover {
+  background: #fbbf24;
+  transform: translateY(-1px);
+}
+
+/* 4 Classic Corner Yards (Bases) */
+.classic-yard {
+  padding: 8px;
+  display: flex;
+  position: relative;
+}
+
+.red-yard {
+  background: #dc2626;
+  border-right: 2px solid #94a3b8;
+  border-bottom: 2px solid #94a3b8;
+}
+
+.green-yard {
+  background: #16a34a;
+  border-left: 2px solid #94a3b8;
+  border-bottom: 2px solid #94a3b8;
+}
+
+.blue-yard {
+  background: #2563eb;
+  border-right: 2px solid #94a3b8;
+  border-top: 2px solid #94a3b8;
+}
+
+.yellow-yard {
+  background: #f59e0b;
+  border-left: 2px solid #94a3b8;
+  border-top: 2px solid #94a3b8;
+}
+
+.yard-plate {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 12px;
   padding: 8px;
   display: flex;
   flex-direction: column;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  justify-content: space-between;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.12), 0 2px 5px rgba(0, 0, 0, 0.1);
 }
-.neutral-inner {
-  background: rgba(251, 248, 241, 0.85);
+
+.yard-badge {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.neutral-icon {
-  color: var(--muted);
-  opacity: 0.5;
-}
-.neutral-tag {
-  font: 700 8px "IBM Plex Mono";
-  letter-spacing: 0.14em;
-  color: var(--muted);
-}
-.base-header {
-  margin-bottom: 4px;
-}
-.base-tag {
-  font: 700 8px "IBM Plex Mono";
-  letter-spacing: 0.08em;
-  color: var(--ink);
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  width: fit-content;
 }
 
-.base-nests {
-  display: contents;
+.yard-badge.gold-badge {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
 }
-.base-nest-slot {
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, 0.06);
+
+.yard-badge-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  border: 1px dashed rgba(0,0,0,0.2);
-  width: 85%;
-  height: 85%;
-  margin: auto;
 }
 
-/* Center Goal Sanctuary */
-.board-center-goal {
-  background: #1a252f;
+.red-dot { background: #dc2626; }
+.green-dot { background: #16a34a; }
+.yellow-dot { background: #f59e0b; }
+.blue-dot { background: #2563eb; }
+
+.yard-label {
+  font: 700 9px "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  color: #1e293b;
+  text-transform: uppercase;
+}
+
+.yard-label.nimiq-label {
+  color: #d97706;
+  font-weight: 800;
+}
+
+.yard-pockets-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  padding: 4px 6px 8px;
+  flex: 1;
   align-items: center;
   justify-items: center;
-  border: 2px solid #f1c40f;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 0 12px rgba(241, 196, 15, 0.3);
-}
-.goal-triangle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-}
-.goal-p0 {
-  color: var(--orange);
-}
-.goal-p1 {
-  color: #3498db;
-}
-.goal-score {
-  font: 700 10px "IBM Plex Mono";
 }
 
-/* 2D Perimeter Track Cells */
-.track-cell-2d {
-  background: #fdfbf7;
+.yard-pocket {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  border-radius: 2px;
+  background: #f8fafc;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.red-pocket { border: 3px solid #dc2626; }
+.green-pocket { border: 3px solid #16a34a; }
+.yellow-pocket { border: 3px solid #f59e0b; }
+.blue-pocket { border: 3px solid #2563eb; }
+
+.pawn-placeholder {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  opacity: 0.25;
+}
+.green-ph { background: #16a34a; }
+.blue-ph { background: #2563eb; }
+
+/* Classic Track Cells (15x15 grid) */
+.classic-track-cell {
+  background: #ffffff;
+  display: grid;
+  place-items: center;
   position: relative;
   transition: background 0.15s ease;
 }
-.safe-track-cell {
-  background: #fef5e7;
-  border: 1px solid #f39c12;
-}
-.safe-badge-icon {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  color: #d35400;
-  opacity: 0.65;
-}
-.p0-start-cell {
-  background: #fae5d3;
-  box-shadow: inset 0 0 0 1.5px var(--orange);
-}
-.p1-start-cell {
-  background: #d6eaf8;
-  box-shadow: inset 0 0 0 1.5px #2980b9;
-}
-.target-preview-cell {
-  background: #abebc6 !important;
-  box-shadow: 0 0 8px rgba(46, 204, 113, 0.8) !important;
-  animation: targetPulse 1s infinite alternate;
-  z-index: 5;
-}
-@keyframes targetPulse {
-  from { opacity: 0.7; }
-  to { opacity: 1; transform: scale(1.04); }
-}
 
-/* Home Columns */
-.home-stretch-cell {
-  display: grid;
-  place-items: center;
-  border-radius: 2px;
-}
-.p0-home {
-  background: #f8c471;
-  border: 1px solid #e67e22;
-}
-.p1-home {
-  background: #85c1e9;
-  border: 1px solid #3498db;
-}
-
-/* Board Piece Tokens */
-.board-piece-token {
-  width: 82%;
-  height: 82%;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  border: 2px solid #ffffff;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  z-index: 10;
-  position: relative;
-  font: 700 10px "IBM Plex Mono";
+.cell-start-red {
+  background: #dc2626 !important;
   color: #ffffff;
 }
-.board-piece-token:disabled {
+
+.cell-start-green {
+  background: #16a34a !important;
+  color: #ffffff;
+}
+
+.cell-start-yellow {
+  background: #f59e0b !important;
+  color: #ffffff;
+}
+
+.cell-start-blue {
+  background: #2563eb !important;
+  color: #ffffff;
+}
+
+.start-arrow {
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+}
+
+.cell-star {
+  background: #fefce8 !important;
+}
+
+.safe-star-icon {
+  color: #d97706;
+  fill: #f59e0b;
+  filter: drop-shadow(0 1px 2px rgba(217, 119, 6, 0.4));
+}
+
+.cell-target-highlight {
+  background: #bbf7d0 !important;
+  box-shadow: inset 0 0 0 2px #16a34a, 0 0 8px rgba(34, 197, 94, 0.6) !important;
+  animation: targetCellPulse 0.9s infinite alternate;
+  z-index: 5;
+}
+
+@keyframes targetCellPulse {
+  from { opacity: 0.8; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
+/* 4 Colored Home Stretch Columns */
+.home-stretch-red {
+  background: #dc2626 !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.home-stretch-green {
+  background: #16a34a !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.home-stretch-yellow {
+  background: #f59e0b !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.home-stretch-blue {
+  background: #2563eb !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+/* Center Home Goal (3x3 center) */
+.classic-center-goal {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  background: #1e293b;
+  overflow: hidden;
+  border: 2px solid #94a3b8;
+}
+
+.center-tri {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tri-red {
+  background: #dc2626;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 100%;
+  height: 100%;
+}
+
+.tri-green {
+  background: #16a34a;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  grid-column: 1 / span 2;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.tri-yellow {
+  background: #f59e0b;
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 100%;
+  height: 100%;
+}
+
+.tri-blue {
+  background: #2563eb;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  width: 100%;
+  height: 100%;
+}
+
+.tri-score {
+  font: 800 10px "IBM Plex Mono", monospace;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  z-index: 2;
+}
+
+.center-medallion {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fffbeb, #fef3c7 40%, #fde68a);
+  border: 2.5px solid #f59e0b;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+
+.center-medallion-text {
+  font: 900 7px "IBM Plex Mono", monospace;
+  color: #b45309;
+  letter-spacing: 0.1em;
+  margin-top: -2px;
+}
+
+/* ==========================================================================
+   AUTHENTIC 3D LUDO PAWNS
+   ========================================================================== */
+
+.cell-pawns-stack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.ludo-3d-pawn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+  transition: transform 0.15s ease;
+  z-index: 10;
+}
+
+.ludo-3d-pawn:disabled {
   cursor: default;
-  opacity: 0.95;
 }
-.board-piece-token.p0 {
-  background: radial-gradient(circle at 35% 35%, #ff7043, #d84315);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35), inset 0 -2px 3px rgba(0, 0, 0, 0.25);
+
+.pawn-head {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  top: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  z-index: 3;
 }
-.board-piece-token.p1 {
-  background: radial-gradient(circle at 35% 35%, #42a5f5, #1565c0);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35), inset 0 -2px 3px rgba(0, 0, 0, 0.25);
+
+.pawn-ring {
+  position: absolute;
+  width: 20px;
+  height: 6px;
+  border-radius: 50%;
+  top: 12px;
+  z-index: 2;
 }
-.board-piece-token.movable-pulse {
-  animation: pieceGlowPulse 1.2s infinite ease-in-out;
+
+.pawn-body {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  bottom: 0;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+  z-index: 1;
+}
+
+.pawn-number {
+  position: relative;
+  z-index: 4;
+  font: 800 10px "IBM Plex Mono", monospace;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  margin-top: -2px;
+}
+
+/* Red Pawn (Player 0 / Human) */
+.pawn-red .pawn-head {
+  background: radial-gradient(circle at 35% 30%, #fca5a5, #ef4444 55%, #991b1b);
+}
+.pawn-red .pawn-ring {
+  background: #b91c1c;
+}
+.pawn-red .pawn-body {
+  background: radial-gradient(circle at 35% 30%, #f87171, #dc2626 60%, #7f1d1d);
+}
+
+/* Yellow / Gold Pawn (Player 1 / Nimiq AI) */
+.pawn-yellow .pawn-head {
+  background: radial-gradient(circle at 35% 30%, #fef08a, #f59e0b 55%, #b45309);
+}
+.pawn-yellow .pawn-ring {
+  background: #d97706;
+}
+.pawn-yellow .pawn-body {
+  background: radial-gradient(circle at 35% 30%, #fde047, #f59e0b 60%, #92400e);
+}
+
+/* Movable Glow & Hop Animation */
+.pawn-movable-glow {
+  animation: ludoPawnHop 1.2s infinite ease-in-out;
   cursor: pointer !important;
-  transform: scale(1.12);
-  z-index: 20;
+  z-index: 25 !important;
 }
-@keyframes pieceGlowPulse {
+
+@keyframes ludoPawnHop {
   0% {
-    box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7), 0 4px 8px rgba(0,0,0,0.4);
-    transform: scale(1.08);
+    transform: translateY(0) scale(1.05);
+    filter: drop-shadow(0 0 4px #fbbf24);
   }
-  70% {
-    box-shadow: 0 0 0 8px rgba(241, 196, 15, 0), 0 4px 8px rgba(0,0,0,0.4);
-    transform: scale(1.18);
+  50% {
+    transform: translateY(-4px) scale(1.2);
+    filter: drop-shadow(0 0 12px #f59e0b);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(241, 196, 15, 0), 0 4px 8px rgba(0,0,0,0.4);
-    transform: scale(1.08);
+    transform: translateY(0) scale(1.05);
+    filter: drop-shadow(0 0 4px #fbbf24);
   }
 }
-.board-piece-token.movable-pulse:hover {
-  transform: scale(1.25) !important;
+
+.pawn-movable-glow:hover {
+  transform: translateY(-6px) scale(1.28) !important;
+  filter: drop-shadow(0 0 16px #fbbf24) !important;
 }
 
 /* 3D Animated Dice Component */
