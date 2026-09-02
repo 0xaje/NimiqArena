@@ -479,5 +479,66 @@ describe.skipIf(!runDatabaseIntegration)(
         await cleanup(matchId ? [matchId] : []);
       }
     });
+
+    it("simulates 30 consecutive turns of human and bot in solo practice without failure", async () => {
+      const { user1, cleanup } = await createTestUsers("db-sim-30");
+      let matchId: string | undefined;
+      try {
+        const soloMatch = await createSoloPracticeMatch({
+          userId: user1.id,
+          gameSlug: "ludo-league",
+        });
+        matchId = soloMatch.id;
+
+        for (let turn = 0; turn < 30; turn++) {
+          const matchRow = await getMatchById(soloMatch.id);
+          const snap = JSON.parse(matchRow!.stateJson);
+          if (snap.winner !== null) break;
+
+          if (snap.currentPlayer === 0) {
+            // Human turn: roll dice
+            const rollRes = await applyLudoMatchCommand({
+              matchId: soloMatch.id,
+              userId: user1.id,
+              command: {
+                kind: "roll",
+                expectedVersion: snap.version,
+                nonce: `human-roll-${turn}`,
+              },
+            });
+            const afterRoll = rollRes.snapshot;
+            if (afterRoll.currentPlayer === 0 && afterRoll.dice !== null) {
+              // Human has a legal move! Find a movable piece
+              const p0 = afterRoll.players[0];
+              const movableIdx = p0.pieces.findIndex(p => {
+                if (p.position === -1) return afterRoll.dice === 6;
+                return p.position + afterRoll.dice! <= 57;
+              });
+              if (movableIdx >= 0) {
+                await applyLudoMatchCommand({
+                  matchId: soloMatch.id,
+                  userId: user1.id,
+                  command: {
+                    kind: "move",
+                    pieceIndex: movableIdx,
+                    expectedVersion: afterRoll.version,
+                    nonce: `human-move-${turn}`,
+                  },
+                });
+              }
+            }
+          } else {
+            // Bot turn: execute bot turn
+            const botRes = await executeBotTurn({
+              matchId: soloMatch.id,
+              userId: user1.id,
+            });
+            expect(botRes.ok).toBe(true);
+          }
+        }
+      } finally {
+        await cleanup(matchId ? [matchId] : []);
+      }
+    });
   }
 );

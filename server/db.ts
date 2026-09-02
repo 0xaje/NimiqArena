@@ -644,7 +644,7 @@ export async function executeBotTurn(input: {
         nonce: nanoid(24),
       },
     });
-    return moveResult;
+    return { ok: true as const, ...moveResult };
   } else {
     // No legal moves possible for bot with this dice roll -> pass turn to human (Player 0)
     return db.transaction(async tx => {

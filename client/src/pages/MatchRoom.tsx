@@ -300,14 +300,33 @@ export default function MatchRoom() {
         setIsBotRolling(false);
         isExecutingBotTurn.current = false;
         void stateQuery.refetch();
+        window.setTimeout(() => {
+          setBotTurnTick(c => c + 1);
+        }, 1200);
       }
     }, delayBeforeStep);
 
     return () => {
       window.clearTimeout(rollVisualTimer);
       window.clearTimeout(stepTimer);
+      isExecutingBotTurn.current = false;
     };
   }, [isBotTurn, matchId, botTurnTick]);
+
+  // Watchdog: ensures bot NEVER hangs if turn is active for more than 3.8s
+  useEffect(() => {
+    if (!isBotTurn) {
+      isExecutingBotTurn.current = false;
+      return;
+    }
+    const watchdog = window.setTimeout(() => {
+      if (isBotTurn && !triggerBotRef.current.isPending) {
+        isExecutingBotTurn.current = false;
+        setBotTurnTick(c => c + 1);
+      }
+    }, 3800);
+    return () => window.clearTimeout(watchdog);
+  }, [isBotTurn, botTurnTick, state?.stateVersion]);
 
   // Sound triggers on state mutations
   useEffect(() => {
