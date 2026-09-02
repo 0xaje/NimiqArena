@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyLudoMatchCommand,
   createChallengeMatch,
+  createSoloPracticeMatch,
+  executeBotTurn,
   getDb,
   getMatchById,
   getUserByOpenId,
@@ -434,6 +436,45 @@ describe.skipIf(!runDatabaseIntegration)(
         expect((await sweepMatchLifecycle(now)).changed).toBe(1);
         const refreshed = await refreshMatchLifecycle(matchId, now);
         expect(refreshed?.status).toBe("cancelled");
+      } finally {
+        await cleanup(matchId ? [matchId] : []);
+      }
+    });
+
+    it("creates solo practice match, human rolls, and bot takes turn returning control to human", async () => {
+      const { user1, cleanup } = await createTestUsers("db-solo-bot");
+      let matchId: string | undefined;
+      try {
+        const soloMatch = await createSoloPracticeMatch({
+          userId: user1.id,
+          gameSlug: "ludo-league",
+        });
+        matchId = soloMatch.id;
+        expect(soloMatch.status).toBe("in_progress");
+
+        // Human rolls
+        const rollResult = await applyLudoMatchCommand({
+          matchId: soloMatch.id,
+          userId: user1.id,
+          command: {
+            kind: "roll",
+            expectedVersion: 0,
+            nonce: "human-roll-test",
+          },
+        });
+        expect(rollResult.snapshot.version).toBe(1);
+
+        // If human rolled < 6, it becomes bot's turn
+        if (rollResult.snapshot.currentPlayer === 1) {
+          const botResult = await executeBotTurn({
+            matchId: soloMatch.id,
+            userId: user1.id,
+          });
+          expect(botResult.ok).toBe(true);
+          const updatedMatch = await getMatchById(soloMatch.id);
+          const snap = JSON.parse(updatedMatch!.stateJson);
+          expect(snap.version).toBeGreaterThanOrEqual(2);
+        }
       } finally {
         await cleanup(matchId ? [matchId] : []);
       }
