@@ -12,6 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { createPaymentNonce } from "@/lib/payment-state";
+import { getNimiqProvider } from "@/lib/nimiq-miniapp";
 
 interface EscrowDepositModalProps {
   isOpen: boolean;
@@ -60,13 +61,29 @@ export function EscrowDepositModal({
       setStep("paying");
       await markPending.mutateAsync({ id: intent.id });
 
-      // 2. Submit payment transaction hash (in staging/dev or via Nimiq wallet)
-      const simulatedHash = `0x${nonce.slice(0, 32)}${Date.now().toString(16)}`;
-      setTxHash(simulatedHash);
+      // 2. Request real transaction via Nimiq Provider
+      const provider = getNimiqProvider();
+      if (!provider) {
+        throw new Error(
+          "Nimiq Pay wallet is not connected. Open this Mini App inside Nimiq Pay to approve and broadcast an authoritative blockchain stake transaction."
+        );
+      }
+
+      const txResult = await (provider as any).sendBasicTransaction({
+        recipient: intent.recipient,
+        value: intent.valueLuna,
+      });
+
+      if (!txResult || typeof txResult !== "string") {
+        throw new Error("Transaction was rejected or not completed in Nimiq Pay.");
+      }
+
+      const realTxHash = txResult;
+      setTxHash(realTxHash);
 
       await submitTx.mutateAsync({
         id: intent.id,
-        transactionHash: simulatedHash,
+        transactionHash: realTxHash,
       });
 
       // 3. Verify on-chain authoritatively

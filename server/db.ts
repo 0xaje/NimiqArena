@@ -210,22 +210,7 @@ export async function getUserByOpenId(openId: string) {
 
 export async function getGameBySlug(slug: string): Promise<Game | undefined> {
   const db = await getDb();
-  if (!db) {
-    const fallback = DEFAULT_GAMES.find(g => g.slug === slug);
-    if (fallback) {
-      return {
-        id: fallback.id,
-        slug: fallback.slug,
-        name: fallback.name,
-        kind: fallback.kind,
-        status: fallback.status,
-        description: fallback.description,
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-01"),
-      } as Game;
-    }
-    throw new Error("Game service is unavailable.");
-  }
+  if (!db) throw new Error("Game service is unavailable. Database connection is required.");
   let result = await db
     .select()
     .from(games)
@@ -920,16 +905,7 @@ export async function getMatchPlayers(matchId: string) {
 
 export async function getActiveSeason(): Promise<Season | null> {
   const db = await getDb();
-  if (!db) {
-    return {
-      id: DEFAULT_SEASON.id,
-      name: DEFAULT_SEASON.name,
-      status: DEFAULT_SEASON.status,
-      startsAt: DEFAULT_SEASON.startsAt,
-      endsAt: DEFAULT_SEASON.endsAt,
-      createdAt: new Date("2026-01-01"),
-    } as Season;
-  }
+  if (!db) throw new Error("Season service is unavailable. Database connection is required.");
   await ensureDefaultSeasonsSeeded(db);
   const active = await db
     .select()

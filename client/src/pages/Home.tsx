@@ -42,19 +42,6 @@ type GameCard = {
   description: string;
 };
 
-const futureGames: GameCard[] = [
-  {
-    title: "Community Vote: Game 003",
-    genre: "EXPANSION / VOTING",
-    status: "COMING SOON",
-    image:
-      "https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=900&q=85",
-    accent: "green",
-    description:
-      "Vote on next arena game: ♟️ Chess (48%), 🏁 Checkers (32%), or 🚢 Battleship (20%). Click to cast your vote!",
-  },
-];
-
 function formatAddress(address: string) {
   return address.length > 14
     ? `${address.slice(0, 7)}…${address.slice(-5)}`
@@ -100,15 +87,13 @@ export default function Home() {
         connect4Query.data?.description ??
         "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally.",
     },
-    ...futureGames,
   ];
   const [providerState, setProviderState] = useState<ProviderState>("checking");
-  const [isSimulator, setIsSimulator] = useState(false);
   const [consensus, setConsensus] = useState<boolean | null>(null);
   const [blockNumber, setBlockNumber] = useState<number | null>(null);
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
   const [providerMessage, setProviderMessage] = useState(
-    "Initializing Nimiq Mini App provider…"
+    "Checking Nimiq Pay host provider…"
   );
   const [address, setAddress] = useState<string | null>(null);
   const [language, setLanguage] = useState("en");
@@ -179,27 +164,25 @@ export default function Home() {
       getHostLanguage() || navigator.language?.split("-")[0] || "en"
     );
     initializeNimiqMiniApp()
-      .then(({ provider, isInsideNimiqPay, isSimulator: isSim }) => {
-        setProviderState("ready");
-        setIsSimulator(isSim);
-        if (isInsideNimiqPay) {
-          setProviderMessage(
-            "Connected to native Nimiq Pay mobile host."
-          );
+      .then(({ provider, isInsideNimiqPay: inApp, error }) => {
+        if (inApp && provider) {
+          setProviderState("ready");
+          setProviderMessage("Connected to native Nimiq Pay mobile host.");
+          runNimiqThreeRequests(provider)
+            .then(res => {
+              setConsensus(res.consensus);
+              setBlockNumber(res.blockNumber);
+              if (res.accounts.length > 0) {
+                setAddress(res.accounts[0]);
+              }
+            })
+            .catch(() => {});
         } else {
+          setProviderState("browser");
           setProviderMessage(
-            "Web Dev Simulator active for localhost and browser testing."
+            error || "Nimiq Pay host not detected. Open inside Nimiq Pay to connect wallet."
           );
         }
-        runNimiqThreeRequests(provider)
-          .then(res => {
-            setConsensus(res.consensus);
-            setBlockNumber(res.blockNumber);
-            if (res.accounts.length > 0) {
-              setAddress(res.accounts[0]);
-            }
-          })
-          .catch(() => {});
       })
       .catch((error: unknown) => {
         setProviderState("browser");
@@ -214,23 +197,21 @@ export default function Home() {
   const providerLabel = useMemo(
     () =>
       providerState === "ready"
-        ? isSimulator
-          ? "WEB SIMULATOR"
-          : "NIMIQ PAY"
+        ? "NIMIQ PAY"
         : providerState === "checking"
           ? "CHECKING PROVIDER"
           : providerState === "error"
             ? "PROVIDER ERROR"
-            : "BROWSER PREVIEW",
-    [providerState, isSimulator]
+            : "BROWSER (NO WALLET HOST)",
+    [providerState]
   );
 
   async function connectWallet() {
     const provider = getNimiqProvider();
     if (!provider || providerState !== "ready") {
-      toast("Wallet connection is not available in this preview", {
+      toast("Nimiq Pay is required", {
         description:
-          "Open the Mini App inside Nimiq Pay to request a real account approval.",
+          "Open this Mini App inside the Nimiq Pay app to connect your real Nimiq wallet.",
       });
       return;
     }

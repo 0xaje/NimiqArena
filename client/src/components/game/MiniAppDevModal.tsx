@@ -29,7 +29,6 @@ interface MiniAppDevModalProps {
 export function MiniAppDevModal({ isOpen, onClose }: MiniAppDevModalProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [isInsideApp, setIsInsideApp] = useState(false);
-  const [isSimulator, setIsSimulator] = useState(false);
   const [hostLanguage, setHostLanguage] = useState<string>("en");
   const [benchmarkResult, setBenchmarkResult] = useState<{
     accounts?: string[];
@@ -50,8 +49,11 @@ export function MiniAppDevModal({ isOpen, onClose }: MiniAppDevModalProps) {
     // Initialize provider
     initializeNimiqMiniApp().then(res => {
       setIsInsideApp(res.isInsideNimiqPay);
-      setIsSimulator(res.isSimulator);
-      addLog(`Provider initialized: ${res.isInsideNimiqPay ? "Native Nimiq Pay" : "Web Simulator (Active)"}`);
+      if (res.isInsideNimiqPay) {
+        addLog("Connected to native Nimiq Pay provider.");
+      } else {
+        addLog("Running in standard browser. Nimiq Pay host provider is not injected.");
+      }
     });
   }, [isOpen]);
 
@@ -137,13 +139,13 @@ export function MiniAppDevModal({ isOpen, onClose }: MiniAppDevModalProps) {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-mono border ${
                   isInsideApp
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-400"
                 }`}>
-                  {isInsideApp ? "Inside Nimiq Pay" : "Web Dev Simulator"}
+                  {isInsideApp ? "Inside Nimiq Pay" : "Standard Web Browser"}
                 </span>
               </h2>
               <p className="text-xs text-neutral-400">
-                Official Nimiq Developer Center Provider & Lifecycle Inspector
+                Authoritative Nimiq Mini App Provider & Host Inspector
               </p>
             </div>
           </div>
@@ -161,23 +163,23 @@ export function MiniAppDevModal({ isOpen, onClose }: MiniAppDevModalProps) {
           <div className={`p-4 rounded-xl border flex items-start gap-3 ${
             isInsideApp
               ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-200"
-              : "bg-blue-950/20 border-blue-800/40 text-blue-200"
+              : "bg-amber-950/20 border-amber-800/40 text-amber-200"
           }`}>
             {isInsideApp ? (
               <Smartphone className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             ) : (
-              <Globe className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+              <Globe className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             )}
             <div className="text-xs space-y-1">
               <div className="font-semibold text-sm">
                 {isInsideApp
                   ? "Connected to Native Nimiq Pay Provider"
-                  : "Running in Standalone Web Browser"}
+                  : "Standard Browser Environment (No Nimiq Pay Host)"}
               </div>
               <p className="text-neutral-300">
                 {isInsideApp
                   ? `Host language: ${hostLanguage.toUpperCase()}. window.nimiq and window.nimiqPay are injected directly by Nimiq Pay.`
-                  : "The built-in Web Dev Simulator connects to live Nimiq Testnet PoS RPC nodes so you can test listAccounts, block numbers, device ID, and transactions directly on localhost or Vercel!"}
+                  : "Nimiq Pay host is not present in standard desktop browsers. To test real wallet signing and transactions, open this app inside Nimiq Pay via your local IP (e.g. http://<lan-ip>:3000) using the Nimiq Pay Developer Menu."}
               </p>
             </div>
           </div>
