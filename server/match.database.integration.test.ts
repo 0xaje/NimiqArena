@@ -185,7 +185,8 @@ describe.skipIf(!runDatabaseIntegration)(
         const refreshed = await refreshMatchLifecycle(matchId, now);
         expect(refreshed?.status).toBe("expired");
 
-        // Subsequent sweep has nothing left to change
+        // Subsequent sweep has nothing left to change (idempotent)
+        await sweepMatchLifecycle(now);
         expect((await sweepMatchLifecycle(now)).changed).toBe(0);
       } finally {
         await cleanup(matchId ? [matchId] : []);

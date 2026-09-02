@@ -12,7 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { createPaymentNonce } from "@/lib/payment-state";
-import { getNimiqProvider } from "@/lib/nimiq-miniapp";
+import { sendNimiqPayment } from "@/lib/nimiq-wallet";
 
 interface EscrowDepositModalProps {
   isOpen: boolean;
@@ -61,24 +61,12 @@ export function EscrowDepositModal({
       setStep("paying");
       await markPending.mutateAsync({ id: intent.id });
 
-      // 2. Request real transaction via Nimiq Provider
-      const provider = getNimiqProvider();
-      if (!provider) {
-        throw new Error(
-          "Nimiq Pay wallet is not connected. Open this Mini App inside Nimiq Pay to approve and broadcast an authoritative blockchain stake transaction."
-        );
-      }
-
-      const txResult = await (provider as any).sendBasicTransaction({
+      // 2. Authorize real on-chain transaction via Nimiq Pay or Nimiq Hub
+      const realTxHash = await sendNimiqPayment({
         recipient: intent.recipient,
-        value: intent.valueLuna,
+        valueLuna: intent.valueLuna,
       });
 
-      if (!txResult || typeof txResult !== "string") {
-        throw new Error("Transaction was rejected or not completed in Nimiq Pay.");
-      }
-
-      const realTxHash = txResult;
       setTxHash(realTxHash);
 
       await submitTx.mutateAsync({

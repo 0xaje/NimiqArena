@@ -30,6 +30,15 @@ import { Link } from "wouter";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
 import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
+import { WalletConnectModal } from "@/components/game/WalletConnectModal";
+import {
+  restoreSavedWallet,
+  getWalletConnectionMode,
+  getLiveTestnetStatus,
+  isRunningInNimiqPay,
+  sendNimiqPayment,
+  type WalletConnectionMode,
+} from "@/lib/nimiq-wallet";
 
 type ProviderState = "checking" | "ready" | "browser" | "error";
 
@@ -92,8 +101,10 @@ export default function Home() {
   const [consensus, setConsensus] = useState<boolean | null>(null);
   const [blockNumber, setBlockNumber] = useState<number | null>(null);
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [connectionMode, setConnectionMode] = useState<WalletConnectionMode>("none");
   const [providerMessage, setProviderMessage] = useState(
-    "Checking Nimiq Pay host provider…"
+    "Checking Nimiq wallet provider…"
   );
   const [address, setAddress] = useState<string | null>(null);
   const [language, setLanguage] = useState("en");
@@ -163,77 +174,68 @@ export default function Home() {
     setLanguage(
       getHostLanguage() || navigator.language?.split("-")[0] || "en"
     );
-    initializeNimiqMiniApp()
-      .then(({ provider, isInsideNimiqPay: inApp, error }) => {
-        if (inApp && provider) {
-          setProviderState("ready");
-          setProviderMessage("Connected to native Nimiq Pay mobile host.");
-          runNimiqThreeRequests(provider)
-            .then(res => {
-              setConsensus(res.consensus);
-              setBlockNumber(res.blockNumber);
-              if (res.accounts.length > 0) {
-                setAddress(res.accounts[0]);
-              }
-            })
-            .catch(() => {});
-        } else {
+
+    // 1. Restore any saved wallet address (Hub or manual)
+    const saved = restoreSavedWallet();
+    if (saved) {
+      setAddress(saved);
+      setConnectionMode(getWalletConnectionMode());
+    }
+
+    // 2. Query live on-chain Testnet status from public RPC
+    getLiveTestnetStatus().then(status => {
+      setConsensus(status.consensus);
+      setBlockNumber(status.blockNumber);
+    });
+
+    // 3. Connect to Nimiq Pay if running inside Mini App
+    if (isRunningInNimiqPay()) {
+      initializeNimiqMiniApp()
+        .then(({ provider, isInsideNimiqPay: inApp, error }) => {
+          if (inApp && provider) {
+            setProviderState("ready");
+            setProviderMessage("Connected to native Nimiq Pay mobile host.");
+            runNimiqThreeRequests(provider)
+              .then(res => {
+                if (res.accounts.length > 0) {
+                  setAddress(res.accounts[0]);
+                  setConnectionMode("mini-app");
+                }
+              })
+              .catch(() => {});
+          } else {
+            setProviderState("browser");
+            setProviderMessage(error || "Nimiq Pay host not detected.");
+          }
+        })
+        .catch(() => {
           setProviderState("browser");
-          setProviderMessage(
-            error || "Nimiq Pay host not detected. Open inside Nimiq Pay to connect wallet."
-          );
-        }
-      })
-      .catch((error: unknown) => {
-        setProviderState("browser");
-        setProviderMessage(
-          error instanceof Error
-            ? error.message
-            : "Open this Mini App inside Nimiq Pay."
-        );
-      });
+        });
+    } else {
+      setProviderState("browser");
+      setProviderMessage(
+        saved
+          ? "Connected via Nimiq Hub / Web Wallet."
+          : "Web Browser: Connect via Nimiq Hub or paste address."
+      );
+    }
   }, []);
 
-  const providerLabel = useMemo(
-    () =>
-      providerState === "ready"
+  const providerLabel = useMemo(() => {
+    if (address) {
+      return connectionMode === "mini-app"
         ? "NIMIQ PAY"
-        : providerState === "checking"
-          ? "CHECKING PROVIDER"
-          : providerState === "error"
-            ? "PROVIDER ERROR"
-            : "BROWSER (NO WALLET HOST)",
-    [providerState]
-  );
+        : connectionMode === "hub"
+          ? "NIMIQ HUB"
+          : "WALLET CONNECTED";
+    }
+    return isRunningInNimiqPay()
+      ? "NIMIQ PAY"
+      : "BROWSER (WEB WALLET)";
+  }, [providerState, address, connectionMode]);
 
   async function connectWallet() {
-    const provider = getNimiqProvider();
-    if (!provider || providerState !== "ready") {
-      toast("Nimiq Pay is required", {
-        description:
-          "Open this Mini App inside the Nimiq Pay app to connect your real Nimiq wallet.",
-      });
-      return;
-    }
-    try {
-      const result = await (provider as any).listAccounts();
-      const error = providerError(result);
-      if (error) throw new Error(error);
-      const accounts = result as string[];
-      if (!accounts.length) throw new Error("No Nimiq account was returned.");
-      setAddress(accounts[0]);
-      toast.success("Nimiq account connected", {
-        description: formatAddress(accounts[0]),
-      });
-    } catch (error) {
-      setProviderState("error");
-      setProviderMessage(
-        error instanceof Error
-          ? error.message
-          : "The wallet request was not completed."
-      );
-      toast.error("Wallet request was not completed");
-    }
+    setIsWalletModalOpen(true);
   }
 
   async function payEntry() {
@@ -244,11 +246,10 @@ export default function Home() {
       paymentPhase === "verifying"
     )
       return;
-    const provider = getNimiqProvider();
-    if (!provider || providerState !== "ready") {
-      toast("Nimiq Pay is required for payment", {
-        description:
-          "Open Arena inside Nimiq Pay to receive the native confirmation dialog.",
+    if (!address) {
+      setIsWalletModalOpen(true);
+      toast("Connect your Nimiq wallet first", {
+        description: "Select Nimiq Hub or enter your address.",
       });
       return;
     }
@@ -259,15 +260,13 @@ export default function Home() {
       intent = await createIntent.mutateAsync({ clientNonce });
       await markConfirmationPending.mutateAsync({ id: intent.id });
       setPaymentPhase("confirming");
-      const result = await (provider as any).sendBasicTransaction({
+      const txHash = await sendNimiqPayment({
         recipient: intent.recipient,
-        value: intent.valueLuna,
+        valueLuna: intent.valueLuna,
       });
-      const error = providerError(result);
-      if (error) throw new Error(error);
       await submitTransaction.mutateAsync({
         id: intent.id,
-        transactionHash: result as string,
+        transactionHash: txHash,
       });
       setPaymentPhase("verifying");
       toast("Transaction submitted", {
@@ -351,6 +350,21 @@ export default function Home() {
       <MiniAppDevModal
         isOpen={isDevModalOpen}
         onClose={() => setIsDevModalOpen(false)}
+      />
+      <WalletConnectModal
+        isOpen={isWalletModalOpen}
+        onClose={() => setIsWalletModalOpen(false)}
+        connectedAddress={address}
+        connectionMode={connectionMode}
+        onConnected={(addr, mode) => {
+          setAddress(addr);
+          setConnectionMode(mode);
+        }}
+        onDisconnected={() => {
+          setAddress(null);
+          setConnectionMode("none");
+        }}
+        onOpenFaucet={() => setIsFaucetOpen(true)}
       />
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="sidebar-topline">
@@ -660,26 +674,28 @@ export default function Home() {
             </button>
           </div>
           <div className="rail-card">
-            <span className="card-label">NIMIQ PAY / LIVE STATUS</span>
+            <span className="card-label">NIMIQ WALLET / LIVE STATUS</span>
             <div className="rail-status">
               <span
-                className={`status-dot ${providerState === "ready" ? "ready" : ""}`}
+                className={`status-dot ${address || providerState === "ready" ? "ready" : ""}`}
               />
               <strong>{providerLabel}</strong>
             </div>
             <h3>
-              {providerState === "ready"
-                ? "Your wallet host is ready."
-                : "The host wallet is not connected."}
+              {address
+                ? `Connected: ${formatAddress(address)}`
+                : providerState === "ready"
+                  ? "Nimiq Pay mobile host ready."
+                  : "Connect via Nimiq Hub or enter address."}
             </h3>
             <p>{providerMessage}</p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button className="rail-link" onClick={connectWallet}>
                 <WalletCards size={14} />{" "}
-                {address ? "Wallet connected" : "Connect a wallet"}
+                {address ? "Manage Wallet" : "Connect Nimiq Wallet"}
               </button>
               <button className="rail-link" onClick={() => setIsDevModalOpen(true)}>
-                <Terminal size={14} /> Inspect SDK
+                <Terminal size={14} /> Inspect Host
               </button>
             </div>
           </div>
