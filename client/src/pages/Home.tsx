@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
+import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
 
 type ProviderState = "checking" | "ready" | "browser" | "error";
 
@@ -103,6 +104,7 @@ export default function Home() {
   const [language, setLanguage] = useState("en");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
+  const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
   const [clientNonce, setClientNonce] = useState(createPaymentNonce);
   const createIntent = trpc.payment.createIntent.useMutation();
@@ -334,6 +336,11 @@ export default function Home() {
         onClose={() => setIsQuickMatchOpen(false)}
         gameSlug="ludo-league"
       />
+      <TestnetFaucetModal
+        isOpen={isFaucetOpen}
+        onClose={() => setIsFaucetOpen(false)}
+        userAddress={address}
+      />
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="sidebar-topline">
           <div className="brand-lockup" aria-label="Nimiq Arena">
@@ -450,6 +457,14 @@ export default function Home() {
             </span>
           </div>
           <div className="top-actions">
+            <button
+              className="search-button"
+              onClick={() => setIsFaucetOpen(true)}
+              title="Get free Testnet NIM from the official PoS faucet"
+              style={{ borderColor: "rgba(236, 153, 24, 0.4)", color: "#EC9918" }}
+            >
+              💧 Get Testnet NIM
+            </button>
             <button
               className="search-button"
               onClick={() =>

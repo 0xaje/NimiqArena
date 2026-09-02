@@ -3,7 +3,8 @@ import {
   applyCommand,
   createLudoSnapshot,
   type LudoSnapshot,
-} from "@shared/game/ludo-engine";
+  type LudoPiece,
+} from "../../../shared/game/ludo-engine";
 
 const roll = (snapshot: LudoSnapshot, nonce: string, value: number) =>
   applyCommand(
@@ -37,7 +38,7 @@ describe("ludo engine", () => {
     expect(snapshot.version).toBe(0);
     expect(snapshot.currentPlayer).toBe(0);
     expect(
-      snapshot.players[0].pieces.every(piece => piece.position === -1)
+      snapshot.players[0].pieces.every((piece: LudoPiece) => piece.position === -1)
     ).toBe(true);
   });
 
@@ -47,21 +48,35 @@ describe("ludo engine", () => {
     if (result.ok) expect(result.snapshot.dice).toBe(6);
   });
 
-  it("requires a six to leave base and keeps the turn on a six", () => {
+  it("passes turn when rolling without legal moves, and enables move on a six", () => {
+    // Player 0 rolls a 5 with all pieces in base (no legal moves)
     const first = roll(createLudoSnapshot("match-1"), "roll-1", 5);
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    const illegal = move(first.snapshot, "move-1");
-    expect(illegal).toMatchObject({ ok: false, code: "ILLEGAL_MOVE" });
+    expect(first.snapshot.dice).toBe(null);
+    expect(first.snapshot.lastRoll).toEqual({
+      playerId: 0,
+      value: 5,
+      hadLegalMoves: false,
+    });
+    // Turn automatically passes to Player 1
+    expect(first.snapshot.currentPlayer).toBe(1);
 
-    const six = roll(createLudoSnapshot("match-1"), "roll-2", 6);
+    // Player 1 rolls a 6 (has legal move to leave base)
+    const six = roll(first.snapshot, "roll-2", 6);
     expect(six.ok).toBe(true);
     if (!six.ok) return;
-    const entered = move(six.snapshot, "move-2");
+    expect(six.snapshot.dice).toBe(6);
+    expect(six.snapshot.currentPlayer).toBe(1);
+
+    // Player 1 moves piece 0 out of base
+    const entered = move(six.snapshot, "move-2", 0);
     expect(entered.ok).toBe(true);
     if (entered.ok) {
-      expect(entered.snapshot.players[0].pieces[0].position).toBe(0);
-      expect(entered.snapshot.currentPlayer).toBe(0);
+      expect(entered.snapshot.players[1].pieces[0].position).toBe(0);
+      // Extra turn awarded on 6!
+      expect(entered.snapshot.currentPlayer).toBe(1);
+      expect(entered.snapshot.dice).toBe(null);
     }
   });
 
@@ -109,7 +124,7 @@ describe("ludo engine", () => {
     const snapshot = createLudoSnapshot("match-1");
     snapshot.dice = 1;
     snapshot.players[0].pieces = snapshot.players[0].pieces.map(
-      (piece, index) => ({ position: index === 0 ? 56 : 57 })
+      (piece: LudoPiece, index: number) => ({ position: index === 0 ? 56 : 57 })
     );
     const result = move(snapshot, "win-1");
     expect(result.ok).toBe(true);

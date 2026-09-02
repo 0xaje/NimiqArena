@@ -1,4 +1,5 @@
 import React from "react";
+import { soundEngine } from "@/lib/audio";
 
 interface LudoDiceProps {
   value: number | null;
@@ -15,6 +16,10 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
   onRoll,
   playerSeat,
 }) => {
+  const handleRollClick = () => {
+    soundEngine.playDiceRoll();
+    onRoll();
+  };
   const renderPips = (val: number | null) => {
     if (!val) {
       return (
@@ -59,7 +64,7 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
           canRoll ? "active-roll-btn" : ""
         }`}
         disabled={!canRoll || isRolling}
-        onClick={onRoll}
+        onClick={handleRollClick}
         title={canRoll ? "Click to roll the server dice" : "Waiting for turn"}
       >
         {renderPips(value)}

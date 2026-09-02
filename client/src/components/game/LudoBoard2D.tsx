@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Shield, Sparkles, Trophy } from "lucide-react";
 import { LUDO_SAFE_SQUARES } from "@shared/game/ludo-engine";
+import { soundEngine } from "@/lib/audio";
 
 interface Piece {
   position: number;
@@ -136,6 +137,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     pieceIndex: number;
   } | null>(null);
 
+  const handlePieceMove = (pieceIndex: number) => {
+    soundEngine.playPieceMove();
+    onMovePiece(pieceIndex);
+  };
+
   const canMovePiece = (playerSeat: number, piece: Piece): boolean => {
     if (disabled || !isYourTurn || yourSeat !== playerSeat || dice === null) {
       return false;
@@ -206,7 +212,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                           isMovable ? "movable-pulse" : ""
                         }`}
                         disabled={!isMovable}
-                        onClick={() => onMovePiece(idx)}
+                        onClick={() => handlePieceMove(idx)}
                         onMouseEnter={() =>
                           setHoveredPiece({ player: 0, pieceIndex: idx })
                         }
@@ -264,7 +270,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                           isMovable ? "movable-pulse" : ""
                         }`}
                         disabled={!isMovable}
-                        onClick={() => onMovePiece(idx)}
+                        onClick={() => handlePieceMove(idx)}
                         onMouseEnter={() =>
                           setHoveredPiece({ player: 1, pieceIndex: idx })
                         }
@@ -353,7 +359,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                       isMovable ? "movable-pulse" : ""
                     }`}
                     disabled={!isMovable}
-                    onClick={() => onMovePiece(pieceIndex)}
+                    onClick={() => handlePieceMove(pieceIndex)}
                     onMouseEnter={() =>
                       setHoveredPiece({ player, pieceIndex })
                     }
@@ -398,7 +404,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                       isMovable ? "movable-pulse" : ""
                     }`}
                     disabled={!isMovable}
-                    onClick={() => onMovePiece(pieceIndex)}
+                    onClick={() => handlePieceMove(pieceIndex)}
                     onMouseEnter={() =>
                       setHoveredPiece({ player: 0, pieceIndex })
                     }
@@ -443,7 +449,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                       isMovable ? "movable-pulse" : ""
                     }`}
                     disabled={!isMovable}
-                    onClick={() => onMovePiece(pieceIndex)}
+                    onClick={() => handlePieceMove(pieceIndex)}
                     onMouseEnter={() =>
                       setHoveredPiece({ player: 1, pieceIndex })
                     }

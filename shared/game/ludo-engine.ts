@@ -12,6 +12,11 @@ export type LudoSnapshot = {
   version: number;
   currentPlayer: LudoPlayerId;
   dice: number | null;
+  lastRoll?: {
+    playerId: LudoPlayerId;
+    value: number;
+    hadLegalMoves: boolean;
+  } | null;
   players: [LudoPlayer, LudoPlayer];
   winner: LudoPlayerId | null;
   usedNonces: string[];
@@ -35,7 +40,12 @@ export type LudoCommand =
     };
 
 export type LudoEvent =
-  | { type: "rolled"; playerId: LudoPlayerId; value: number }
+  | {
+      type: "rolled";
+      playerId: LudoPlayerId;
+      value: number;
+      hadLegalMoves?: boolean;
+    }
   | {
       type: "moved";
       playerId: LudoPlayerId;
@@ -69,6 +79,7 @@ export function createLudoSnapshot(matchId: string): LudoSnapshot {
     version: 0,
     currentPlayer: 0,
     dice: null,
+    lastRoll: null,
     players: [
       {
         id: 0,
@@ -116,6 +127,20 @@ function isSafe(progress: number) {
   );
 }
 
+export function hasLegalMoves(
+  snapshot: LudoSnapshot,
+  playerId: LudoPlayerId,
+  dice: number
+): boolean {
+  const player = snapshot.players[playerId];
+  if (!player) return false;
+  return player.pieces.some(piece => {
+    if (piece.position === -1) return dice === 6;
+    if (piece.position >= LUDO_HOME_ENTRY) return false;
+    return piece.position + dice <= LUDO_HOME_ENTRY;
+  });
+}
+
 export function applyCommand(
   snapshot: LudoSnapshot,
   command: LudoCommand,
@@ -146,12 +171,27 @@ export function applyCommand(
       );
     const next = cloneSnapshot(snapshot);
     next.version += 1;
-    next.dice = value;
     next.usedNonces.push(command.nonce);
+
+    const canMove = hasLegalMoves(snapshot, command.playerId, value);
+    if (!canMove) {
+      // In Ludo rules, rolling a value with zero legal moves forfeits the roll and passes turn
+      next.dice = null;
+      next.lastRoll = { playerId: command.playerId, value, hadLegalMoves: false };
+      next.currentPlayer = (command.playerId === 0 ? 1 : 0) as LudoPlayerId;
+      return {
+        ok: true,
+        snapshot: next,
+        event: { type: "rolled", playerId: command.playerId, value, hadLegalMoves: false } as LudoEvent,
+      };
+    }
+
+    next.dice = value;
+    next.lastRoll = { playerId: command.playerId, value, hadLegalMoves: true };
     return {
       ok: true,
       snapshot: next,
-      event: { type: "rolled", playerId: command.playerId, value },
+      event: { type: "rolled", playerId: command.playerId, value, hadLegalMoves: true } as LudoEvent,
     };
   }
 

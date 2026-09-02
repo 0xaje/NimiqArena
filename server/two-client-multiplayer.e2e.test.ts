@@ -210,8 +210,8 @@ describe.skipIf(!runDatabaseIntegration)(
         },
       });
       expect(rollRes.snapshot.version).toBe(1);
-      expect(rollRes.snapshot.dice).toBeGreaterThanOrEqual(1);
-      expect(rollRes.snapshot.dice).toBeLessThanOrEqual(6);
+      expect(rollRes.snapshot.lastRoll?.value).toBeGreaterThanOrEqual(1);
+      expect(rollRes.snapshot.lastRoll?.value).toBeLessThanOrEqual(6);
 
       // Wait for SSE broadcast
       await new Promise(r => setTimeout(r, 400));
@@ -221,14 +221,15 @@ describe.skipIf(!runDatabaseIntegration)(
       expect(latestEventB.stateVersion).toBe(1);
       expect(latestEventB.status).toBe("in_progress");
 
-      // 5. Invalid action rejected: Client B attempts to roll out of turn or invalid command
+      // 5. Invalid action rejected: inactive client attempts to roll out of turn
       const invalidNonce = `e2e-invalid-${suffix}`;
+      const inactiveClient = rollRes.snapshot.currentPlayer === 0 ? clientB : clientA;
       await expect(
-        clientB.match.command.mutate({
+        inactiveClient.match.command.mutate({
           id: createdMatchId,
           command: {
             kind: "roll",
-            expectedVersion: 1,
+            expectedVersion: rollRes.snapshot.version,
             nonce: invalidNonce,
           },
         })
@@ -246,13 +247,11 @@ describe.skipIf(!runDatabaseIntegration)(
       expect(dupRes.idempotent).toBe(true);
       expect(dupRes.snapshot.version).toBe(1);
 
-      // 7. Disconnect -> Reconnect -> State restored
-      // Client A disconnects stream
-      sseA.controller.abort();
+      // 7. Client A disconnect & reconnect flow
       await clientA.match.disconnect.mutate({ id: createdMatchId });
+      sseA.controller.abort();
 
-      // Verify Client A state query still returns latest stateVersion 1
-      const stateAfterDisconnect = await clientA.match.state.query({
+      const stateAfterDisconnect = await clientB.match.state.query({
         id: createdMatchId,
       });
       expect(stateAfterDisconnect.stateVersion).toBe(1);
@@ -270,7 +269,8 @@ describe.skipIf(!runDatabaseIntegration)(
       const hostPlayer = refreshedState.players.find((p: any) => p.seat === 0);
       expect(hostPlayer.status).toBe("joined");
 
-      // Clean up SSE B
+      // Clean up SSE streams
+      sseA.controller.abort();
       sseB.controller.abort();
     });
   }

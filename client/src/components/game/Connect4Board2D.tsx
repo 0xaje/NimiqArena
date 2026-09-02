@@ -7,6 +7,7 @@ import {
   type Connect4PlayerId,
 } from "@/../../shared/game/connect4-engine";
 import { Sparkles, Trophy } from "lucide-react";
+import { soundEngine } from "@/lib/audio";
 
 interface Connect4Board2DProps {
   board: Connect4Cell[][]; // board[col][row] where row 0 is bottom, row 5 is top
@@ -40,6 +41,7 @@ export function Connect4Board2D({
     if (disabled || !isYourTurn || winner !== null) return;
     const lowestRow = getLowestEmptyRow(board, col);
     if (lowestRow !== -1) {
+      soundEngine.playChipDrop();
       onDropDisc(col);
     }
   };

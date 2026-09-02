@@ -43,6 +43,13 @@
       "when": 1786976909586,
       "tag": "0005_new_captain_britain",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1788355730822,
+      "tag": "0006_harsh_thanos",
+      "breakpoints": true
     }
   ]
 }

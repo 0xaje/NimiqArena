@@ -165,8 +165,8 @@ describeDb("Complete 30-Step Real User Journey Validation (A to Z)", () => {
     });
 
     expect(rollResult.snapshot.version).toBe(1);
-    expect(rollResult.snapshot.dice).toBeGreaterThanOrEqual(1);
-    expect(rollResult.snapshot.dice).toBeLessThanOrEqual(6);
+    expect(rollResult.snapshot.lastRoll?.value).toBeGreaterThanOrEqual(1);
+    expect(rollResult.snapshot.lastRoll?.value).toBeLessThanOrEqual(6);
     expect(rollResult.event.type).toBe("rolled");
   });
 

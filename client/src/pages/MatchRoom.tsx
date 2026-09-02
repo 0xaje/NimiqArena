@@ -51,6 +51,12 @@ export default function MatchRoom() {
     onStateUpdate: streamState => {
       utils.match.state.setData({ id: matchId }, prev => {
         if (!prev) return streamState;
+        if (
+          typeof streamState?.stateVersion === "number" &&
+          streamState.stateVersion < prev.stateVersion
+        ) {
+          return prev;
+        }
         return { ...prev, ...streamState };
       });
     },
@@ -73,12 +79,15 @@ export default function MatchRoom() {
   });
   const heartbeat = trpc.match.heartbeat.useMutation();
   const disconnect = trpc.match.disconnect.useMutation();
-  const [connectionStatus, setConnectionStatus] = useState<
-    "connecting" | "connected" | "reconnecting" | "offline"
-  >(stateQuery.data ? "connecting" : "offline");
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
-  const reconnectTimer = useRef<number | null>(null);
   const state = stateQuery.data;
+  const connectionStatus = isStreamConnected
+    ? "connected"
+    : stateQuery.isLoading
+      ? "connecting"
+      : stateQuery.isError || !state
+        ? "offline"
+        : "connected";
 
   // Track previous state for sound effects & animations
   const prevSnapshotRef = useRef<{
@@ -93,65 +102,6 @@ export default function MatchRoom() {
     setIsMuted(muted);
     toast.info(muted ? "Sound Muted" : "Sound Enabled");
   };
-
-  useEffect(() => {
-    if (!matchId || stateQuery.isError || !stateQuery.data) {
-      setConnectionStatus("offline");
-      return;
-    }
-    let closed = false;
-    let attempt = 0;
-    let stream: EventSource | null = null;
-
-    const connect = () => {
-      if (closed) return;
-      setConnectionStatus(attempt === 0 ? "connecting" : "reconnecting");
-      stream = new EventSource(`/api/matches/${matchId}/events`);
-      const onOpen = () => {
-        attempt = 0;
-        setConnectionStatus("connected");
-        void utils.match.state.invalidate({ id: matchId });
-      };
-      const onState = (event: Event) => {
-        attempt = 0;
-        setConnectionStatus("connected");
-        try {
-          const payload = JSON.parse((event as MessageEvent<string>).data) as {
-            stateVersion?: number;
-          };
-          if (
-            shouldResync(
-              stateQuery.data?.stateVersion ?? 0,
-              payload.stateVersion ?? 0
-            )
-          ) {
-            void utils.match.state.invalidate({ id: matchId });
-          }
-        } catch {
-          void utils.match.state.invalidate({ id: matchId });
-        }
-      };
-      const onError = () => {
-        stream?.close();
-        if (closed) return;
-        setConnectionStatus("reconnecting");
-        const delay = reconnectDelayMs(attempt);
-        attempt += 1;
-        reconnectTimer.current = window.setTimeout(connect, delay);
-      };
-      stream.addEventListener("open", onOpen);
-      stream.addEventListener("state", onState);
-      stream.addEventListener("error", onError);
-    };
-
-    connect();
-    return () => {
-      closed = true;
-      stream?.close();
-      if (reconnectTimer.current !== null)
-        window.clearTimeout(reconnectTimer.current);
-    };
-  }, [matchId, stateQuery.data, stateQuery.isError, utils]);
 
   useEffect(() => {
     if (!matchId || stateQuery.isError || !stateQuery.data) return;
@@ -180,6 +130,11 @@ export default function MatchRoom() {
     | {
         currentPlayer: number;
         dice: number | null;
+        lastRoll?: {
+          playerId: number;
+          value: number;
+          hadLegalMoves: boolean;
+        } | null;
         winner: number | null;
         players: [
           { id: 0; pieces: { position: number }[] },
@@ -194,6 +149,53 @@ export default function MatchRoom() {
       state?.status === "in_progress" &&
       snapshot.currentPlayer === yourSeat
   );
+
+  const [turnSecondsLeft, setTurnSecondsLeft] = useState(30);
+  const [disconnectGraceSeconds, setDisconnectGraceSeconds] = useState(60);
+
+  const opponent = state?.players.find(p => p.seat !== yourSeat);
+  const isOpponentDisconnected = Boolean(
+    !isBotMatch &&
+      state?.status === "in_progress" &&
+      opponent &&
+      (opponent.status === "disconnected" ||
+        (opponent.lastSeenAt &&
+          Date.now() - new Date(opponent.lastSeenAt).getTime() > 14000))
+  );
+
+  // Turn Countdown Timer (30s per turn)
+  useEffect(() => {
+    if (state?.status !== "in_progress" || snapshot?.winner !== null) {
+      return;
+    }
+    setTurnSecondsLeft(30);
+
+    const interval = window.setInterval(() => {
+      setTurnSecondsLeft(prev => {
+        if (prev <= 1) {
+          return 0;
+        }
+        if (prev <= 6 && isYourTurn) {
+          soundEngine.playTimerWarning();
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [snapshot?.currentPlayer, state?.stateVersion, state?.status, snapshot?.winner, isYourTurn]);
+
+  // Disconnect Grace Countdown
+  useEffect(() => {
+    if (!isOpponentDisconnected) {
+      setDisconnectGraceSeconds(60);
+      return;
+    }
+    const interval = window.setInterval(() => {
+      setDisconnectGraceSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [isOpponentDisconnected]);
 
   const isBotTurn = Boolean(
     isBotMatch &&
@@ -309,7 +311,7 @@ export default function MatchRoom() {
   ) {
     if (!snapshot || !state) return;
     try {
-      await command.mutateAsync({
+      const res = await command.mutateAsync({
         id: matchId,
         command: {
           ...commandInput,
@@ -317,6 +319,17 @@ export default function MatchRoom() {
           nonce: crypto.randomUUID().replace(/-/g, ""),
         },
       });
+      if (res?.snapshot) {
+        utils.match.state.setData({ id: matchId }, prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            stateVersion: res.snapshot.version,
+            snapshot: res.snapshot,
+            status: (res.status as any) ?? prev.status,
+          };
+        });
+      }
     } catch (error) {
       toast.error("Server rejected the action", {
         description:
@@ -328,7 +341,7 @@ export default function MatchRoom() {
   async function sendConnect4Drop(column: number) {
     if (!state) return;
     try {
-      await c4Command.mutateAsync({
+      const res = await c4Command.mutateAsync({
         id: matchId,
         command: {
           column,
@@ -336,6 +349,17 @@ export default function MatchRoom() {
           nonce: crypto.randomUUID().replace(/-/g, ""),
         },
       });
+      if (res?.snapshot) {
+        utils.match.state.setData({ id: matchId }, prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            stateVersion: res.snapshot.version,
+            snapshot: res.snapshot,
+            status: (res.status as any) ?? prev.status,
+          };
+        });
+      }
       soundEngine.playPieceMove();
     } catch (error) {
       toast.error("Server rejected the drop", {
@@ -504,6 +528,12 @@ export default function MatchRoom() {
                 </strong>
               </div>
               <div>
+                <span className="card-label">TURN TIMER</span>
+                <strong style={{ color: turnSecondsLeft <= 8 ? "#e74c3c" : "#EC9918", fontWeight: 700 }}>
+                  ⏱️ {turnSecondsLeft}s
+                </strong>
+              </div>
+              <div>
                 <span className="card-label">DICE</span>
                 <strong>{snapshot?.dice ?? "—"}</strong>
               </div>
@@ -530,6 +560,34 @@ export default function MatchRoom() {
                 <RefreshCw size={14} /> Refresh
               </button>
             </section>
+
+            {/* Opponent Disconnect / Grace Period Banner */}
+            {isOpponentDisconnected && (
+              <div
+                style={{
+                  background: "rgba(231, 76, 60, 0.15)",
+                  border: "1px solid #e74c3c",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  fontFamily: "IBM Plex Mono, monospace",
+                  fontSize: "12px",
+                  color: "#fbf8f1",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#e74c3c", display: "inline-block", animation: "pulse 1.5s infinite" }} />
+                  <span>⚠️ Opponent connection unstable (Reconnecting...)</span>
+                </div>
+                <span style={{ color: "#e74c3c", fontWeight: 700 }}>
+                  Grace period: {disconnectGraceSeconds}s
+                </span>
+              </div>
+            )}
 
             {/* Escrow Deposit Modal */}
             <EscrowDepositModal
@@ -703,9 +761,16 @@ export default function MatchRoom() {
                     <span className="card-label">ACTION / SERVER DICE</span>
                     <div className="dice-action-zone">
                       <LudoDice
-                        value={snapshot?.dice ?? null}
+                        value={
+                          snapshot?.dice ??
+                          (snapshot?.lastRoll ? snapshot.lastRoll.value : null)
+                        }
                         isRolling={command.isPending || isBotTurn}
-                        canRoll={isYourTurn && snapshot?.dice === null}
+                        canRoll={
+                          isYourTurn &&
+                          snapshot?.dice === null &&
+                          snapshot?.winner === null
+                        }
                         onRoll={() => sendCommand({ kind: "roll" })}
                         playerSeat={snapshot?.currentPlayer ?? 0}
                       />
@@ -714,16 +779,24 @@ export default function MatchRoom() {
                           {isYourTurn
                             ? snapshot?.dice
                               ? `Rolled a ${snapshot.dice}!`
-                              : "Your turn to roll"
+                              : snapshot?.lastRoll &&
+                                  snapshot.lastRoll.playerId !== yourSeat &&
+                                  !snapshot.lastRoll.hadLegalMoves
+                                ? `Opponent rolled ${snapshot.lastRoll.value} (No moves) — Your turn!`
+                                : "Your turn to roll"
                             : isBotTurn
                               ? "🤖 Arena Bot is playing…"
-                              : `Player ${(snapshot?.currentPlayer ?? 0) + 1}'s turn`}
+                              : snapshot?.lastRoll &&
+                                  snapshot.lastRoll.playerId === yourSeat &&
+                                  !snapshot.lastRoll.hadLegalMoves
+                                ? `You rolled ${snapshot.lastRoll.value} (No moves) — Turn passed.`
+                                : `Player ${(snapshot?.currentPlayer ?? 0) + 1}'s turn`}
                         </h3>
                         <p>
                           {isYourTurn
                             ? snapshot?.dice
-                              ? "Select a highlighted token on the board."
-                              : "Roll the dice to advance or release a piece."
+                              ? "Select your highlighted piece on the board to move."
+                              : "Roll the dice to advance or release a piece from base."
                             : isBotTurn
                               ? "The AI is evaluating legal moves authoritatively."
                               : "Please wait while your opponent plays."}

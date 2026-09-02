@@ -132,7 +132,8 @@ describeDb("Production Infrastructure & Controlled Pilot Smoke Suite", () => {
       command: { kind: "roll", expectedVersion: 0, nonce: `prod-roll-${Date.now()}` },
     });
     expect(roll.snapshot.version).toBe(1);
-    expect(roll.snapshot.dice).toBeGreaterThanOrEqual(1);
+    const rolledVal = roll.snapshot.lastRoll?.value ?? roll.snapshot.dice;
+    expect(rolledVal).toBeGreaterThanOrEqual(1);
 
     // Disconnect & Heartbeat reconnect
     await disconnectMatchPlayer(match.id, userB.id);
