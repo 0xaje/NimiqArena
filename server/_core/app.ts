@@ -17,6 +17,17 @@ export function createExpressApp(): Express {
   // Apply rate limiting on API endpoints
   app.use("/api", apiRateLimiter);
 
+  // Health check endpoint
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      service: "Nimiq Arena",
+      miniAppSdk: "0.1.0",
+      database: Boolean(process.env.DATABASE_URL),
+    });
+  });
+
   // Register API features
   registerStorageProxy(app);
   registerOAuthRoutes(app);

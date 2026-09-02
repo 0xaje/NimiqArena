@@ -1,7 +1,12 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { createPaymentNonce, type PaymentPhase } from "@/lib/payment-state";
-import { init } from "@nimiq/mini-app-sdk";
+import {
+  initializeNimiqMiniApp,
+  getNimiqProvider,
+  getHostLanguage,
+  runNimiqThreeRequests,
+} from "@/lib/nimiq-miniapp";
 import {
   ArrowUpRight,
   ChevronRight,
@@ -13,6 +18,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Terminal,
   Trophy,
   WalletCards,
   X,
@@ -23,6 +29,7 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
+import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 
 type ProviderState = "checking" | "ready" | "browser" | "error";
 
@@ -95,10 +102,13 @@ export default function Home() {
     },
     ...futureGames,
   ];
-  const nimiqPromise = useRef<ReturnType<typeof init> | null>(null);
   const [providerState, setProviderState] = useState<ProviderState>("checking");
+  const [isSimulator, setIsSimulator] = useState(false);
+  const [consensus, setConsensus] = useState<boolean | null>(null);
+  const [blockNumber, setBlockNumber] = useState<number | null>(null);
+  const [isDevModalOpen, setIsDevModalOpen] = useState(false);
   const [providerMessage, setProviderMessage] = useState(
-    "Waiting for Nimiq Pay to initialize the provider…"
+    "Initializing Nimiq Mini App provider…"
   );
   const [address, setAddress] = useState<string | null>(null);
   const [language, setLanguage] = useState("en");
@@ -166,16 +176,30 @@ export default function Home() {
 
   useEffect(() => {
     setLanguage(
-      window.nimiqPay?.language || navigator.language?.split("-")[0] || "en"
+      getHostLanguage() || navigator.language?.split("-")[0] || "en"
     );
-    const promise = init({ timeout: 10_000 });
-    nimiqPromise.current = promise;
-    promise
-      .then(() => {
+    initializeNimiqMiniApp()
+      .then(({ provider, isInsideNimiqPay, isSimulator: isSim }) => {
         setProviderState("ready");
-        setProviderMessage(
-          "Nimiq Pay provider ready. Account access still requires your approval."
-        );
+        setIsSimulator(isSim);
+        if (isInsideNimiqPay) {
+          setProviderMessage(
+            "Connected to native Nimiq Pay mobile host."
+          );
+        } else {
+          setProviderMessage(
+            "Web Dev Simulator active for localhost and browser testing."
+          );
+        }
+        runNimiqThreeRequests(provider)
+          .then(res => {
+            setConsensus(res.consensus);
+            setBlockNumber(res.blockNumber);
+            if (res.accounts.length > 0) {
+              setAddress(res.accounts[0]);
+            }
+          })
+          .catch(() => {});
       })
       .catch((error: unknown) => {
         setProviderState("browser");
@@ -190,17 +214,20 @@ export default function Home() {
   const providerLabel = useMemo(
     () =>
       providerState === "ready"
-        ? "PROVIDER READY"
+        ? isSimulator
+          ? "WEB SIMULATOR"
+          : "NIMIQ PAY"
         : providerState === "checking"
           ? "CHECKING PROVIDER"
           : providerState === "error"
             ? "PROVIDER ERROR"
             : "BROWSER PREVIEW",
-    [providerState]
+    [providerState, isSimulator]
   );
 
   async function connectWallet() {
-    if (!nimiqPromise.current || providerState !== "ready") {
+    const provider = getNimiqProvider();
+    if (!provider || providerState !== "ready") {
       toast("Wallet connection is not available in this preview", {
         description:
           "Open the Mini App inside Nimiq Pay to request a real account approval.",
@@ -208,8 +235,7 @@ export default function Home() {
       return;
     }
     try {
-      const nimiq = await nimiqPromise.current;
-      const result = await nimiq.listAccounts();
+      const result = await (provider as any).listAccounts();
       const error = providerError(result);
       if (error) throw new Error(error);
       const accounts = result as string[];
@@ -237,7 +263,8 @@ export default function Home() {
       paymentPhase === "verifying"
     )
       return;
-    if (!nimiqPromise.current || providerState !== "ready") {
+    const provider = getNimiqProvider();
+    if (!provider || providerState !== "ready") {
       toast("Nimiq Pay is required for payment", {
         description:
           "Open Arena inside Nimiq Pay to receive the native confirmation dialog.",
@@ -251,8 +278,7 @@ export default function Home() {
       intent = await createIntent.mutateAsync({ clientNonce });
       await markConfirmationPending.mutateAsync({ id: intent.id });
       setPaymentPhase("confirming");
-      const nimiq = await nimiqPromise.current;
-      const result = await nimiq.sendBasicTransaction({
+      const result = await (provider as any).sendBasicTransaction({
         recipient: intent.recipient,
         value: intent.valueLuna,
       });
@@ -340,6 +366,10 @@ export default function Home() {
         isOpen={isFaucetOpen}
         onClose={() => setIsFaucetOpen(false)}
         userAddress={address}
+      />
+      <MiniAppDevModal
+        isOpen={isDevModalOpen}
+        onClose={() => setIsDevModalOpen(false)}
       />
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="sidebar-topline">
@@ -430,6 +460,14 @@ export default function Home() {
           >
             <span>Language</span>
             <strong>{language.toUpperCase()}</strong>
+          </button>
+          <button
+            className="language-button"
+            onClick={() => setIsDevModalOpen(true)}
+            style={{ marginTop: 8 }}
+          >
+            <span>Mini App SDK</span>
+            <strong>INSPECT</strong>
           </button>
         </div>
       </aside>
@@ -654,10 +692,15 @@ export default function Home() {
                 : "The host wallet is not connected."}
             </h3>
             <p>{providerMessage}</p>
-            <button className="rail-link" onClick={connectWallet}>
-              <WalletCards size={14} />{" "}
-              {address ? "Wallet connected" : "Connect a wallet"}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="rail-link" onClick={connectWallet}>
+                <WalletCards size={14} />{" "}
+                {address ? "Wallet connected" : "Connect a wallet"}
+              </button>
+              <button className="rail-link" onClick={() => setIsDevModalOpen(true)}>
+                <Terminal size={14} /> Inspect SDK
+              </button>
+            </div>
           </div>
         </section>
 
@@ -678,6 +721,13 @@ export default function Home() {
                   : "Wallet host not connected"}
               </h2>
               <p>{providerMessage}</p>
+              <button
+                className="rail-link"
+                onClick={() => setIsDevModalOpen(true)}
+                style={{ marginTop: 8 }}
+              >
+                <Terminal size={14} /> Inspect Mini App SDK
+              </button>
             </div>
             <span
               className={`state-chip ${providerState === "ready" ? "good" : "muted"}`}
