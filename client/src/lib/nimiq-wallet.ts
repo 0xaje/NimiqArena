@@ -64,23 +64,24 @@ export function isRunningInNimiqPay(): boolean {
 
 /**
  * Initializes the HubApi instance lazily for web browser connections.
+ * Defaults to official Mainnet Nimiq Hub (https://hub.nimiq.com).
  */
-export function getHubApi(): HubApi {
-  if (!_hubApi) {
-    _hubApi = new HubApi(NIMIQ_TESTNET_HUB_URL);
+export function getHubApi(endpoint = NIMIQ_MAINNET_HUB_URL): HubApi {
+  if (!_hubApi || (_hubApi as any)._endpoint !== endpoint) {
+    _hubApi = new HubApi(endpoint);
   }
   return _hubApi;
 }
 
 /**
- * Restores any previously saved manual or Hub wallet connection from localStorage.
+ * Restores any previously saved wallet connection from localStorage.
  */
 export function restoreSavedWallet(): string | null {
   if (typeof window === "undefined") return null;
   const saved = localStorage.getItem("nimiq_arena_wallet_address");
   if (saved && isValidNimiqAddress(saved)) {
     _activeAddress = saved;
-    _connectionMode = (localStorage.getItem("nimiq_arena_wallet_mode") as WalletConnectionMode) || "manual";
+    _connectionMode = (localStorage.getItem("nimiq_arena_wallet_mode") as WalletConnectionMode) || "hub";
     return saved;
   }
   return null;
@@ -91,7 +92,7 @@ export function restoreSavedWallet(): string | null {
  */
 export async function connectViaMiniApp(): Promise<string> {
   if (!isRunningInNimiqPay()) {
-    throw new Error("Nimiq Pay host is not detected in this browser. Please use Nimiq Hub web wallet.");
+    throw new Error("Nimiq Pay host is not detected in this browser. Please use official Nimiq Hub web wallet.");
   }
   const provider = await initMiniApp({ timeout: 5000 });
   _miniAppProvider = provider;
@@ -112,11 +113,12 @@ export async function connectViaMiniApp(): Promise<string> {
 }
 
 /**
- * Connects via Nimiq Hub (Official Web Wallet).
- * Opens a popup to hub.nimiq-testnet.com allowing the user to select or create an account.
+ * Connects via Official Nimiq Hub (hub.nimiq.com).
+ * Opens a secure popup to the official Nimiq Hub, allowing the user to select an
+ * existing Nimiq account or create/generate a brand-new Nimiq account.
  */
-export async function connectViaNimiqHub(): Promise<{ address: string; label: string }> {
-  const hub = getHubApi();
+export async function connectViaNimiqHub(endpoint = NIMIQ_MAINNET_HUB_URL): Promise<{ address: string; label: string }> {
+  const hub = getHubApi(endpoint);
   const res = await hub.chooseAddress({
     appName: "Nimiq Arena",
   });
@@ -130,7 +132,7 @@ export async function connectViaNimiqHub(): Promise<{ address: string; label: st
   localStorage.setItem("nimiq_arena_wallet_mode", "hub");
   return {
     address: formatted,
-    label: res.label || "Nimiq Hub Account",
+    label: res.label || "Official Nimiq Account",
   };
 }
 

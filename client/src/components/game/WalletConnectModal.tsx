@@ -6,20 +6,19 @@ import {
   Smartphone,
   ExternalLink,
   CheckCircle2,
-  AlertCircle,
   Copy,
   LogOut,
-  Droplets,
-  ArrowRight,
+  Loader2,
+  ShieldCheck,
 } from "lucide-react";
 import {
   connectViaNimiqHub,
   connectViaMiniApp,
-  connectViaManualAddress,
   disconnectNimiqWallet,
-  isValidNimiqAddress,
   formatNimiqAddress,
   isRunningInNimiqPay,
+  NIMIQ_MAINNET_HUB_URL,
+  NIMIQ_TESTNET_HUB_URL,
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
 import { toast } from "sonner";
@@ -31,7 +30,6 @@ interface WalletConnectModalProps {
   connectionMode: WalletConnectionMode;
   onConnected: (address: string, mode: WalletConnectionMode) => void;
   onDisconnected: () => void;
-  onOpenFaucet?: () => void;
 }
 
 export function WalletConnectModal({
@@ -41,32 +39,31 @@ export function WalletConnectModal({
   connectionMode,
   onConnected,
   onDisconnected,
-  onOpenFaucet,
 }: WalletConnectModalProps) {
-  const [manualInput, setManualInput] = useState("");
   const [isConnectingHub, setIsConnectingHub] = useState(false);
-  const [isConnectingMiniApp, setIsConnectingMiniApp] = useState(false);
-  const [inputError, setInputError] = useState("");
+  const [useTestnet, setUseTestnet] = useState(false);
 
   if (!isOpen) return null;
 
   const inApp = isRunningInNimiqPay();
 
-  const handleConnectHub = async () => {
+  const handleConnectHub = async (targetEndpoint?: string) => {
     setIsConnectingHub(true);
+    const endpoint = targetEndpoint || (useTestnet ? NIMIQ_TESTNET_HUB_URL : NIMIQ_MAINNET_HUB_URL);
     try {
-      toast.info("Opening Nimiq Hub…", {
-        description: "Please select an account in the popup window.",
+      toast.info("Opening Official Nimiq Hub…", {
+        description: "Please log in or select your account in the official Nimiq popup.",
       });
-      const res = await connectViaNimiqHub();
+      const res = await connectViaNimiqHub(endpoint);
       onConnected(res.address, "hub");
-      toast.success("Wallet Connected with Nimiq Hub", {
+      toast.success("Nimiq Wallet Connected", {
         description: res.address,
       });
       onClose();
     } catch (err: any) {
-      toast.error("Nimiq Hub Connection Cancelled", {
-        description: err.message || "No account was selected.",
+      const msg = err?.message || "Connection was cancelled or closed.";
+      toast.error("Nimiq Wallet Connection Cancelled", {
+        description: msg,
       });
     } finally {
       setIsConnectingHub(false);
@@ -74,7 +71,6 @@ export function WalletConnectModal({
   };
 
   const handleConnectMiniApp = async () => {
-    setIsConnectingMiniApp(true);
     try {
       const addr = await connectViaMiniApp();
       onConnected(addr, "mini-app");
@@ -84,34 +80,8 @@ export function WalletConnectModal({
       onClose();
     } catch (err: any) {
       toast.error("Nimiq Pay Connection Failed", {
-        description: err.message || "Failed to read Nimiq Pay account.",
+        description: err?.message || "Failed to read Nimiq Pay account.",
       });
-    } finally {
-      setIsConnectingMiniApp(false);
-    }
-  };
-
-  const handleConnectManual = (e: React.FormEvent) => {
-    e.preventDefault();
-    setInputError("");
-    if (!manualInput.trim()) {
-      setInputError("Please enter a Nimiq address.");
-      return;
-    }
-    if (!isValidNimiqAddress(manualInput)) {
-      setInputError("Invalid address format. Nimiq addresses start with 'NQ' followed by 34 characters.");
-      return;
-    }
-    try {
-      const formatted = connectViaManualAddress(manualInput);
-      onConnected(formatted, "manual");
-      toast.success("Address Connected", {
-        description: formatted,
-      });
-      setManualInput("");
-      onClose();
-    } catch (err: any) {
-      setInputError(err.message || "Invalid address.");
     }
   };
 
@@ -121,6 +91,8 @@ export function WalletConnectModal({
     toast.info("Wallet Disconnected");
   };
 
+  const cleanAddress = connectedAddress ? connectedAddress.replace(/\s+/g, "") : "";
+
   return (
     <div
       className="quickmatch-modal-overlay"
@@ -128,8 +100,8 @@ export function WalletConnectModal({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(6px)",
+        backgroundColor: "rgba(0, 0, 0, 0.78)",
+        backdropFilter: "blur(8px)",
         zIndex: 1000,
         display: "flex",
         alignItems: "center",
@@ -142,12 +114,12 @@ export function WalletConnectModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
-          maxWidth: "480px",
+          maxWidth: "460px",
           backgroundColor: "#161b22",
-          border: "1px solid rgba(236, 153, 24, 0.25)",
-          borderRadius: "16px",
+          border: "1px solid rgba(236, 153, 24, 0.3)",
+          borderRadius: "18px",
           overflow: "hidden",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
+          boxShadow: "0 24px 48px rgba(0, 0, 0, 0.7)",
         }}
       >
         {/* Header */}
@@ -156,32 +128,32 @@ export function WalletConnectModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "18px 20px",
+            padding: "20px 22px",
             borderBottom: "1px solid #21262d",
             backgroundColor: "#0d1117",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <div
               style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "10px",
-                backgroundColor: "rgba(236, 153, 24, 0.12)",
-                border: "1px solid rgba(236, 153, 24, 0.3)",
+                width: "40px",
+                height: "40px",
+                borderRadius: "12px",
+                backgroundColor: "rgba(236, 153, 24, 0.15)",
+                border: "1px solid rgba(236, 153, 24, 0.35)",
                 display: "grid",
                 placeItems: "center",
                 color: "#EC9918",
               }}
             >
-              <Wallet size={20} />
+              <Wallet size={22} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#f0f6fc" }}>
-                Connect Nimiq Wallet
+              <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#f0f6fc" }}>
+                Official Nimiq Wallet
               </h2>
               <p style={{ margin: 0, fontSize: "12px", color: "#8b949e" }}>
-                {inApp ? "Nimiq Pay Mini App Environment" : "Global Web Browser Connection"}
+                {inApp ? "Nimiq Pay Mobile Host" : "Nimiq Hub Web Connection"}
               </p>
             </div>
           </div>
@@ -201,18 +173,18 @@ export function WalletConnectModal({
         </div>
 
         {/* Content */}
-        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* If already connected */}
+        <div style={{ padding: "22px", display: "flex", flexDirection: "column", gap: "18px" }}>
           {connectedAddress ? (
+            /* Active Connected Wallet View */
             <div
               style={{
                 backgroundColor: "rgba(46, 160, 67, 0.08)",
-                border: "1px solid rgba(46, 160, 67, 0.3)",
-                borderRadius: "12px",
-                padding: "16px",
+                border: "1px solid rgba(46, 160, 67, 0.35)",
+                borderRadius: "14px",
+                padding: "18px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "10px",
+                gap: "12px",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -221,25 +193,26 @@ export function WalletConnectModal({
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
-                    fontSize: "12px",
+                    fontSize: "13px",
                     fontWeight: 600,
                     color: "#3fb950",
                   }}
                 >
-                  <CheckCircle2 size={15} /> Active Wallet
+                  <CheckCircle2 size={16} /> Wallet Connected
                 </span>
                 <span
                   style={{
                     fontSize: "11px",
-                    padding: "2px 8px",
-                    borderRadius: "10px",
+                    padding: "3px 10px",
+                    borderRadius: "12px",
                     backgroundColor: "#21262d",
-                    color: "#c9d1d9",
+                    color: "#EC9918",
                     fontFamily: "monospace",
+                    fontWeight: 600,
                     textTransform: "uppercase",
                   }}
                 >
-                  {connectionMode === "mini-app" ? "Nimiq Pay" : connectionMode === "hub" ? "Nimiq Hub" : "Manual"}
+                  {connectionMode === "mini-app" ? "Nimiq Pay" : "Nimiq Hub"}
                 </span>
               </div>
 
@@ -251,20 +224,21 @@ export function WalletConnectModal({
                   color: "#f0f6fc",
                   wordBreak: "break-all",
                   backgroundColor: "#0d1117",
-                  padding: "10px 12px",
-                  borderRadius: "8px",
+                  padding: "12px 14px",
+                  borderRadius: "10px",
                   border: "1px solid #30363d",
+                  lineHeight: "1.4",
                 }}
               >
-                {connectedAddress}
+                {formatNimiqAddress(connectedAddress)}
               </div>
 
               <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(connectedAddress);
-                    toast.success("Address copied to clipboard");
+                    navigator.clipboard.writeText(cleanAddress);
+                    toast.success("Nimiq address copied to clipboard");
                   }}
                   style={{
                     flex: 1,
@@ -272,7 +246,7 @@ export function WalletConnectModal({
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "6px",
-                    padding: "8px 12px",
+                    padding: "10px 14px",
                     fontSize: "12px",
                     fontWeight: 600,
                     color: "#c9d1d9",
@@ -282,8 +256,29 @@ export function WalletConnectModal({
                     cursor: "pointer",
                   }}
                 >
-                  <Copy size={13} /> Copy Address
+                  <Copy size={14} /> Copy
                 </button>
+                <a
+                  href={`https://nimiq.watch/account/${cleanAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    padding: "10px 14px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#EC9918",
+                    backgroundColor: "rgba(236, 153, 24, 0.1)",
+                    border: "1px solid rgba(236, 153, 24, 0.3)",
+                    borderRadius: "8px",
+                    textDecoration: "none",
+                  }}
+                >
+                  Explorer <ExternalLink size={13} />
+                </a>
                 <button
                   type="button"
                   onClick={handleDisconnect}
@@ -292,7 +287,7 @@ export function WalletConnectModal({
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "6px",
-                    padding: "8px 12px",
+                    padding: "10px 14px",
                     fontSize: "12px",
                     fontWeight: 600,
                     color: "#f85149",
@@ -302,225 +297,210 @@ export function WalletConnectModal({
                     cursor: "pointer",
                   }}
                 >
-                  <LogOut size={13} /> Disconnect
+                  <LogOut size={14} /> Disconnect
                 </button>
               </div>
             </div>
           ) : (
+            /* Connect Wallet Options */
             <>
-              {/* Option A: Inside Nimiq Pay */}
               {inApp ? (
+                /* Mode 1: Running in Nimiq Pay */
                 <button
                   type="button"
                   onClick={handleConnectMiniApp}
-                  disabled={isConnectingMiniApp}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "16px",
-                    backgroundColor: "#1f2937",
-                    border: "1px solid #374151",
-                    borderRadius: "12px",
+                    padding: "18px",
+                    backgroundColor: "rgba(236, 153, 24, 0.1)",
+                    border: "1px solid #EC9918",
+                    borderRadius: "14px",
                     cursor: "pointer",
                     textAlign: "left",
                     color: "#f0f6fc",
+                    width: "100%",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
                     <div
                       style={{
-                        width: "40px",
-                        height: "40px",
-                        borderRadius: "10px",
-                        backgroundColor: "rgba(236, 153, 24, 0.15)",
-                        color: "#EC9918",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <Smartphone size={22} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "14px" }}>Nimiq Pay App</div>
-                      <div style={{ fontSize: "12px", color: "#8b949e" }}>
-                        Connect your active Nimiq Pay mobile wallet
-                      </div>
-                    </div>
-                  </div>
-                  <ArrowRight size={18} color="#8b949e" />
-                </button>
-              ) : (
-                /* Option B: Standard Web Browser -> Nimiq Hub */
-                <button
-                  type="button"
-                  onClick={handleConnectHub}
-                  disabled={isConnectingHub}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "16px",
-                    backgroundColor: "rgba(236, 153, 24, 0.08)",
-                    border: "1px solid rgba(236, 153, 24, 0.35)",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    color: "#f0f6fc",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <div
-                      style={{
-                        width: "42px",
-                        height: "42px",
-                        borderRadius: "10px",
+                        width: "44px",
+                        height: "44px",
+                        borderRadius: "12px",
                         backgroundColor: "#EC9918",
                         color: "#000",
                         display: "grid",
                         placeItems: "center",
                       }}
                     >
-                      <Globe size={22} />
+                      <Smartphone size={24} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: "14px", color: "#EC9918" }}>
-                        Nimiq Hub (Official Web Wallet)
+                      <div style={{ fontWeight: 700, fontSize: "15px", color: "#EC9918" }}>
+                        Connect with Nimiq Pay
                       </div>
                       <div style={{ fontSize: "12px", color: "#8b949e" }}>
-                        {isConnectingHub ? "Opening Nimiq Hub popup…" : "Connect via hub.nimiq-testnet.com"}
+                        Import active account from Nimiq Pay mobile app
                       </div>
                     </div>
                   </div>
-                  <ExternalLink size={18} color="#EC9918" />
                 </button>
-              )}
-
-              {/* Divider */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  color: "#484f58",
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  margin: "4px 0",
-                }}
-              >
-                <div style={{ flex: 1, height: "1px", backgroundColor: "#21262d" }} />
-                <span>Or Enter Address for Local Testing</span>
-                <div style={{ flex: 1, height: "1px", backgroundColor: "#21262d" }} />
-              </div>
-
-              {/* Option C: Manual Address Input for Localhost */}
-              <form onSubmit={handleConnectManual} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div>
-                  <label
+              ) : (
+                /* Mode 2: Standard Browser -> Official Nimiq Hub */
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleConnectHub()}
+                    disabled={isConnectingHub}
                     style={{
-                      display: "block",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#c9d1d9",
-                      marginBottom: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "18px",
+                      backgroundColor: "rgba(236, 153, 24, 0.12)",
+                      border: "1px solid rgba(236, 153, 24, 0.45)",
+                      borderRadius: "14px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      color: "#f0f6fc",
+                      width: "100%",
+                      transition: "all 0.15s ease",
                     }}
                   >
-                    Paste Nimiq Address
-                  </label>
-                  <input
-                    type="text"
-                    value={manualInput}
-                    onChange={(e) => {
-                      setManualInput(e.target.value);
-                      setInputError("");
-                    }}
-                    placeholder="NQ07 0000 0000 0000 0000 0000 0000 0000"
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: "8px",
-                      backgroundColor: "#0d1117",
-                      border: inputError ? "1px solid #f85149" : "1px solid #30363d",
-                      color: "#f0f6fc",
-                      fontSize: "13px",
-                      fontFamily: "IBM Plex Mono, monospace",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                  {inputError && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        color: "#f85149",
-                        fontSize: "11px",
-                        marginTop: "4px",
-                      }}
-                    >
-                      <AlertCircle size={13} /> {inputError}
+                    <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                      <div
+                        style={{
+                          width: "44px",
+                          height: "44px",
+                          borderRadius: "12px",
+                          backgroundColor: "#EC9918",
+                          color: "#000",
+                          display: "grid",
+                          placeItems: "center",
+                          fontWeight: 900,
+                          fontSize: "18px",
+                        }}
+                      >
+                        {isConnectingHub ? (
+                          <Loader2 size={24} className="animate-spin" />
+                        ) : (
+                          <Globe size={24} />
+                        )}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "15px", color: "#EC9918" }}>
+                          Connect with Official Nimiq Hub
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#8b949e" }}>
+                          {isConnectingHub
+                            ? "Connecting to official Nimiq popup…"
+                            : `Opens ${useTestnet ? "hub.nimiq-testnet.com" : "hub.nimiq.com"} to log in or create account`}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                    <ExternalLink size={18} color="#EC9918" />
+                  </button>
+
+                  {/* Network selection toggle (Subtle) */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      backgroundColor: "#0d1117",
+                      borderRadius: "8px",
+                      border: "1px solid #21262d",
+                      fontSize: "12px",
+                      color: "#8b949e",
+                    }}
+                  >
+                    <span>Target Network:</span>
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setUseTestnet(false)}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          border: "none",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          backgroundColor: !useTestnet ? "#EC9918" : "#21262d",
+                          color: !useTestnet ? "#000" : "#8b949e",
+                        }}
+                      >
+                        Mainnet (hub.nimiq.com)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseTestnet(true)}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          border: "none",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          backgroundColor: useTestnet ? "#EC9918" : "#21262d",
+                          color: useTestnet ? "#000" : "#8b949e",
+                        }}
+                      >
+                        Testnet
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              )}
 
-                <button
-                  type="submit"
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: "8px",
-                    backgroundColor: "#21262d",
-                    border: "1px solid #30363d",
-                    color: "#f0f6fc",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  Connect Address
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* Testnet Faucet Banner */}
-          {onOpenFaucet && (
-            <div
-              style={{
-                backgroundColor: "#0d1117",
-                border: "1px dashed #30363d",
-                borderRadius: "10px",
-                padding: "12px 14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginTop: "4px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Droplets size={16} color="#EC9918" />
-                <span style={{ fontSize: "12px", color: "#c9d1d9" }}>Need free testnet NIM for matches?</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenFaucet();
-                }}
+              {/* Direct Link to Official Nimiq Web Wallet */}
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: "#EC9918",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  textDecoration: "underline",
+                  backgroundColor: "#0d1117",
+                  border: "1px solid #21262d",
+                  borderRadius: "12px",
+                  padding: "14px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 }}
               >
-                Open Faucet
-              </button>
-            </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <ShieldCheck size={18} color="#EC9918" />
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#f0f6fc" }}>
+                      Don't have a Nimiq account?
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#8b949e" }}>
+                      Create and manage your wallet on the official Nimiq portal
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href="https://wallet.nimiq.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    color: "#EC9918",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    backgroundColor: "rgba(236, 153, 24, 0.1)",
+                    border: "1px solid rgba(236, 153, 24, 0.25)",
+                  }}
+                >
+                  wallet.nimiq.com <ExternalLink size={12} />
+                </a>
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -364,7 +364,6 @@ export default function Home() {
           setAddress(null);
           setConnectionMode("none");
         }}
-        onOpenFaucet={() => setIsFaucetOpen(true)}
       />
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="sidebar-topline">
