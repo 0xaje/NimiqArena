@@ -66,13 +66,18 @@ function providerError(value: unknown) {
     : "Provider request failed.";
 }
 
+const LUDO_SLUG_INPUT = { slug: "ludo-league" } as const;
+const CONNECT4_SLUG_INPUT = { slug: "connect-four" } as const;
+const LEADERBOARD_INPUT = { gameSlug: "ludo-league" } as const;
+const STATS_INPUT = { gameSlug: "ludo-league" } as const;
+
 export default function Home() {
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
   const user = authQuery.data;
-  const ludoQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
-  const connect4Query = trpc.game.getBySlug.useQuery({ slug: "connect-four" });
+  const ludoQuery = trpc.game.getBySlug.useQuery(LUDO_SLUG_INPUT);
+  const connect4Query = trpc.game.getBySlug.useQuery(CONNECT4_SLUG_INPUT);
   const gameCards: GameCard[] = [
     {
       title: ludoQuery.data?.name ?? "Ludo League",
@@ -97,17 +102,29 @@ export default function Home() {
         "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally.",
     },
   ];
-  const [providerState, setProviderState] = useState<ProviderState>("checking");
+  const [providerState, setProviderState] = useState<ProviderState>(() =>
+    isRunningInNimiqPay() ? "checking" : "browser"
+  );
   const [consensus, setConsensus] = useState<boolean | null>(null);
   const [blockNumber, setBlockNumber] = useState<number | null>(null);
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<WalletConnectionMode>("none");
-  const [providerMessage, setProviderMessage] = useState(
-    "Checking Nimiq wallet provider…"
+  const [connectionMode, setConnectionMode] = useState<WalletConnectionMode>(() =>
+    getWalletConnectionMode()
   );
-  const [address, setAddress] = useState<string | null>(null);
-  const [language, setLanguage] = useState("en");
+  const [address, setAddress] = useState<string | null>(() =>
+    restoreSavedWallet()
+  );
+  const [language, setLanguage] = useState(() =>
+    getHostLanguage() || (typeof navigator !== "undefined" ? navigator.language?.split("-")[0] : "en") || "en"
+  );
+  const [providerMessage, setProviderMessage] = useState(() => {
+    if (isRunningInNimiqPay()) return "Checking Nimiq wallet provider…";
+    const saved = restoreSavedWallet();
+    return saved
+      ? "Connected via Official Nimiq Hub / Web Wallet."
+      : "Web Browser: Connect via Official Nimiq Hub.";
+  });
   const [mobileMenu, setMobileMenu] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
@@ -122,13 +139,10 @@ export default function Home() {
   const createSolo = trpc.match.createSoloMatch.useMutation();
 
   const seasonQuery = trpc.season.getActive.useQuery();
-  const leaderboardQuery = trpc.leaderboard.getTop.useQuery({
-    gameSlug: "ludo-league",
+  const leaderboardQuery = trpc.leaderboard.getTop.useQuery(LEADERBOARD_INPUT);
+  const statsQuery = trpc.auth.stats.useQuery(STATS_INPUT, {
+    enabled: Boolean(user),
   });
-  const statsQuery = trpc.auth.stats.useQuery(
-    { gameSlug: "ludo-league" },
-    { enabled: Boolean(user) }
-  );
 
   async function handleStartSoloPractice() {
     try {
@@ -171,24 +185,13 @@ export default function Home() {
   }
 
   useEffect(() => {
-    setLanguage(
-      getHostLanguage() || navigator.language?.split("-")[0] || "en"
-    );
-
-    // 1. Restore any saved wallet address (Hub or manual)
-    const saved = restoreSavedWallet();
-    if (saved) {
-      setAddress(saved);
-      setConnectionMode(getWalletConnectionMode());
-    }
-
-    // 2. Query live on-chain Testnet status from public RPC
+    // 1. Query live on-chain Testnet status from public RPC
     getLiveTestnetStatus().then(status => {
       setConsensus(status.consensus);
       setBlockNumber(status.blockNumber);
     });
 
-    // 3. Connect to Nimiq Pay if running inside Mini App
+    // 2. Connect to Nimiq Pay if running inside Mini App
     if (isRunningInNimiqPay()) {
       initializeNimiqMiniApp()
         .then(({ provider, isInsideNimiqPay: inApp, error }) => {
@@ -211,13 +214,6 @@ export default function Home() {
         .catch(() => {
           setProviderState("browser");
         });
-    } else {
-      setProviderState("browser");
-      setProviderMessage(
-        saved
-          ? "Connected via Nimiq Hub / Web Wallet."
-          : "Web Browser: Connect via Nimiq Hub or paste address."
-      );
     }
   }, []);
 

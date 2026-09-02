@@ -22,7 +22,10 @@ export const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
   const [isMatched, setIsMatched] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string | null>(null);
 
-  const statsQuery = trpc.auth.stats.useQuery({ gameSlug });
+  const statsQuery = trpc.auth.stats.useQuery(
+    { gameSlug },
+    { enabled: isOpen, retry: false }
+  );
   const findMatch = trpc.match.findOrCreateQuickMatch.useMutation();
   const cancelMatch = trpc.match.cancelWaitingMatch.useMutation();
 
