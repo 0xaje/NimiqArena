@@ -85,3 +85,37 @@ Leaderboard Query (Indexed by seasonId, gameSlug, rating DESC)
 - **Zero Client Authority**: The client never submits winner, score, rank, or rating.
 - **Idempotent Settlement**: Unique key constraints on `rating_history(matchId, userId)` protect against duplicate execution.
 - **Pure Rating Calculation**: `calculateElo()` executes deterministically on instantaneous database rating states.
+
+---
+
+## Bot Orchestration & In-Memory Lock Boundary
+
+Solo practice matches feature an authoritative server-side bot player (`system-bot-ai`).
+
+### Architecture & Synchronization
+```text
+Human Move Applied  --->  DB Transaction  --->  maybeScheduleBotTurn()
+                                                        |
+                                                        v
+                                            scheduleAutonomousBotStep()
+                                                        | (450ms pacing)
+                                                        v
+                                          executeAuthoritativeBotTurnCore()
+                                          [botMatchLocks: Set<string>]
+                                                        |
+                                            Server Roll & Bot Heuristic
+                                                        |
+                                                DB Transaction (v++)
+                                                        |
+                                              Turn returns to Human (0)
+```
+
+### Process-Local Scope & Limitations
+- **Current Model**: `botMatchLocks: Set<string>` and `botMatchTimers: Map<string, NodeJS.Timeout>` reside in process memory.
+- **Single-Node Guarantees**: For single-instance deployments, this model is 100% reliable, zero-latency, and requires zero external infrastructure (no Redis or message broker dependencies).
+- **Multi-Process / Horizontal Scaling Boundary**: If the application scales to multiple Node processes, container clusters, or serverless functions behind a load balancer, process-local locks will NOT coordinate across instances.
+- **Production Scaling Roadmap**:
+  - *Option A (Preferred - Zero Infrastructure Overhead)*: Database row-level locks via `SELECT ... FOR UPDATE` on `matches` within a dedicated bot turn transaction.
+  - *Option B (High Scale Clustering)*: Distributed lock manager (e.g. Redis Redlock).
+  - In accordance with our reliability guidelines, external infrastructure is deferred until the deployment model strictly requires clustering.
+

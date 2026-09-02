@@ -217,7 +217,7 @@ export default function MatchRoom() {
       snapshot.winner === null
   );
 
-  // Passive display: show AI activity banner and feedback reactively when server bot plays
+  // Passive display: show AI activity banner and feedback reactively when server bot plays or when turns pass
   useEffect(() => {
     if (isBotTurn) {
       setIsBotRolling(true);
@@ -225,7 +225,7 @@ export default function MatchRoom() {
     } else {
       setIsBotRolling(false);
       const lastRoll = snapshot?.lastRoll;
-      if (lastRoll && lastRoll.playerId === 1) {
+      if (lastRoll && isBotMatch && lastRoll.playerId === 1) {
         if (!lastRoll.hadLegalMoves) {
           setBotActionMessage(
             `🤖 Nimiq AI rolled ${lastRoll.value} (no legal moves) — Your turn!`
@@ -237,11 +237,17 @@ export default function MatchRoom() {
         }
         const timer = window.setTimeout(() => setBotActionMessage(null), 2400);
         return () => window.clearTimeout(timer);
+      } else if (lastRoll && lastRoll.playerId === yourSeat && !lastRoll.hadLegalMoves) {
+        setBotActionMessage(
+          `🎲 You rolled ${lastRoll.value} (no legal moves available) — Turn passed.`
+        );
+        const timer = window.setTimeout(() => setBotActionMessage(null), 2600);
+        return () => window.clearTimeout(timer);
       } else {
         setBotActionMessage(null);
       }
     }
-  }, [isBotTurn, snapshot?.lastRoll]);
+  }, [isBotTurn, snapshot?.lastRoll, isBotMatch, yourSeat]);
 
   // Sound triggers on state mutations
   useEffect(() => {
@@ -441,19 +447,19 @@ export default function MatchRoom() {
         </Link>
         <span className="detail-brand">NIMIQ ARENA / MATCH ROOM</span>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {isStreamConnected && (
+          {isStreamConnected ? (
             <span
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
+                gap: "5px",
                 fontFamily: "IBM Plex Mono, monospace",
                 fontSize: "11px",
                 color: "#2ecc71",
                 background: "rgba(46, 204, 113, 0.15)",
                 border: "1px solid rgba(46, 204, 113, 0.3)",
                 borderRadius: "12px",
-                padding: "2px 8px",
+                padding: "3px 9px",
               }}
             >
               <span
@@ -465,7 +471,32 @@ export default function MatchRoom() {
                   boxShadow: "0 0 8px #2ecc71",
                 }}
               />
-              LIVE
+              Live SSE
+            </span>
+          ) : (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontFamily: "IBM Plex Mono, monospace",
+                fontSize: "11px",
+                color: "#f39c12",
+                background: "rgba(243, 156, 18, 0.15)",
+                border: "1px solid rgba(243, 156, 18, 0.3)",
+                borderRadius: "12px",
+                padding: "3px 9px",
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "#f39c12",
+                }}
+              />
+              Fallback Polling
             </span>
           )}
           <EmoteWheel matchId={matchId} />

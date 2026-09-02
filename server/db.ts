@@ -566,6 +566,15 @@ export function isMatchBotLocked(matchId: string): boolean {
   return botMatchLocks.has(matchId);
 }
 
+export function clearBotMatchTimerAndLock(matchId: string) {
+  const timer = botMatchTimers.get(matchId);
+  if (timer) {
+    clearTimeout(timer);
+    botMatchTimers.delete(matchId);
+  }
+  botMatchLocks.delete(matchId);
+}
+
 async function passBotTurnToOpponent(
   matchId: string,
   snapshot: LudoSnapshot,
@@ -755,7 +764,7 @@ export function scheduleAutonomousBotStep(matchId: string, delayMs = 450) {
     } finally {
       botMatchLocks.delete(matchId);
     }
-  }, delayMs);
+  }, effectiveDelay);
 
   botMatchTimers.set(matchId, timer);
 }
@@ -764,6 +773,7 @@ export async function maybeScheduleBotTurn(
   matchId: string,
   nextPlayerSeat: number
 ) {
+  if (botMatchLocks.has(matchId)) return;
   try {
     const botUser = await getOrCreateBotUser();
     const players = await getMatchPlayers(matchId);
@@ -784,6 +794,13 @@ export async function executeBotTurn(input: {
   if (!match) throw new Error("Match not found.");
   if (match.status !== "in_progress") {
     throw new Error("Match is not in progress.");
+  }
+
+  // Clear any pending timer since we are executing now
+  const pendingTimer = botMatchTimers.get(input.matchId);
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    botMatchTimers.delete(input.matchId);
   }
 
   if (botMatchLocks.has(input.matchId)) {
@@ -1360,6 +1377,8 @@ export async function applyLudoMatchCommand(input: {
     notifyMatchUpdated(input.matchId);
     if (result.status === "in_progress") {
       void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
+    } else {
+      clearBotMatchTimerAndLock(input.matchId);
     }
   }
   return result;
@@ -1496,6 +1515,8 @@ export async function applyConnect4MatchCommand(input: {
     notifyMatchUpdated(input.matchId);
     if (result.status === "in_progress") {
       void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
+    } else {
+      clearBotMatchTimerAndLock(input.matchId);
     }
   }
   return result;
