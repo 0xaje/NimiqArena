@@ -777,7 +777,9 @@ export default function MatchRoom() {
                           ? state?.engineVersion === "connect4-v1"
                             ? "Click any column to drop your disc."
                             : snapshot?.dice
-                              ? "Click your highlighted piece to move."
+                              ? snapshot.dice === 6
+                                ? "🌟 Rolled a 6! Select a glowing pawn (Bonus roll awaits!)"
+                                : "Click your highlighted piece to move."
                               : "Roll the server dice below."
                           : isBotTurn
                             ? "🤖 Arena Bot is thinking…"
@@ -795,10 +797,14 @@ export default function MatchRoom() {
                   </span>
                 </div>
 
-                {isBotMatch && (isBotTurn || botActionMessage) && (
+                {((isBotMatch && isBotTurn) || botActionMessage) && (
                   <div className="bot-status-alert">
                     <div className="bot-status-inner">
-                      <Bot size={18} className={isBotRolling ? "bot-icon-spin" : "bot-icon"} />
+                      {isBotTurn ? (
+                        <Bot size={18} className={isBotRolling ? "bot-icon-spin" : "bot-icon"} />
+                      ) : (
+                        <span style={{ fontSize: "16px" }}>🎲</span>
+                      )}
                       <span>{botActionMessage || (isBotTurn ? "🤖 Nimiq AI is evaluating the board…" : "")}</span>
                     </div>
                   </div>

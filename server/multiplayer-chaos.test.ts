@@ -237,4 +237,70 @@ describe("Multiplayer Chaos & State Convergence Verification Suite", () => {
     expect(reconnectedState.id).toBe(matchId);
     expect(reconnectedState.status).toBe("in_progress");
   });
+
+  it("executes multi-turn 2-player human gameplay where both clients converge authoritatively on every turn", async () => {
+    const hostClient = makeClient(hostToken);
+    const guestClient = makeClient(guestToken);
+
+    let turnsExecuted = 0;
+    const targetTurns = 10;
+
+    while (turnsExecuted < targetTurns) {
+      const hostState = await hostClient.match.state.query({ id: matchId });
+      const guestState = await guestClient.match.state.query({ id: matchId });
+
+      // Invariant: Both clients ALWAYS hold identical state version and snapshot
+      expect(hostState.stateVersion).toBe(guestState.stateVersion);
+      expect(hostState.snapshot.version).toBe(guestState.snapshot.version);
+      expect(hostState.snapshot.currentPlayer).toBe(guestState.snapshot.currentPlayer);
+
+      const activeSeat = hostState.snapshot.currentPlayer;
+      const activeClient = activeSeat === 0 ? hostClient : guestClient;
+      const currentVer = hostState.stateVersion;
+
+      if (hostState.snapshot.dice === null) {
+        // Active player rolls
+        const rollRes = await activeClient.match.command.mutate({
+          id: matchId,
+          command: {
+            kind: "roll",
+            expectedVersion: currentVer,
+            nonce: `turn-roll-${turnsExecuted}-${nanoid(16)}`,
+          },
+        });
+        expect(rollRes.snapshot.version).toBeGreaterThan(currentVer);
+        turnsExecuted++;
+      } else {
+        // Active player selects a legal piece if available
+        const pieces = hostState.snapshot.players[activeSeat].pieces;
+        const diceVal = hostState.snapshot.dice;
+        let movableIdx = -1;
+        pieces.forEach((p: any, idx: number) => {
+          if (p.position === -1 && diceVal === 6) movableIdx = idx;
+          else if (p.position >= 0 && p.position + diceVal <= 57) movableIdx = idx;
+        });
+
+        if (movableIdx !== -1) {
+          const moveRes = await activeClient.match.command.mutate({
+            id: matchId,
+            command: {
+              kind: "move",
+              pieceIndex: movableIdx,
+              expectedVersion: currentVer,
+              nonce: `turn-move-${turnsExecuted}-${nanoid(16)}`,
+            },
+          });
+          expect(moveRes.snapshot.version).toBeGreaterThan(currentVer);
+        }
+        turnsExecuted++;
+      }
+    }
+
+    // Final verification: parity is preserved after full sequence
+    const finalHost = await hostClient.match.state.query({ id: matchId });
+    const finalGuest = await guestClient.match.state.query({ id: matchId });
+    expect(finalHost.stateVersion).toBe(finalGuest.stateVersion);
+    expect(finalHost.snapshot.version).toBe(finalGuest.snapshot.version);
+    expect(finalHost.snapshot.currentPlayer).toBe(finalGuest.snapshot.currentPlayer);
+  });
 });

@@ -320,4 +320,128 @@ describe("Human vs Bot Stress & Chaos Validation Suite", () => {
 
     expect(isMatchBotLocked(matchId)).toBe(false);
   });
+
+  // 6. CONCURRENCY: 5 Simultaneous bot matches running in parallel
+  it("executes 5 simultaneous bot matches in parallel with zero lock contention or deadlocks", async () => {
+    const matchCount = 5;
+    const testUsers = await Promise.all(
+      Array.from({ length: matchCount }, (_, i) => createTestUser(`parallel-bot-${i}`))
+    );
+
+    const testMatches = await Promise.all(
+      testUsers.map(u =>
+        createSoloPracticeMatch({
+          userId: u.id,
+          gameSlug: "ludo-league",
+        })
+      )
+    );
+
+    // Concurrently trigger human roll and subsequent bot turn across all 5 matches
+    const results = await Promise.all(
+      testMatches.map(async (match, idx) => {
+        const user = testUsers[idx];
+        const rollRes = await applyLudoMatchCommand({
+          matchId: match.id,
+          userId: user.id,
+          command: {
+            kind: "roll",
+            expectedVersion: match.stateVersion,
+            nonce: `par-roll-${nanoid(16)}`,
+          },
+        });
+
+        // If turn passed to bot, execute bot turn
+        if (rollRes.snapshot.currentPlayer === 1) {
+          const botRes = await executeBotTurn({
+            matchId: match.id,
+            userId: user.id,
+          });
+          expect(botRes.ok).toBe(true);
+        }
+
+        expect(isMatchBotLocked(match.id)).toBe(false);
+        const finalMatch = await getMatchById(match.id);
+        expect(finalMatch?.stateVersion).toBeGreaterThan(match.stateVersion);
+        return finalMatch;
+      })
+    );
+
+    expect(results.length).toBe(matchCount);
+    // Ensure all 5 matches are unlocked
+    for (const m of testMatches) {
+      expect(isMatchBotLocked(m.id)).toBe(false);
+    }
+  });
+
+  // 7. HIGH-COUNT STEPPING: 100 consecutive turns in a practice match
+  it("executes 100 consecutive turns in a practice match without infinite loops or lock leaks", async () => {
+    const user = await createTestUser("step-100");
+    const match = await createSoloPracticeMatch({
+      userId: user.id,
+      gameSlug: "ludo-league",
+    });
+
+    let currentVersion = match.stateVersion;
+    let stepsCompleted = 0;
+    const targetSteps = 100;
+
+    while (stepsCompleted < targetSteps) {
+      const currentMatch = await getMatchById(match.id);
+      if (!currentMatch || currentMatch.status !== "in_progress") break;
+
+      const snapshot = JSON.parse(currentMatch.stateJson);
+      if (snapshot.winner !== null) break;
+
+      if (snapshot.currentPlayer === 0) {
+        if (snapshot.dice === null) {
+          const rollRes = await applyLudoMatchCommand({
+            matchId: match.id,
+            userId: user.id,
+            command: {
+              kind: "roll",
+              expectedVersion: currentVersion,
+              nonce: `step100-${nanoid(16)}`,
+            },
+          });
+          currentVersion = rollRes.snapshot.version;
+          stepsCompleted++;
+        } else {
+          const movablePieces: number[] = [];
+          snapshot.players[0].pieces.forEach((p: any, idx: number) => {
+            if (p.position === -1 && snapshot.dice === 6) movablePieces.push(idx);
+            else if (p.position >= 0 && p.position + snapshot.dice <= 57) movablePieces.push(idx);
+          });
+
+          if (movablePieces.length > 0) {
+            const moveRes = await applyLudoMatchCommand({
+              matchId: match.id,
+              userId: user.id,
+              command: {
+                kind: "move",
+                pieceIndex: movablePieces[0],
+                expectedVersion: currentVersion,
+                nonce: `step100-m-${nanoid(16)}`,
+              },
+            });
+            currentVersion = moveRes.snapshot.version;
+            stepsCompleted++;
+          }
+        }
+      } else if (snapshot.currentPlayer === 1) {
+        const botRes = await executeBotTurn({
+          matchId: match.id,
+          userId: user.id,
+        });
+        expect(botRes.ok).toBe(true);
+        const updated = await getMatchById(match.id);
+        if (updated) currentVersion = updated.stateVersion;
+        stepsCompleted++;
+        expect(isMatchBotLocked(match.id)).toBe(false);
+      }
+    }
+
+    expect(stepsCompleted).toBeGreaterThan(20);
+    expect(isMatchBotLocked(match.id)).toBe(false);
+  });
 });

@@ -23,7 +23,7 @@ A feature is not complete when the button renders. It is complete when the serve
 
 ## Verified Production Test Suites (100% Passing)
 
-All 29 test suites and 152 automated test cases pass with full test database integration and live Nimiq Testnet JSON-RPC verification:
+All 29 test suites and 155 automated test cases pass with full test database integration and live Nimiq Testnet JSON-RPC verification:
 
 ```bash
 DATABASE_URL="mysql://root:test@127.0.0.1:3307/nimiq_test" RUN_DB_INTEGRATION_TESTS=1 npm test
@@ -33,8 +33,8 @@ DATABASE_URL="mysql://root:test@127.0.0.1:3307/nimiq_test" RUN_DB_INTEGRATION_TE
 | :--- | :--- | :---: | :--- |
 | `user-journey.e2e.test.ts` | **E2E 30-Step Journey** | 18 | Full 30-step lifecycle validation from match creation to live RPC settlement |
 | `match.database.integration.test.ts` | **Database & ACID** | 13 | Match joins, duplicate joins, stale versions, nonces, rollbacks, 30-turn simulation |
-| `human-vs-bot.stress.test.ts` | **Stress & Chaos** | 6 | 25 complete real human-vs-bot matches, lock idempotency, stale command safety |
-| `multiplayer-chaos.test.ts` | **Multiplayer Chaos** | 5 | Concurrent commands, duplicate nonces, stale versions, disconnect/reconnect parity |
+| `human-vs-bot.stress.test.ts` | **Stress & Chaos** | 8 | 25 complete real matches, 5 parallel bot matches, 100-turn streak, lock cleanup |
+| `multiplayer-chaos.test.ts` | **Multiplayer Chaos** | 6 | Multi-turn 2-player parity, concurrent commands, duplicate nonces, reconnect sync |
 | `autonomous-bot.regression.test.ts` | **Bot Architecture** | 5 | Server-side execution lock, loop prevention, turn transitions, win halting |
 | `production-smoke.test.ts` | **Pilot Smoke** | 5 | Health endpoint, catalog seeding, 2-player production lifecycle, log scrubbing |
 | `two-client-multiplayer.e2e.test.ts` | **E2E Multi-Client Transport** | 1 | Live 2-client HTTP + SSE bidirectional state propagation |
@@ -60,4 +60,4 @@ DATABASE_URL="mysql://root:test@127.0.0.1:3307/nimiq_test" RUN_DB_INTEGRATION_TE
 | `match-stream.test.ts` | **SSE Streaming** | 1 | Realtime match stream broadcast and participant authorization |
 | `auth.logout.test.ts` | **Authentication** | 1 | Session cookie clearing and logout lifecycle |
 | `match-event.test.ts` | **Event Idempotency** | 1 | Exact match event replay from database snapshots |
-| **Total** | **29 Test Files** | **152 Tests** | **100% Pass Rate (152/152 PASSED, 0 SKIPPED, 0 FAILED)** |
+| **Total** | **29 Test Files** | **155 Tests** | **100% Pass Rate (155/155 PASSED, 0 SKIPPED, 0 FAILED)** |

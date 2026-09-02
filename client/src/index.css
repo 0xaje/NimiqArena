@@ -2206,12 +2206,38 @@ h1 em,
   padding: 0;
   transition: transform 0.15s ease;
   z-index: 10;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .ludo-3d-pawn:disabled {
   cursor: default;
   pointer-events: none;
-  opacity: 0.88;
+  opacity: 0.72;
+}
+
+/* Multi-pawn cell scaling for star / overlapping track positions */
+.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) {
+  width: 21px;
+  height: 21px;
+  margin: -2px;
+}
+.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-head {
+  width: 10px;
+  height: 10px;
+}
+.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-ring {
+  width: 15px;
+  height: 5px;
+  top: 9px;
+}
+.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-body {
+  width: 18px;
+  height: 18px;
+}
+.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-number {
+  font-size: 8px;
 }
 
 .pawn-head {
@@ -2327,7 +2353,8 @@ h1 em,
 .pawn-movable-glow {
   animation: ludoPawnHop 1.2s infinite ease-in-out;
   cursor: pointer !important;
-  z-index: 25 !important;
+  z-index: 35 !important;
+  opacity: 1 !important;
 }
 
 @keyframes ludoPawnHop {
@@ -2369,6 +2396,9 @@ h1 em,
   cursor: default;
   transition: all 0.2s ease;
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 .ludo-dice-cube.active-roll-btn {
   cursor: pointer;
