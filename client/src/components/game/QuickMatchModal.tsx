@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { Radar, ShieldCheck, Swords, X } from "lucide-react";
+import { Bot, Radar, ShieldCheck, Swords, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { soundEngine } from "@/lib/audio";
@@ -28,6 +28,7 @@ export const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
   );
   const findMatch = trpc.match.findOrCreateQuickMatch.useMutation();
   const cancelMatch = trpc.match.cancelWaitingMatch.useMutation();
+  const createSolo = trpc.match.createSoloMatch.useMutation();
 
   const queueStatusQuery = trpc.match.queueStatus.useQuery(
     { matchId: matchId ?? "" },
@@ -37,6 +38,37 @@ export const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
     }
   );
 
+  // Instant fallback to Arena AI Bot so users are never stuck waiting
+  const handlePlayAiNow = async () => {
+    if (isMatched) return;
+    try {
+      setIsMatched(true);
+      setOpponentName("Nimiq Arena AI Bot");
+      soundEngine.playBonusTurn();
+      toast.success("AI Challenger Matched!", {
+        description: "Launching arena table…",
+      });
+
+      if (matchId) {
+        try {
+          await cancelMatch.mutateAsync({ matchId });
+        } catch {
+          // Ignore cancellation error
+        }
+      }
+
+      const solo = await createSolo.mutateAsync({ gameSlug });
+      setTimeout(() => {
+        setLocation(`/matches/${solo.id}`);
+      }, 1000);
+    } catch (err) {
+      setIsMatched(false);
+      toast.error("Could not start AI match", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    }
+  };
+
   // Timer counter
   useEffect(() => {
     if (!isOpen || isMatched) return;
@@ -45,6 +77,14 @@ export const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, [isOpen, isMatched]);
+
+  // Auto-pair with AI bot after 7 seconds if no live human joins
+  useEffect(() => {
+    if (!isOpen || isMatched || createSolo.isPending) return;
+    if (elapsedSec >= 7) {
+      void handlePlayAiNow();
+    }
+  }, [elapsedSec, isOpen, isMatched]);
 
   // Initiate queue on open
   useEffect(() => {
@@ -179,16 +219,30 @@ export const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
                 </span>
                 <h2>Searching for Opponent…</h2>
                 <p>
-                  Matching with an online player near your Elo rating (
-                  <strong>{rating} ELO</strong>).
+                  Scanning live queue near your Elo (<strong>{rating} ELO</strong>).
                 </p>
+              </div>
+
+              {/* Fast fallback button so users never wait indefinitely */}
+              <div className="quickmatch-ai-fallback-zone">
+                <button
+                  type="button"
+                  className="quickmatch-ai-btn"
+                  onClick={handlePlayAiNow}
+                  disabled={createSolo.isPending}
+                >
+                  <Bot size={18} /> Play vs Arena AI Bot Now
+                </button>
+                <span className="quickmatch-ai-timer-note">
+                  {elapsedSec < 7
+                    ? `Auto-matching with Arena AI in ${Math.max(0, 7 - elapsedSec)}s if no human joins…`
+                    : "Pairing with Arena AI Challenger…"}
+                </span>
               </div>
 
               <div className="quickmatch-rating-badge">
                 <ShieldCheck size={14} className="rating-badge-icon" />
-                <span>
-                  Season 1 / FIDE Elo ($K=32$) / Ranked Public Match
-                </span>
+                <span>Season 1 / FIDE Elo ($K=32$) / Ranked Public Match</span>
               </div>
             </div>
           )}

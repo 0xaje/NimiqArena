@@ -226,12 +226,25 @@ export default function MatchRoom() {
       return;
     }
 
-    setBotActionMessage("🤖 Nimiq AI is thinking…");
+    const isHumanJustFailed = Boolean(
+      snapshot?.lastRoll &&
+      snapshot.lastRoll.playerId === yourSeat &&
+      !snapshot.lastRoll.hadLegalMoves
+    );
+
+    const delayBeforeRoll = isHumanJustFailed ? 1400 : 450;
+    const delayBeforeStep = isHumanJustFailed ? 2300 : 1150;
+
+    setBotActionMessage(
+      isHumanJustFailed
+        ? `You rolled a ${snapshot?.lastRoll?.value} (needs 6 to leave base). AI turn beginning…`
+        : "🤖 Nimiq AI is thinking…"
+    );
     setIsBotRolling(true);
 
     const rollSoundTimer = window.setTimeout(() => {
       soundEngine.playDiceRoll();
-    }, 450);
+    }, delayBeforeRoll);
 
     const stepTimer = window.setTimeout(async () => {
       try {
@@ -278,7 +291,7 @@ export default function MatchRoom() {
         setBotActionMessage("🤖 AI retrying turn…");
         window.setTimeout(() => setBotTurnTick(c => c + 1), 1500);
       }
-    }, 1150);
+    }, delayBeforeStep);
 
     return () => {
       window.clearTimeout(rollSoundTimer);
@@ -413,6 +426,23 @@ export default function MatchRoom() {
             status: (res.status as any) ?? prev.status,
           };
         });
+
+        // Provide immediate visual and audio feedback for player's roll
+        const last = (res as any)?.snapshot?.lastRoll;
+        if (last && last.playerId === yourSeat) {
+          if (!last.hadLegalMoves) {
+            toast.info(`🎲 You Rolled a ${last.value}`, {
+              description: "Requires a 6 to enter track. Passing turn to AI…",
+            });
+          } else {
+            toast.success(`🎲 You Rolled a ${last.value}!`, {
+              description:
+                last.value === 6
+                  ? "Bonus roll awarded! Click a glowing piece to deploy or advance."
+                  : "Click a glowing piece to advance.",
+            });
+          }
+        }
       }
     } catch (error) {
       toast.error("Server rejected the action", {
