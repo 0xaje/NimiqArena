@@ -29,6 +29,7 @@ import {
   type LudoCommand,
   type LudoEvent,
   type LudoSnapshot,
+  type LudoMode,
 } from "../shared/game/ludo-engine";
 import { selectBestBotMove } from "../shared/game/ludo-bot";
 import {
@@ -226,6 +227,7 @@ export async function getGameBySlug(slug: string): Promise<Game | undefined> {
 export async function createChallengeMatch(input: {
   userId: number;
   gameSlug: string;
+  mode?: LudoMode;
 }): Promise<Match> {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
@@ -240,7 +242,7 @@ export async function createChallengeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id);
+      : createLudoSnapshot(id, input.mode ?? "2p_single");
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -376,7 +378,7 @@ export async function findOrCreateQuickMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id);
+      : createLudoSnapshot(id, "2p_single");
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -1138,14 +1140,32 @@ export async function applyLudoMatchCommand(input: {
     if (previousEvent)
       return replayStoredMatchEvent<LudoSnapshot, LudoEvent>(previousEvent);
 
-    if (match.stateVersion !== input.command.expectedVersion) {
+    const snapshot = JSON.parse(match.stateJson) as LudoSnapshot;
+
+    // If rolling on active turn with unrolled dice, or moving with rolled dice, auto-sync version
+    // to prevent spurious rejections from rapid turn transitions
+    if (
+      input.command.kind === "roll" &&
+      snapshot.currentPlayer === player.seat &&
+      snapshot.dice === null
+    ) {
+      input.command.expectedVersion = match.stateVersion;
+    } else if (
+      input.command.kind === "move" &&
+      snapshot.currentPlayer === player.seat &&
+      snapshot.dice !== null
+    ) {
+      input.command.expectedVersion = match.stateVersion;
+    } else if (match.stateVersion !== input.command.expectedVersion) {
       throw new Error("Match state changed; retry with the latest state.");
     }
+
     if (match.status !== "in_progress")
       throw new Error("Match is not ready for gameplay.");
-    const snapshot = JSON.parse(match.stateJson) as LudoSnapshot;
+
     const command: LudoCommand = {
       ...input.command,
+      expectedVersion: snapshot.version,
       matchId: input.matchId,
       playerId: player.seat as 0 | 1,
     };
@@ -1937,7 +1957,7 @@ export async function createWageredChallengeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id);
+      : createLudoSnapshot(id, "2p_double");
 
   // Initial root payment intent for the host's stake
   const hostIntentId = nanoid(20);

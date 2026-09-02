@@ -412,7 +412,10 @@ export default function MatchRoom() {
         id: matchId,
         command: {
           ...commandInput,
-          expectedVersion: state.stateVersion,
+          expectedVersion: Math.max(
+            state.stateVersion,
+            (snapshot as any)?.version ?? state.stateVersion
+          ),
           nonce: crypto.randomUUID().replace(/-/g, ""),
         },
       });
@@ -445,6 +448,10 @@ export default function MatchRoom() {
         }
       }
     } catch (error) {
+      // Auto-sync freshest match state on any rejection
+      void utils.match.state.invalidate({ id: matchId });
+      void stateQuery.refetch();
+
       toast.error("Server rejected the action", {
         description:
           error instanceof Error ? error.message : "Refresh and try again.",
