@@ -89,7 +89,6 @@ export default function MatchRoom() {
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
   const [isBotRolling, setIsBotRolling] = useState(false);
-  const [botTurnTick, setBotTurnTick] = useState(0);
   const state = stateQuery.data;
   const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
 
@@ -218,7 +217,7 @@ export default function MatchRoom() {
       snapshot.winner === null
   );
 
-  // Auto-trigger bot step with pacing delay, visual feedback, and reliable turn handoff
+  // Auto-trigger bot step with crisp pacing, feedback, and reliable turn handoff
   useEffect(() => {
     if (!isBotTurn || isExecutingBotTurn.current) {
       if (!isBotTurn) setIsBotRolling(false);
@@ -226,107 +225,57 @@ export default function MatchRoom() {
     }
 
     isExecutingBotTurn.current = true;
+    setIsBotRolling(true);
+    setBotActionMessage("🤖 Nimiq AI is taking its turn…");
 
-    const isHumanJustFailed = Boolean(
-      snapshot?.lastRoll &&
-      snapshot.lastRoll.playerId === yourSeat &&
-      !snapshot.lastRoll.hadLegalMoves
-    );
-
-    const delayBeforeRoll = isHumanJustFailed ? 1200 : 400;
-    const delayBeforeStep = isHumanJustFailed ? 2100 : 1050;
-
-    setBotActionMessage(
-      isHumanJustFailed
-        ? `You rolled a ${snapshot?.lastRoll?.value} (needs 6 to leave base). AI turn beginning…`
-        : "🤖 Nimiq AI is thinking…"
-    );
-
-    const rollVisualTimer = window.setTimeout(() => {
-      setIsBotRolling(true);
-      soundEngine.playDiceRoll();
-    }, delayBeforeRoll);
-
-    const stepTimer = window.setTimeout(async () => {
+    const timer = window.setTimeout(async () => {
       try {
+        soundEngine.playDiceRoll();
         const res = await triggerBotRef.current.mutateAsync({ matchId });
         setIsBotRolling(false);
 
-        // Immediately write server response snapshot into local query cache
-        if (res?.snapshot) {
+        const nextSnapshot = res?.snapshot;
+        if (nextSnapshot) {
           utils.match.state.setData({ id: matchId }, prev => {
             if (!prev) return prev;
             return {
               ...prev,
-              stateVersion: res.snapshot.version,
-              snapshot: res.snapshot,
+              stateVersion: nextSnapshot.version,
+              snapshot: nextSnapshot,
               status: (res as any)?.status ?? prev.status,
             };
           });
-        }
 
-        const lastRoll = (res as any)?.snapshot?.lastRoll;
-        if (lastRoll && lastRoll.playerId === 1) {
-          if (!lastRoll.hadLegalMoves) {
-            setBotActionMessage(
-              `🤖 Nimiq AI rolled ${lastRoll.value} (needs 6 to enter track) — Passing turn to you!`
-            );
-            toast.info(`🤖 Nimiq AI Rolled a ${lastRoll.value}`, {
-              description: "Requires a 6 to enter track. Passing turn to you!",
-            });
-          } else {
-            setBotActionMessage(`🤖 Nimiq AI rolled ${lastRoll.value} and moved!`);
-            soundEngine.playPieceMove();
+          const lastRoll = (res as any)?.snapshot?.lastRoll;
+          if (lastRoll) {
+            if (!lastRoll.hadLegalMoves) {
+              setBotActionMessage(
+                `🤖 Nimiq AI rolled ${lastRoll.value} (needs 6 to enter track) — Your turn to roll!`
+              );
+              toast.info(`🤖 Nimiq AI Rolled a ${lastRoll.value}`, {
+                description: "Requires a 6 to enter track. Your turn to roll!",
+              });
+            } else {
+              setBotActionMessage(`🤖 Nimiq AI rolled ${lastRoll.value} and moved! Your turn!`);
+              soundEngine.playPieceMove();
+            }
           }
-        }
-
-        // If the bot earned an extra turn (e.g. rolled a 6 or captured), re-trigger
-        if (
-          res?.snapshot?.currentPlayer === 1 &&
-          res.snapshot.winner === null
-        ) {
-          window.setTimeout(() => {
-            isExecutingBotTurn.current = false;
-            setBotTurnTick(c => c + 1);
-          }, 1000);
-        } else {
-          // Turn cleanly returned to Human player!
-          isExecutingBotTurn.current = false;
-          window.setTimeout(() => {
-            setBotActionMessage(null);
-          }, 2200);
         }
       } catch {
         setIsBotRolling(false);
-        isExecutingBotTurn.current = false;
         void stateQuery.refetch();
-        window.setTimeout(() => {
-          setBotTurnTick(c => c + 1);
-        }, 1200);
+      } finally {
+        isExecutingBotTurn.current = false;
+        window.setTimeout(() => setBotActionMessage(null), 1800);
       }
-    }, delayBeforeStep);
+    }, 450);
 
     return () => {
-      window.clearTimeout(rollVisualTimer);
-      window.clearTimeout(stepTimer);
+      window.clearTimeout(timer);
       isExecutingBotTurn.current = false;
+      setIsBotRolling(false);
     };
-  }, [isBotTurn, matchId, botTurnTick]);
-
-  // Watchdog: ensures bot NEVER hangs if turn is active for more than 3.8s
-  useEffect(() => {
-    if (!isBotTurn) {
-      isExecutingBotTurn.current = false;
-      return;
-    }
-    const watchdog = window.setTimeout(() => {
-      if (isBotTurn && !triggerBotRef.current.isPending) {
-        isExecutingBotTurn.current = false;
-        setBotTurnTick(c => c + 1);
-      }
-    }, 3800);
-    return () => window.clearTimeout(watchdog);
-  }, [isBotTurn, botTurnTick, state?.stateVersion]);
+  }, [isBotTurn, matchId]);
 
   // Sound triggers on state mutations
   useEffect(() => {

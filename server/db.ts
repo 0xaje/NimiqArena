@@ -605,77 +605,99 @@ export async function executeBotTurn(input: {
     return { ok: true as const, snapshot: c4Snapshot };
   }
 
-  let snapshot = JSON.parse(match.stateJson) as LudoSnapshot;
-  if (snapshot.currentPlayer !== 1) {
-    return { ok: true as const, message: "Not the bot's turn", snapshot };
-  }
+  // Ludo Bot: authoritatively execute the bot's turn sequence until turn hands off to human
+  let maxSteps = 3;
+  let currentSnapshot: LudoSnapshot | null = null;
 
-  // 2. Roll dice if not already rolled
-  let currentDice = snapshot.dice;
-  if (currentDice === null) {
-    const rollResult = await applyLudoMatchCommand({
-      matchId: input.matchId,
-      userId: botUser.id,
-      command: {
-        kind: "roll",
-        expectedVersion: match.stateVersion,
-        nonce: nanoid(24),
-      },
-    });
-    snapshot = rollResult.snapshot;
-    currentDice = snapshot.dice;
-  }
+  while (maxSteps > 0) {
+    maxSteps--;
 
-  if (currentDice === null) {
-    return { ok: true as const, snapshot };
-  }
+    const currentMatch = await getMatchById(input.matchId);
+    if (!currentMatch || currentMatch.status !== "in_progress") break;
 
-  // 3. Choose best legal move for bot
-  const bestMove = selectBestBotMove(snapshot, 1, currentDice);
+    let snapshot = JSON.parse(currentMatch.stateJson) as LudoSnapshot;
+    currentSnapshot = snapshot;
+    if (snapshot.currentPlayer !== 1 || snapshot.winner !== null) {
+      break;
+    }
 
-  if (bestMove) {
-    const moveResult = await applyLudoMatchCommand({
-      matchId: input.matchId,
-      userId: botUser.id,
-      command: {
-        kind: "move",
-        pieceIndex: bestMove.pieceIndex,
-        expectedVersion: snapshot.version,
-        nonce: nanoid(24),
-      },
-    });
-    return { ok: true as const, ...moveResult };
-  } else {
-    // No legal moves possible for bot with this dice roll -> pass turn to human (Player 0)
-    return db.transaction(async tx => {
-      const latest = (
+    // 1. Roll dice if not already rolled
+    let currentDice = snapshot.dice;
+    if (currentDice === null) {
+      const rollResult = await applyLudoMatchCommand({
+        matchId: input.matchId,
+        userId: botUser.id,
+        command: {
+          kind: "roll",
+          expectedVersion: currentMatch.stateVersion,
+          nonce: nanoid(24),
+        },
+      });
+      snapshot = rollResult.snapshot;
+      currentSnapshot = snapshot;
+      currentDice = snapshot.dice;
+    }
+
+    // If rolling forfeits turn (no legal moves possible), turn is already handed to human
+    if (currentDice === null || snapshot.currentPlayer !== 1) {
+      break;
+    }
+
+    // 2. Choose best legal move for bot
+    const bestMove = selectBestBotMove(snapshot, 1, currentDice);
+
+    if (bestMove) {
+      const moveResult = await applyLudoMatchCommand({
+        matchId: input.matchId,
+        userId: botUser.id,
+        command: {
+          kind: "move",
+          pieceIndex: bestMove.pieceIndex,
+          expectedVersion: snapshot.version,
+          nonce: nanoid(24),
+        },
+      });
+      snapshot = moveResult.snapshot;
+      currentSnapshot = snapshot;
+      // If move passed turn to human (dice !== 6 and no capture), break out cleanly
+      if (snapshot.currentPlayer !== 1) {
+        break;
+      }
+    } else {
+      // No legal moves possible for bot with this dice roll -> pass turn to human (Player 0)
+      await db.transaction(async tx => {
+        const latest = (
+          await tx
+            .select()
+            .from(matches)
+            .where(eq(matches.id, input.matchId))
+            .limit(1)
+        )[0];
+        if (!latest) throw new Error("Match not found.");
+
+        const nextSnapshot: LudoSnapshot = {
+          ...snapshot,
+          version: snapshot.version + 1,
+          dice: null,
+          currentPlayer: 0,
+        };
+
         await tx
-          .select()
-          .from(matches)
-          .where(eq(matches.id, input.matchId))
-          .limit(1)
-      )[0];
-      if (!latest) throw new Error("Match not found.");
+          .update(matches)
+          .set({
+            stateVersion: nextSnapshot.version,
+            stateJson: JSON.stringify(nextSnapshot),
+          })
+          .where(eq(matches.id, input.matchId));
 
-      const nextSnapshot: LudoSnapshot = {
-        ...snapshot,
-        version: snapshot.version + 1,
-        dice: null,
-        currentPlayer: 0,
-      };
-
-      await tx
-        .update(matches)
-        .set({
-          stateVersion: nextSnapshot.version,
-          stateJson: JSON.stringify(nextSnapshot),
-        })
-        .where(eq(matches.id, input.matchId));
-
-      notifyMatchUpdated(input.matchId);
-      return { ok: true as const, snapshot: nextSnapshot };
-    });
+        notifyMatchUpdated(input.matchId);
+        currentSnapshot = nextSnapshot;
+      });
+      break;
+    }
   }
+
+  return { ok: true as const, snapshot: currentSnapshot };
 }
 
 export async function getMatchById(id: string): Promise<Match | undefined> {
