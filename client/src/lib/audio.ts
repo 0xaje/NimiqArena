@@ -91,6 +91,31 @@ class SoundEngine {
     osc.stop(now + 0.1);
   }
 
+  public playStepTick(stepNum: number = 1) {
+    if (this.isMuted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // Pitch rises with each step (1, 2, 3, 4, 5, 6)
+    const baseFreq = 340 + Math.min(stepNum, 6) * 55;
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq + 100, now + 0.05);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.07);
+  }
+
   public playCapture() {
     if (this.isMuted) return;
     const ctx = this.getContext();

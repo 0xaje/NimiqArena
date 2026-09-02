@@ -526,7 +526,7 @@ export async function createSoloPracticeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id);
+      : createLudoSnapshot(id, "2p_double");
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({

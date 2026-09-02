@@ -2,6 +2,7 @@ import {
   LUDO_HOME_ENTRY,
   LUDO_SAFE_SQUARES,
   LUDO_TRACK_LENGTH,
+  getPieceGlobalStart,
   type LudoPlayerId,
   type LudoSnapshot,
 } from "./ludo-engine";
@@ -12,14 +13,19 @@ export interface BotMoveChoice {
   reason: string;
 }
 
-function getGlobalTrackPos(playerId: LudoPlayerId, progress: number): number {
-  const start = playerId === 0 ? 0 : 26;
+function getGlobalTrackPos(
+  playerId: LudoPlayerId,
+  progress: number,
+  pieceIndex = 0,
+  mode = "2p_single"
+): number {
+  const start = getPieceGlobalStart(playerId, pieceIndex, mode as any);
   return (start + progress) % LUDO_TRACK_LENGTH;
 }
 
 /**
  * Selects the optimal legal piece move for a bot player using heuristic evaluations.
- * Returns the pieceIndex (0..3) to move, or null if no legal moves exist.
+ * Returns the pieceIndex to move, or null if no legal moves exist.
  */
 export function selectBestBotMove(
   snapshot: LudoSnapshot,
@@ -29,6 +35,7 @@ export function selectBestBotMove(
   const botPlayer = snapshot.players[botPlayerId];
   if (!botPlayer) return null;
 
+  const mode = snapshot.mode ?? "2p_single";
   const opponentId: LudoPlayerId = (botPlayerId === 0 ? 1 : 0) as LudoPlayerId;
   const opponentPlayer = snapshot.players[opponentId];
 
@@ -41,15 +48,15 @@ export function selectBestBotMove(
     if (from === -1) {
       // Piece in base: can only leave on 6
       if (dice === 6) {
-        // Base exit
         let score = 300;
-        const entryGlobalPos = botPlayerId === 0 ? 0 : 26;
-        // Check if opponent is sitting on bot's start cell
-        const capturesOpponent = opponentPlayer.pieces.some(
-          oppPiece =>
+        const entryGlobalPos = getPieceGlobalStart(botPlayerId, pieceIndex, mode as any);
+
+        // Check if opponent is sitting on bot's entry square
+        const capturesOpponent = opponentPlayer?.pieces.some(
+          (oppPiece, oppIdx) =>
             oppPiece.position >= 0 &&
             oppPiece.position < LUDO_TRACK_LENGTH &&
-            getGlobalTrackPos(opponentId, oppPiece.position) === entryGlobalPos
+            getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === entryGlobalPos
         );
         if (capturesOpponent) score += 500;
 
@@ -77,7 +84,7 @@ export function selectBestBotMove(
     }
     // 2. Track move checks
     else if (to < LUDO_TRACK_LENGTH) {
-      const landingGlobal = getGlobalTrackPos(botPlayerId, to);
+      const landingGlobal = getGlobalTrackPos(botPlayerId, to, pieceIndex, mode);
       const isSafe = LUDO_SAFE_SQUARES.has(landingGlobal);
 
       if (isSafe) {
@@ -85,11 +92,11 @@ export function selectBestBotMove(
         reason = "Land on safe protected square";
       } else {
         // Check if lands on opponent piece (Capture!)
-        const willCapture = opponentPlayer.pieces.some(
-          oppPiece =>
+        const willCapture = opponentPlayer?.pieces.some(
+          (oppPiece, oppIdx) =>
             oppPiece.position >= 0 &&
             oppPiece.position < LUDO_TRACK_LENGTH &&
-            getGlobalTrackPos(opponentId, oppPiece.position) === landingGlobal
+            getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === landingGlobal
         );
 
         if (willCapture) {

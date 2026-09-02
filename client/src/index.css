@@ -2260,7 +2260,7 @@ h1 em,
   background: radial-gradient(circle at 35% 30%, #f87171, #dc2626 60%, #7f1d1d);
 }
 
-/* Yellow / Gold Pawn (Player 1 / Nimiq AI) */
+/* Yellow / Gold Pawn */
 .pawn-yellow .pawn-head {
   background: radial-gradient(circle at 35% 30%, #fef08a, #f59e0b 55%, #b45309);
 }
@@ -2269,6 +2269,55 @@ h1 em,
 }
 .pawn-yellow .pawn-body {
   background: radial-gradient(circle at 35% 30%, #fde047, #f59e0b 60%, #92400e);
+}
+
+/* Green Pawn (Player 1 / AI Yard A) */
+.pawn-green .pawn-head {
+  background: radial-gradient(circle at 35% 30%, #86efac, #22c55e 55%, #15803d);
+}
+.pawn-green .pawn-ring {
+  background: #15803d;
+}
+.pawn-green .pawn-body {
+  background: radial-gradient(circle at 35% 30%, #4ade80, #16a34a 60%, #14532d);
+}
+
+/* Blue Pawn (Player 1 / AI Yard B) */
+.pawn-blue .pawn-head {
+  background: radial-gradient(circle at 35% 30%, #93c5fd, #3b82f6 55%, #1d4ed8);
+}
+.pawn-blue .pawn-ring {
+  background: #1d4ed8;
+}
+.pawn-blue .pawn-body {
+  background: radial-gradient(circle at 35% 30%, #60a5fa, #2563eb 60%, #1e3a8a);
+}
+
+/* Step Counter Badge during Tile-by-Tile stepping */
+.step-counter-badge {
+  position: absolute;
+  top: -16px;
+  background: #111827;
+  color: #fbbf24;
+  font: 900 10px "IBM Plex Mono", monospace;
+  padding: 1px 5px;
+  border-radius: 12px;
+  border: 1.5px solid #f59e0b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  z-index: 40;
+  pointer-events: none;
+  animation: stepPop 0.15s ease-out;
+}
+
+@keyframes stepPop {
+  0% { transform: scale(0.5) translateY(4px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.pawn-stepping-active {
+  transform: translateY(-5px) scale(1.22) !important;
+  filter: drop-shadow(0 0 14px #fbbf24) !important;
+  z-index: 35 !important;
 }
 
 /* Movable Glow & Hop Animation */

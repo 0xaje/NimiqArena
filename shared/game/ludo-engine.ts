@@ -4,7 +4,9 @@ export const LUDO_TRACK_LENGTH = 52;
 export const LUDO_HOME_ENTRY = 57;
 export const LUDO_SAFE_SQUARES = new Set([0, 13, 26, 39]);
 
-export type LudoPlayerId = 0 | 1;
+export type LudoMode = "2p_double" | "4p" | "2p_single";
+
+export type LudoPlayerId = 0 | 1 | 2 | 3;
 export type LudoPiece = { position: number };
 export type LudoPlayer = { id: LudoPlayerId; pieces: LudoPiece[] };
 export type LudoSnapshot = {
@@ -12,12 +14,13 @@ export type LudoSnapshot = {
   version: number;
   currentPlayer: LudoPlayerId;
   dice: number | null;
+  mode?: LudoMode;
   lastRoll?: {
     playerId: LudoPlayerId;
     value: number;
     hadLegalMoves: boolean;
   } | null;
-  players: [LudoPlayer, LudoPlayer];
+  players: LudoPlayer[];
   winner: LudoPlayerId | null;
   usedNonces: string[];
 };
@@ -73,27 +76,48 @@ export type LudoResult =
 
 export type DiceSource = () => number;
 
-export function createLudoSnapshot(matchId: string): LudoSnapshot {
+export function getPieceGlobalStart(
+  playerId: number,
+  pieceIndex = 0,
+  mode: LudoMode = "2p_single"
+): number {
+  if (mode === "4p") {
+    const starts = [0, 13, 26, 39];
+    return starts[playerId % 4] ?? 0;
+  }
+  if (mode === "2p_double") {
+    // Player 0: pieces 0..3 -> Red Yard (Start 0), pieces 4..7 -> Yellow Yard (Start 26)
+    // Player 1: pieces 0..3 -> Green Yard (Start 13), pieces 4..7 -> Blue Yard (Start 39)
+    if (playerId === 0) {
+      return pieceIndex < 4 ? 0 : 26;
+    } else {
+      return pieceIndex < 4 ? 13 : 39;
+    }
+  }
+  // 2p_single: Player 0 is 0 (Red), Player 1 is 26 (Yellow)
+  return playerId === 0 ? 0 : 26;
+}
+
+export function createLudoSnapshot(
+  matchId: string,
+  mode: LudoMode = "2p_single"
+): LudoSnapshot {
+  const piecesCount = mode === "2p_double" ? 8 : 4;
+  const playerCount = mode === "4p" ? 4 : 2;
+
   return {
     matchId,
     version: 0,
     currentPlayer: 0,
     dice: null,
+    mode,
     lastRoll: null,
-    players: [
-      {
-        id: 0,
-        pieces: Array.from({ length: LUDO_PIECES_PER_PLAYER }, () => ({
-          position: -1,
-        })),
-      },
-      {
-        id: 1,
-        pieces: Array.from({ length: LUDO_PIECES_PER_PLAYER }, () => ({
-          position: -1,
-        })),
-      },
-    ],
+    players: Array.from({ length: playerCount }, (_, idx) => ({
+      id: idx as LudoPlayerId,
+      pieces: Array.from({ length: piecesCount }, () => ({
+        position: -1,
+      })),
+    })),
     winner: null,
     usedNonces: [],
   };
@@ -109,22 +133,19 @@ function cloneSnapshot(snapshot: LudoSnapshot): LudoSnapshot {
     players: snapshot.players.map(player => ({
       ...player,
       pieces: player.pieces.map(piece => ({ ...piece })),
-    })) as [LudoPlayer, LudoPlayer],
+    })),
     usedNonces: [...snapshot.usedNonces],
   };
 }
 
-function globalTrackPosition(playerId: LudoPlayerId, progress: number) {
-  const start = playerId === 0 ? 0 : 26;
+export function globalTrackPosition(
+  playerId: LudoPlayerId,
+  progress: number,
+  pieceIndex = 0,
+  mode: LudoMode = "2p_single"
+) {
+  const start = getPieceGlobalStart(playerId, pieceIndex, mode);
   return (start + progress) % LUDO_TRACK_LENGTH;
-}
-
-function isSafe(progress: number) {
-  return (
-    progress >= 0 &&
-    progress < LUDO_TRACK_LENGTH &&
-    LUDO_SAFE_SQUARES.has(progress)
-  );
 }
 
 export function hasLegalMoves(
@@ -157,6 +178,9 @@ export function applyCommand(
   if (command.playerId !== snapshot.currentPlayer)
     return reject("NOT_YOUR_TURN", "It is not this player’s turn.");
 
+  const mode = snapshot.mode ?? "2p_single";
+  const totalPlayers = snapshot.players.length;
+
   if (command.kind === "roll") {
     if (snapshot.dice !== null)
       return reject(
@@ -175,10 +199,10 @@ export function applyCommand(
 
     const canMove = hasLegalMoves(snapshot, command.playerId, value);
     if (!canMove) {
-      // In Ludo rules, rolling a value with zero legal moves forfeits the roll and passes turn
+      // Rolling with zero legal moves forfeits the roll and passes turn
       next.dice = null;
       next.lastRoll = { playerId: command.playerId, value, hadLegalMoves: false };
-      next.currentPlayer = (command.playerId === 0 ? 1 : 0) as LudoPlayerId;
+      next.currentPlayer = ((command.playerId + 1) % totalPlayers) as LudoPlayerId;
       return {
         ok: true,
         snapshot: next,
@@ -197,16 +221,20 @@ export function applyCommand(
 
   if (snapshot.dice === null)
     return reject("DICE_NOT_ROLLED", "Roll the dice before moving a piece.");
+
+  const playerPieces = snapshot.players[command.playerId]?.pieces;
   if (
+    !playerPieces ||
     !Number.isInteger(command.pieceIndex) ||
     command.pieceIndex < 0 ||
-    command.pieceIndex >= LUDO_PIECES_PER_PLAYER
+    command.pieceIndex >= playerPieces.length
   )
     return reject(
       "INVALID_PIECE",
-      "Piece index is outside the player’s four pieces."
+      "Piece index is outside the player’s active pieces."
     );
-  const piece = snapshot.players[command.playerId].pieces[command.pieceIndex];
+
+  const piece = playerPieces[command.pieceIndex];
   const dice = snapshot.dice;
   const from = piece.position;
   const to = from === -1 ? (dice === 6 ? 0 : -1) : from + dice;
@@ -215,7 +243,7 @@ export function applyCommand(
   if (to > LUDO_HOME_ENTRY)
     return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
   if (from === -1 && dice === 6) {
-    // Entry is the only legal base move and is represented by progress zero.
+    // Entry is legal base exit
   } else if (from >= LUDO_HOME_ENTRY) {
     return reject("ILLEGAL_MOVE", "A finished piece cannot move again.");
   }
@@ -223,58 +251,43 @@ export function applyCommand(
   const next = cloneSnapshot(snapshot);
   const nextPiece = next.players[command.playerId].pieces[command.pieceIndex];
   nextPiece.position = to;
+
   let capturedPiece: { playerId: LudoPlayerId; pieceIndex: number } | undefined;
   if (to < LUDO_TRACK_LENGTH) {
-    const landing = globalTrackPosition(command.playerId, to);
+    const landing = globalTrackPosition(command.playerId, to, command.pieceIndex, mode);
+
     if (LUDO_SAFE_SQUARES.has(landing)) {
-      next.version += 1;
-      next.dice = null;
-      next.usedNonces.push(command.nonce);
-      const hasWonOnSafe = next.players[command.playerId].pieces.every(
-        currentPiece => currentPiece.position === LUDO_HOME_ENTRY
-      );
-      if (hasWonOnSafe) {
-        next.winner = command.playerId;
-        return {
-          ok: true,
-          snapshot: next,
-          event: { type: "won", playerId: command.playerId },
-        };
+      // Safe star square: protected from captures
+    } else {
+      // Check for capture of any opponent piece on this cell
+      for (const opponent of next.players) {
+        if (opponent.id === command.playerId) continue;
+        const opponentIndex = opponent.pieces.findIndex(
+          (oppPiece, oppIdx) =>
+            oppPiece.position >= 0 &&
+            oppPiece.position < LUDO_TRACK_LENGTH &&
+            globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === landing
+        );
+        if (opponentIndex >= 0) {
+          opponent.pieces[opponentIndex].position = -1;
+          capturedPiece = { playerId: opponent.id, pieceIndex: opponentIndex };
+          break;
+        }
       }
-      if (dice !== 6)
-        next.currentPlayer = (command.playerId === 0 ? 1 : 0) as LudoPlayerId;
-      return {
-        ok: true,
-        snapshot: next,
-        event: {
-          type: "moved",
-          playerId: command.playerId,
-          pieceIndex: command.pieceIndex,
-          from,
-          to,
-        },
-      };
-    }
-    const opponent = (command.playerId === 0 ? 1 : 0) as LudoPlayerId;
-    const opponentIndex = next.players[opponent].pieces.findIndex(
-      opponentPiece =>
-        opponentPiece.position >= 0 &&
-        opponentPiece.position < LUDO_TRACK_LENGTH &&
-        globalTrackPosition(opponent, opponentPiece.position) === landing
-    );
-    if (opponentIndex >= 0) {
-      next.players[opponent].pieces[opponentIndex].position = -1;
-      capturedPiece = { playerId: opponent, pieceIndex: opponentIndex };
     }
   }
 
   next.version += 1;
   next.dice = null;
   next.usedNonces.push(command.nonce);
-  const hasWon = next.players[command.playerId].pieces.every(
-    currentPiece => currentPiece.position === LUDO_HOME_ENTRY
-  );
-  if (hasWon) {
+
+  // Win check: 4 pieces in home goal (or all pieces if fewer than 4)
+  const requiredWins = Math.min(4, next.players[command.playerId].pieces.length);
+  const homeCount = next.players[command.playerId].pieces.filter(
+    p => p.position === LUDO_HOME_ENTRY
+  ).length;
+
+  if (homeCount >= requiredWins) {
     next.winner = command.playerId;
     return {
       ok: true,
@@ -282,8 +295,12 @@ export function applyCommand(
       event: { type: "won", playerId: command.playerId },
     };
   }
-  if (dice !== 6 && !capturedPiece)
-    next.currentPlayer = (command.playerId === 0 ? 1 : 0) as LudoPlayerId;
+
+  // Turn rotation: roll of 6 or a capture awards a bonus turn!
+  if (dice !== 6 && !capturedPiece) {
+    next.currentPlayer = ((command.playerId + 1) % totalPlayers) as LudoPlayerId;
+  }
+
   return {
     ok: true,
     snapshot: next,

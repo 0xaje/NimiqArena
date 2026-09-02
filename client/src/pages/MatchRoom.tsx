@@ -90,6 +90,7 @@ export default function MatchRoom() {
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
   const [isBotRolling, setIsBotRolling] = useState(false);
+  const [botTurnTick, setBotTurnTick] = useState(0);
   const state = stateQuery.data;
   const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
 
@@ -236,11 +237,25 @@ export default function MatchRoom() {
       try {
         const res = await triggerBotRef.current.mutateAsync({ matchId });
         setIsBotRolling(false);
+
+        // Immediately write server response snapshot into local query cache
+        if (res?.snapshot) {
+          utils.match.state.setData({ id: matchId }, prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              stateVersion: res.snapshot.version,
+              snapshot: res.snapshot,
+              status: (res as any)?.status ?? prev.status,
+            };
+          });
+        }
+
         const lastRoll = (res as any)?.snapshot?.lastRoll;
         if (lastRoll && lastRoll.playerId === 1) {
           if (!lastRoll.hadLegalMoves) {
             setBotActionMessage(
-              `🤖 Nimiq AI rolled ${lastRoll.value} — No moves possible (requires a 6 to enter track). Passing turn…`
+              `🤖 Nimiq AI rolled ${lastRoll.value} — No moves possible (needs a 6 to enter track). Passing turn…`
             );
             toast.info(`🤖 Nimiq AI Rolled a ${lastRoll.value}`, {
               description: "Requires a 6 to enter track. Passing turn to you!",
@@ -250,9 +265,18 @@ export default function MatchRoom() {
             soundEngine.playPieceMove();
           }
         }
+
+        // If the bot gets an extra turn (e.g. rolled a 6 or captured), re-trigger!
+        if (
+          res?.snapshot?.currentPlayer === 1 &&
+          res.snapshot.winner === null
+        ) {
+          window.setTimeout(() => setBotTurnTick(c => c + 1), 900);
+        }
       } catch {
         setIsBotRolling(false);
-        setBotActionMessage("🤖 Ready to advance AI turn.");
+        setBotActionMessage("🤖 AI retrying turn…");
+        window.setTimeout(() => setBotTurnTick(c => c + 1), 1500);
       }
     }, 1150);
 
@@ -260,7 +284,18 @@ export default function MatchRoom() {
       window.clearTimeout(rollSoundTimer);
       window.clearTimeout(stepTimer);
     };
-  }, [isBotTurn, matchId, state?.stateVersion]);
+  }, [isBotTurn, matchId, state?.stateVersion, botTurnTick]);
+
+  // Watchdog: ensures bot NEVER hangs if turn is active
+  useEffect(() => {
+    if (!isBotTurn) return;
+    const watchdog = window.setTimeout(() => {
+      if (isBotTurn && !triggerBotRef.current.isPending) {
+        setBotTurnTick(c => c + 1);
+      }
+    }, 4500);
+    return () => window.clearTimeout(watchdog);
+  }, [isBotTurn, state?.stateVersion, botTurnTick]);
 
   // Sound triggers on state mutations
   useEffect(() => {

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Star, Trophy, ArrowRight, ArrowDown, ArrowLeft, ArrowUp, Bot } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Star, Trophy, ArrowRight, ArrowDown, ArrowLeft, ArrowUp } from "lucide-react";
 import { soundEngine } from "@/lib/audio";
+import { getPieceGlobalStart } from "@shared/game/ludo-engine";
 
 interface Piece {
   position: number;
@@ -11,7 +12,7 @@ interface Player {
 }
 
 interface LudoBoard2DProps {
-  players: [Player, Player];
+  players: [Player, Player] | Player[];
   currentPlayer: number;
   dice: number | null;
   yourSeat: number;
@@ -33,13 +34,9 @@ export function NimiqHexLogo({ size = 28, className = "" }: { size?: number; cla
       className={className}
       style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}
     >
-      {/* Facet 1 (Top Left) */}
       <polygon points="50,6 50,52 10,29" fill="#FFC72C" />
-      {/* Facet 2 (Top Right) */}
       <polygon points="50,6 90,29 50,52" fill="#FFA300" />
-      {/* Facet 3 (Bottom Right) */}
       <polygon points="50,52 90,29 90,75 50,98" fill="#EC9918" />
-      {/* Facet 4 (Bottom Left) */}
       <polygon points="50,52 50,98 10,75 10,29" fill="#D97706" />
     </svg>
   );
@@ -80,7 +77,7 @@ const TRACK_COORDINATES: Array<{ row: number; col: number }> = [
   { row: 7, col: 14 }, // 24
   { row: 8, col: 14 }, // 25
   // 26 to 30: Right Arm Bottom Row (Going Left)
-  { row: 8, col: 13 }, // 26 - YELLOW / GOLD Start (Safe)
+  { row: 8, col: 13 }, // 26 - YELLOW Start (Safe)
   { row: 8, col: 12 }, // 27
   { row: 8, col: 11 }, // 28
   { row: 8, col: 10 }, // 29
@@ -113,12 +110,11 @@ const TRACK_COORDINATES: Array<{ row: number; col: number }> = [
   { row: 6, col: 0 },  // 51
 ];
 
-// The 8 Classic Ludo Star / Safe Track Indices
+// Classic Ludo Star / Safe Track Indices
 const CLASSIC_STAR_INDICES = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 
-// 4 Colored Home Columns (5 steps into center)
-const ALL_HOME_COLUMNS = {
-  // Red (Player 0) Home Stretch
+// 4 Colored Home Columns
+const ALL_HOME_COLUMNS: Record<string, Array<{ row: number; col: number }>> = {
   red: [
     { row: 7, col: 1 },
     { row: 7, col: 2 },
@@ -126,7 +122,6 @@ const ALL_HOME_COLUMNS = {
     { row: 7, col: 4 },
     { row: 7, col: 5 },
   ],
-  // Green Home Stretch
   green: [
     { row: 1, col: 7 },
     { row: 2, col: 7 },
@@ -134,7 +129,6 @@ const ALL_HOME_COLUMNS = {
     { row: 4, col: 7 },
     { row: 5, col: 7 },
   ],
-  // Yellow / Gold (Player 1 / AI) Home Stretch
   yellow: [
     { row: 7, col: 13 },
     { row: 7, col: 12 },
@@ -142,7 +136,6 @@ const ALL_HOME_COLUMNS = {
     { row: 7, col: 10 },
     { row: 7, col: 9 },
   ],
-  // Blue Home Stretch
   blue: [
     { row: 13, col: 7 },
     { row: 12, col: 7 },
@@ -152,33 +145,36 @@ const ALL_HOME_COLUMNS = {
   ],
 };
 
-// 4 Yard Nest Slot Positions (Row, Col on 15x15 grid)
-const YARD_NEST_POSITIONS = {
-  red: [
-    { row: 2, col: 2 },
-    { row: 2, col: 3 },
-    { row: 3, col: 2 },
-    { row: 3, col: 3 },
-  ],
-  green: [
-    { row: 2, col: 11 },
-    { row: 2, col: 12 },
-    { row: 3, col: 11 },
-    { row: 3, col: 12 },
-  ],
-  yellow: [
-    { row: 11, col: 11 },
-    { row: 11, col: 12 },
-    { row: 12, col: 11 },
-    { row: 12, col: 12 },
-  ],
-  blue: [
-    { row: 11, col: 2 },
-    { row: 11, col: 3 },
-    { row: 12, col: 2 },
-    { row: 12, col: 3 },
-  ],
-};
+// Helper: gets color, start, and home column name for a piece
+function getPieceInfo(
+  playerSeat: number,
+  pieceIndex: number,
+  hasEightPieces: boolean
+): { color: "red" | "green" | "yellow" | "blue"; start: number; homeKey: string } {
+  if (!hasEightPieces) {
+    if (playerSeat === 0) return { color: "red", start: 0, homeKey: "red" };
+    return { color: "yellow", start: 26, homeKey: "yellow" };
+  }
+  // 2-player double (2 yards each):
+  if (playerSeat === 0) {
+    return pieceIndex < 4
+      ? { color: "red", start: 0, homeKey: "red" }
+      : { color: "yellow", start: 26, homeKey: "yellow" };
+  } else {
+    return pieceIndex < 4
+      ? { color: "green", start: 13, homeKey: "green" }
+      : { color: "blue", start: 39, homeKey: "blue" };
+  }
+}
+
+interface ActiveSteppingState {
+  player: number;
+  pieceIndex: number;
+  currentProgress: number;
+  targetProgress: number;
+  stepNum: number;
+  totalSteps: number;
+}
 
 export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   players,
@@ -194,6 +190,74 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     player: number;
     pieceIndex: number;
   } | null>(null);
+
+  // Stepping piece animation state ("1, 2, 3, 4, 5" count-up)
+  const [steppingPiece, setSteppingPiece] = useState<ActiveSteppingState | null>(null);
+  const prevPositionsRef = useRef<Record<string, number>>({});
+  const animationTimerRef = useRef<number | null>(null);
+
+  const hasEightPieces = Boolean(players[0]?.pieces && players[0].pieces.length >= 8);
+
+  // Watch for piece movement to trigger tile-by-tile stepping animation
+  useEffect(() => {
+    players.forEach((player, pIdx) => {
+      player.pieces.forEach((piece, pieceIdx) => {
+        const key = `${pIdx}-${pieceIdx}`;
+        const prevPos = prevPositionsRef.current[key];
+        const currentPos = piece.position;
+
+        // Animate piece when advancing on track
+        if (prevPos !== undefined && currentPos > prevPos && prevPos >= 0) {
+          const totalSteps = currentPos - prevPos;
+          let currentStep = 1;
+
+          if (animationTimerRef.current !== null) {
+            window.clearInterval(animationTimerRef.current);
+          }
+
+          setSteppingPiece({
+            player: pIdx,
+            pieceIndex: pieceIdx,
+            currentProgress: prevPos + 1,
+            targetProgress: currentPos,
+            stepNum: 1,
+            totalSteps,
+          });
+          soundEngine.playStepTick(1);
+
+          animationTimerRef.current = window.setInterval(() => {
+            currentStep++;
+            if (currentStep <= totalSteps) {
+              setSteppingPiece(prev =>
+                prev
+                  ? {
+                      ...prev,
+                      currentProgress: prevPos + currentStep,
+                      stepNum: currentStep,
+                    }
+                  : null
+              );
+              soundEngine.playStepTick(currentStep);
+            } else {
+              if (animationTimerRef.current !== null) {
+                window.clearInterval(animationTimerRef.current);
+                animationTimerRef.current = null;
+              }
+              setSteppingPiece(null);
+            }
+          }, 160);
+        }
+
+        prevPositionsRef.current[key] = currentPos;
+      });
+    });
+
+    return () => {
+      if (animationTimerRef.current !== null) {
+        window.clearInterval(animationTimerRef.current);
+      }
+    };
+  }, [players]);
 
   const handlePieceMove = (pieceIndex: number) => {
     soundEngine.playPieceMove();
@@ -215,12 +279,14 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
 
   const getTargetTrackIndex = (
     playerSeat: number,
+    pieceIndex: number,
     currentPos: number,
     diceVal: number
   ): { type: "track" | "home" | "goal"; index: number } | null => {
+    const { start } = getPieceInfo(playerSeat, pieceIndex, hasEightPieces);
     if (currentPos === -1) {
       if (diceVal !== 6) return null;
-      return { type: "track", index: playerSeat === 0 ? 0 : 26 };
+      return { type: "track", index: start };
     }
     const nextPos = currentPos + diceVal;
     if (nextPos > 57) return null;
@@ -228,7 +294,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     if (nextPos >= 52) {
       return { type: "home", index: nextPos - 52 };
     }
-    const globalTrack = ((playerSeat === 0 ? 0 : 26) + nextPos) % 52;
+    const globalTrack = (start + nextPos) % 52;
     return { type: "track", index: globalTrack };
   };
 
@@ -236,51 +302,76 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   if (hoveredPiece && dice !== null && hoveredPiece.player === yourSeat) {
     const piece = players[hoveredPiece.player]?.pieces[hoveredPiece.pieceIndex];
     if (piece && canMovePiece(hoveredPiece.player, piece)) {
-      previewTarget = getTargetTrackIndex(hoveredPiece.player, piece.position, dice);
+      previewTarget = getTargetTrackIndex(
+        hoveredPiece.player,
+        hoveredPiece.pieceIndex,
+        piece.position,
+        dice
+      );
     }
   }
 
-  // Count finished pieces in Goal
+  // Count finished pieces
   const p0Finished = players[0]?.pieces.filter(p => p.position === 57).length ?? 0;
   const p1Finished = players[1]?.pieces.filter(p => p.position === 57).length ?? 0;
+  const targetGoal = hasEightPieces ? 4 : 4;
+
+  // Helper to render pawn button with step counter if actively animating
+  const renderPawn = (
+    pIdx: number,
+    pieceIdx: number,
+    isMovable: boolean,
+    colorClass: string,
+    isStepping = false,
+    stepNum = 0
+  ) => (
+    <button
+      key={`${pIdx}-${pieceIdx}`}
+      type="button"
+      className={`ludo-3d-pawn pawn-${colorClass} ${isMovable ? "pawn-movable-glow" : ""} ${
+        isStepping ? "pawn-stepping-active" : ""
+      }`}
+      disabled={!isMovable}
+      onClick={() => handlePieceMove(pieceIdx)}
+      onMouseEnter={() => setHoveredPiece({ player: pIdx, pieceIndex: pieceIdx })}
+      onMouseLeave={() => setHoveredPiece(null)}
+      title={`Piece #${pieceIdx + 1}`}
+    >
+      <span className="pawn-head" />
+      <span className="pawn-ring" />
+      <span className="pawn-body" />
+      <span className="pawn-number">{(pieceIdx % 4) + 1}</span>
+      {isStepping && (
+        <span className="step-counter-badge">+{stepNum}</span>
+      )}
+    </button>
+  );
 
   return (
     <div className="ludo-standard-board-wrapper">
       <div className="ludo-standard-board-frame">
         <div className="ludo-standard-grid">
           {/* ========================================================
-              1. TOP-LEFT YARD: CLASSIC RED (Player 0 / Human)
+              1. TOP-LEFT YARD: RED (Player 0 / You)
              ======================================================== */}
           <div className="classic-yard red-yard" style={{ gridRow: "1 / span 6", gridColumn: "1 / span 6" }}>
             <div className="yard-plate">
               <div className="yard-badge">
                 <span className="yard-badge-dot red-dot" />
-                <span className="yard-label">PLAYER 1</span>
+                <span className="yard-label">
+                  {yourSeat === 0 ? "PLAYER 1 (YOU)" : "PLAYER 1"}
+                </span>
               </div>
               <div className="yard-pockets-grid">
-                {YARD_NEST_POSITIONS.red.map((_, idx) => {
-                  const piece = players[0]?.pieces[idx];
+                {[0, 1, 2, 3].map(slotIdx => {
+                  const pieceIdx = slotIdx;
+                  const piece = players[0]?.pieces[pieceIdx];
                   const inBase = piece?.position === -1;
                   const isMovable = inBase && canMovePiece(0, piece);
 
                   return (
-                    <div key={`red-pocket-${idx}`} className="yard-pocket red-pocket">
-                      {inBase && (
-                        <button
-                          type="button"
-                          className={`ludo-3d-pawn pawn-red ${isMovable ? "pawn-movable-glow" : ""}`}
-                          disabled={!isMovable}
-                          onClick={() => handlePieceMove(idx)}
-                          onMouseEnter={() => setHoveredPiece({ player: 0, pieceIndex: idx })}
-                          onMouseLeave={() => setHoveredPiece(null)}
-                          title={`Player 1 Piece #${idx + 1} (In Yard)`}
-                        >
-                          <span className="pawn-head" />
-                          <span className="pawn-ring" />
-                          <span className="pawn-body" />
-                          <span className="pawn-number">{idx + 1}</span>
-                        </button>
-                      )}
+                    <div key={`red-pocket-${slotIdx}`} className="yard-pocket red-pocket">
+                      {inBase && renderPawn(0, pieceIdx, isMovable, "red")}
                     </div>
                   );
                 })}
@@ -289,50 +380,80 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
           </div>
 
           {/* ========================================================
-              2. TOP-RIGHT YARD: CLASSIC GREEN
+              2. TOP-RIGHT YARD: GREEN (Player 1 / AI Yard A)
              ======================================================== */}
           <div className="classic-yard green-yard" style={{ gridRow: "1 / span 6", gridColumn: "10 / span 6" }}>
             <div className="yard-plate">
-              <div className="yard-badge">
+              <div className="yard-badge green-badge">
                 <span className="yard-badge-dot green-dot" />
-                <span className="yard-label">GREEN YARD</span>
+                <span className="yard-label">
+                  {isBotMatch ? "NIMIQ AI (GREEN)" : "PLAYER 2 (GREEN)"}
+                </span>
               </div>
               <div className="yard-pockets-grid">
-                {YARD_NEST_POSITIONS.green.map((_, idx) => (
-                  <div key={`green-pocket-${idx}`} className="yard-pocket green-pocket">
-                    <div className="pawn-placeholder green-ph" />
-                  </div>
-                ))}
+                {[0, 1, 2, 3].map(slotIdx => {
+                  // In 2p_double, green is Player 1's pieces 0..3
+                  const pieceIdx = slotIdx;
+                  const piece = hasEightPieces ? players[1]?.pieces[pieceIdx] : null;
+                  const inBase = piece?.position === -1;
+                  const isMovable = inBase && piece && canMovePiece(1, piece);
+
+                  return (
+                    <div key={`green-pocket-${slotIdx}`} className="yard-pocket green-pocket">
+                      {inBase && renderPawn(1, pieceIdx, Boolean(isMovable), "green")}
+                      {!hasEightPieces && <div className="pawn-placeholder green-ph" />}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
 
           {/* ========================================================
-              3. BOTTOM-LEFT YARD: CLASSIC BLUE
+              3. BOTTOM-LEFT YARD: BLUE (Player 1 / AI Yard B)
              ======================================================== */}
           <div className="classic-yard blue-yard" style={{ gridRow: "10 / span 6", gridColumn: "1 / span 6" }}>
             <div className="yard-plate">
-              <div className="yard-badge">
+              <div className="yard-badge blue-badge">
                 <span className="yard-badge-dot blue-dot" />
-                <span className="yard-label">BLUE YARD</span>
+                <span className="yard-label">
+                  {isBotMatch ? "NIMIQ AI (BLUE)" : "PLAYER 2 (BLUE)"}
+                </span>
               </div>
               <div className="yard-pockets-grid">
-                {YARD_NEST_POSITIONS.blue.map((_, idx) => (
-                  <div key={`blue-pocket-${idx}`} className="yard-pocket blue-pocket">
-                    <div className="pawn-placeholder blue-ph" />
-                  </div>
-                ))}
+                {[0, 1, 2, 3].map(slotIdx => {
+                  // In 2p_double, blue is Player 1's pieces 4..7
+                  const pieceIdx = hasEightPieces ? 4 + slotIdx : slotIdx;
+                  const piece = hasEightPieces ? players[1]?.pieces[pieceIdx] : null;
+                  const inBase = piece?.position === -1;
+                  const isMovable = inBase && piece && canMovePiece(1, piece);
+
+                  return (
+                    <div key={`blue-pocket-${slotIdx}`} className="yard-pocket blue-pocket">
+                      {inBase && renderPawn(1, pieceIdx, Boolean(isMovable), "blue")}
+                      {!hasEightPieces && <div className="pawn-placeholder blue-ph" />}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
 
           {/* ========================================================
-              4. BOTTOM-RIGHT YARD: GOLD / NIMIQ AI (Player 1 / AI)
+              4. BOTTOM-RIGHT YARD: YELLOW / GOLD
+                 (Player 0's Yard B in 2p_double, or Player 1 in classic)
              ======================================================== */}
           <div className="classic-yard yellow-yard" style={{ gridRow: "10 / span 6", gridColumn: "10 / span 6" }}>
             <div className="yard-plate">
               <div className="yard-badge gold-badge">
-                {isBotMatch ? (
+                {hasEightPieces ? (
+                  <>
+                    <span className="yard-badge-dot yellow-dot" />
+                    <span className="yard-label">
+                      {yourSeat === 0 ? "PLAYER 1 (GOLD)" : "PLAYER 1"}
+                    </span>
+                  </>
+                ) : isBotMatch ? (
                   <>
                     <NimiqHexLogo size={18} />
                     <span className="yard-label nimiq-label">NIMIQ AI BOT</span>
@@ -345,29 +466,18 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                 )}
               </div>
               <div className="yard-pockets-grid">
-                {YARD_NEST_POSITIONS.yellow.map((_, idx) => {
-                  const piece = players[1]?.pieces[idx];
+                {[0, 1, 2, 3].map(slotIdx => {
+                  // In 2p_double, yellow is Player 0's pieces 4..7!
+                  // In 2p_single, yellow is Player 1's pieces 0..3!
+                  const targetPlayer = hasEightPieces ? 0 : 1;
+                  const pieceIdx = hasEightPieces ? 4 + slotIdx : slotIdx;
+                  const piece = players[targetPlayer]?.pieces[pieceIdx];
                   const inBase = piece?.position === -1;
-                  const isMovable = inBase && canMovePiece(1, piece);
+                  const isMovable = inBase && piece && canMovePiece(targetPlayer, piece);
 
                   return (
-                    <div key={`yellow-pocket-${idx}`} className="yard-pocket yellow-pocket">
-                      {inBase && (
-                        <button
-                          type="button"
-                          className={`ludo-3d-pawn pawn-yellow ${isMovable ? "pawn-movable-glow" : ""}`}
-                          disabled={!isMovable}
-                          onClick={() => handlePieceMove(idx)}
-                          onMouseEnter={() => setHoveredPiece({ player: 1, pieceIndex: idx })}
-                          onMouseLeave={() => setHoveredPiece(null)}
-                          title={`${isBotMatch ? "Nimiq AI" : "Player 2"} Piece #${idx + 1} (In Yard)`}
-                        >
-                          <span className="pawn-head" />
-                          <span className="pawn-ring" />
-                          <span className="pawn-body" />
-                          <span className="pawn-number">{idx + 1}</span>
-                        </button>
-                      )}
+                    <div key={`yellow-pocket-${slotIdx}`} className="yard-pocket yellow-pocket">
+                      {inBase && renderPawn(targetPlayer, pieceIdx, Boolean(isMovable), "yellow")}
                     </div>
                   );
                 })}
@@ -386,19 +496,38 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
             const isBlueStart = trackIdx === 39;
             const isTargeted = previewTarget?.type === "track" && previewTarget.index === trackIdx;
 
-            // Find all pieces currently stationed on this track square
+            // Collect pieces stationed on this cell
             const piecesOnCell: Array<{
               player: number;
               pieceIndex: number;
               piece: Piece;
+              isStepping: boolean;
+              stepNum: number;
+              color: "red" | "green" | "yellow" | "blue";
             }> = [];
 
             players.forEach((player, pIdx) => {
               player.pieces.forEach((piece, pieceIdx) => {
-                if (piece.position >= 0 && piece.position < 52) {
-                  const globalPos = ((pIdx === 0 ? 0 : 26) + piece.position) % 52;
+                const { color, start } = getPieceInfo(pIdx, pieceIdx, hasEightPieces);
+                const isThisPieceStepping =
+                  steppingPiece?.player === pIdx && steppingPiece.pieceIndex === pieceIdx;
+
+                // Determine effective progress (animated step vs final stored position)
+                const effectivePos = isThisPieceStepping
+                  ? steppingPiece.currentProgress
+                  : piece.position;
+
+                if (effectivePos >= 0 && effectivePos < 52) {
+                  const globalPos = (start + effectivePos) % 52;
                   if (globalPos === trackIdx) {
-                    piecesOnCell.push({ player: pIdx, pieceIndex: pieceIdx, piece });
+                    piecesOnCell.push({
+                      player: pIdx,
+                      pieceIndex: pieceIdx,
+                      piece,
+                      isStepping: isThisPieceStepping,
+                      stepNum: steppingPiece?.stepNum ?? 0,
+                      color,
+                    });
                   }
                 }
               });
@@ -419,39 +548,28 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                   gridColumn: coord.col + 1,
                 }}
               >
-                {/* Start Arrow Indicators */}
+                {/* Directional Exit Arrows */}
                 {isRedStart && <ArrowRight size={14} className="start-arrow" />}
                 {isGreenStart && <ArrowDown size={14} className="start-arrow" />}
                 {isYellowStart && <ArrowLeft size={14} className="start-arrow" />}
                 {isBlueStart && <ArrowUp size={14} className="start-arrow" />}
 
-                {/* Star / Safe Icon */}
+                {/* Star Icon */}
                 {isStar && !isRedStart && !isGreenStart && !isYellowStart && !isBlueStart && (
                   <Star size={13} className="safe-star-icon" />
                 )}
 
-                {/* Stack of Pieces on this cell */}
+                {/* Pawns on Track Cell */}
                 <div className="cell-pawns-stack">
-                  {piecesOnCell.map(({ player, pieceIndex, piece }) => {
+                  {piecesOnCell.map(({ player, pieceIndex, piece, isStepping, stepNum, color }) => {
                     const isMovable = canMovePiece(player, piece);
-                    return (
-                      <button
-                        key={`${player}-${pieceIndex}`}
-                        type="button"
-                        className={`ludo-3d-pawn ${player === 0 ? "pawn-red" : "pawn-yellow"} ${
-                          isMovable ? "pawn-movable-glow" : ""
-                        }`}
-                        disabled={!isMovable}
-                        onClick={() => handlePieceMove(pieceIndex)}
-                        onMouseEnter={() => setHoveredPiece({ player, pieceIndex })}
-                        onMouseLeave={() => setHoveredPiece(null)}
-                        title={`P${player + 1} Piece #${pieceIndex + 1}`}
-                      >
-                        <span className="pawn-head" />
-                        <span className="pawn-ring" />
-                        <span className="pawn-body" />
-                        <span className="pawn-number">{pieceIndex + 1}</span>
-                      </button>
+                    return renderPawn(
+                      player,
+                      pieceIndex,
+                      isMovable,
+                      color,
+                      isStepping,
+                      stepNum
                     );
                   })}
                 </div>
@@ -460,15 +578,20 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
           })}
 
           {/* ========================================================
-              6. THE 4 COLORED HOME RUNS (5 cells each leading to center)
+              6. THE 4 COLORED HOME STRETCH COLUMNS
              ======================================================== */}
-          {/* Red Home Stretch (Player 0) */}
+          {/* Red Home Stretch */}
           {ALL_HOME_COLUMNS.red.map((coord, idx) => {
             const stepPos = 52 + idx;
-            const isTargeted = previewTarget?.type === "home" && hoveredPiece?.player === 0 && previewTarget.index === idx;
+            const isTargeted = previewTarget?.type === "home" && previewTarget.index === idx;
+
+            // Find Red pieces on this home cell
             const pieces = players[0]?.pieces
               .map((piece, pieceIndex) => ({ piece, pieceIndex }))
-              .filter(({ piece }) => piece.position === stepPos);
+              .filter(({ pieceIndex, piece }) => {
+                const info = getPieceInfo(0, pieceIndex, hasEightPieces);
+                return info.color === "red" && piece.position === stepPos;
+              });
 
             return (
               <div
@@ -479,22 +602,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                 <div className="cell-pawns-stack">
                   {pieces.map(({ piece, pieceIndex }) => {
                     const isMovable = canMovePiece(0, piece);
-                    return (
-                      <button
-                        key={pieceIndex}
-                        type="button"
-                        className={`ludo-3d-pawn pawn-red ${isMovable ? "pawn-movable-glow" : ""}`}
-                        disabled={!isMovable}
-                        onClick={() => handlePieceMove(pieceIndex)}
-                        onMouseEnter={() => setHoveredPiece({ player: 0, pieceIndex })}
-                        onMouseLeave={() => setHoveredPiece(null)}
-                      >
-                        <span className="pawn-head" />
-                        <span className="pawn-ring" />
-                        <span className="pawn-body" />
-                        <span className="pawn-number">{pieceIndex + 1}</span>
-                      </button>
-                    );
+                    return renderPawn(0, pieceIndex, isMovable, "red");
                   })}
                 </div>
               </div>
@@ -502,21 +610,48 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
           })}
 
           {/* Green Home Stretch */}
-          {ALL_HOME_COLUMNS.green.map((coord, idx) => (
-            <div
-              key={`home-green-${idx}`}
-              className="classic-track-cell home-stretch-green"
-              style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
-            />
-          ))}
+          {ALL_HOME_COLUMNS.green.map((coord, idx) => {
+            const stepPos = 52 + idx;
+            const pieces = hasEightPieces
+              ? players[1]?.pieces
+                  .map((piece, pieceIndex) => ({ piece, pieceIndex }))
+                  .filter(({ pieceIndex, piece }) => {
+                    const info = getPieceInfo(1, pieceIndex, hasEightPieces);
+                    return info.color === "green" && piece.position === stepPos;
+                  })
+              : [];
 
-          {/* Yellow / Gold Home Stretch (Player 1 / AI) */}
+            return (
+              <div
+                key={`home-green-${idx}`}
+                className="classic-track-cell home-stretch-green"
+                style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
+              >
+                <div className="cell-pawns-stack">
+                  {pieces.map(({ piece, pieceIndex }) => {
+                    const isMovable = canMovePiece(1, piece);
+                    return renderPawn(1, pieceIndex, isMovable, "green");
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Yellow Home Stretch */}
           {ALL_HOME_COLUMNS.yellow.map((coord, idx) => {
             const stepPos = 52 + idx;
-            const isTargeted = previewTarget?.type === "home" && hoveredPiece?.player === 1 && previewTarget.index === idx;
-            const pieces = players[1]?.pieces
+            const targetPlayer = hasEightPieces ? 0 : 1;
+            const isTargeted =
+              previewTarget?.type === "home" &&
+              hoveredPiece?.player === targetPlayer &&
+              previewTarget.index === idx;
+
+            const pieces = players[targetPlayer]?.pieces
               .map((piece, pieceIndex) => ({ piece, pieceIndex }))
-              .filter(({ piece }) => piece.position === stepPos);
+              .filter(({ pieceIndex, piece }) => {
+                const info = getPieceInfo(targetPlayer, pieceIndex, hasEightPieces);
+                return info.color === "yellow" && piece.position === stepPos;
+              });
 
             return (
               <div
@@ -526,23 +661,8 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
               >
                 <div className="cell-pawns-stack">
                   {pieces.map(({ piece, pieceIndex }) => {
-                    const isMovable = canMovePiece(1, piece);
-                    return (
-                      <button
-                        key={pieceIndex}
-                        type="button"
-                        className={`ludo-3d-pawn pawn-yellow ${isMovable ? "pawn-movable-glow" : ""}`}
-                        disabled={!isMovable}
-                        onClick={() => handlePieceMove(pieceIndex)}
-                        onMouseEnter={() => setHoveredPiece({ player: 1, pieceIndex })}
-                        onMouseLeave={() => setHoveredPiece(null)}
-                      >
-                        <span className="pawn-head" />
-                        <span className="pawn-ring" />
-                        <span className="pawn-body" />
-                        <span className="pawn-number">{pieceIndex + 1}</span>
-                      </button>
-                    );
+                    const isMovable = canMovePiece(targetPlayer, piece);
+                    return renderPawn(targetPlayer, pieceIndex, isMovable, "yellow");
                   })}
                 </div>
               </div>
@@ -550,13 +670,32 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
           })}
 
           {/* Blue Home Stretch */}
-          {ALL_HOME_COLUMNS.blue.map((coord, idx) => (
-            <div
-              key={`home-blue-${idx}`}
-              className="classic-track-cell home-stretch-blue"
-              style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
-            />
-          ))}
+          {ALL_HOME_COLUMNS.blue.map((coord, idx) => {
+            const stepPos = 52 + idx;
+            const pieces = hasEightPieces
+              ? players[1]?.pieces
+                  .map((piece, pieceIndex) => ({ piece, pieceIndex }))
+                  .filter(({ pieceIndex, piece }) => {
+                    const info = getPieceInfo(1, pieceIndex, hasEightPieces);
+                    return info.color === "blue" && piece.position === stepPos;
+                  })
+              : [];
+
+            return (
+              <div
+                key={`home-blue-${idx}`}
+                className="classic-track-cell home-stretch-blue"
+                style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
+              >
+                <div className="cell-pawns-stack">
+                  {pieces.map(({ piece, pieceIndex }) => {
+                    const isMovable = canMovePiece(1, piece);
+                    return renderPawn(1, pieceIndex, isMovable, "blue");
+                  })}
+                </div>
+              </div>
+            );
+          })}
 
           {/* ========================================================
               7. CENTER HOME TRIANGLE (3x3 Center: Rows 7..9, Cols 7..9)
@@ -567,11 +706,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
           >
             {/* 4 Colored Triangles */}
             <div className="center-tri tri-red">
-              <span className="tri-score">{p0Finished}/4</span>
+              <span className="tri-score">{p0Finished}/{targetGoal}</span>
             </div>
             <div className="center-tri tri-green" />
             <div className="center-tri tri-yellow">
-              <span className="tri-score">{p1Finished}/4</span>
+              <span className="tri-score">{p1Finished}/{targetGoal}</span>
             </div>
             <div className="center-tri tri-blue" />
 
