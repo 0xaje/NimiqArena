@@ -29,17 +29,6 @@ export default function MatchRoom() {
   const [, params] = useRoute("/matches/:id");
   const matchId = params?.id ?? "";
   const utils = trpc.useUtils();
-  const stateQuery = trpc.match.state.useQuery(
-    { id: matchId },
-    { enabled: Boolean(matchId), refetchInterval: 6_000 } // Fallback sync
-  );
-  const escrowQuery = trpc.match.escrowDetails.useQuery(
-    { matchId },
-    { enabled: Boolean(matchId), refetchInterval: 5_000 }
-  );
-  const authQuery = trpc.auth.me.useQuery();
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const escrow = escrowQuery.data;
 
   // Real-time zero latency SSE event stream
   const {
@@ -69,22 +58,33 @@ export default function MatchRoom() {
     },
   });
 
+  const stateQuery = trpc.match.state.useQuery(
+    { id: matchId },
+    {
+      enabled: Boolean(matchId),
+      refetchInterval: isStreamConnected ? false : 3_000,
+    }
+  );
+  const escrowQuery = trpc.match.escrowDetails.useQuery(
+    { matchId },
+    { enabled: Boolean(matchId), refetchInterval: 5_000 }
+  );
+  const authQuery = trpc.auth.me.useQuery();
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const escrow = escrowQuery.data;
+
   const command = trpc.match.command.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
   const c4Command = trpc.match.connect4Command.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
-  const triggerBotTurn = trpc.match.triggerBotTurn.useMutation();
   const heartbeat = trpc.match.heartbeat.useMutation();
   const disconnect = trpc.match.disconnect.useMutation();
   const heartbeatRef = useRef(heartbeat);
   heartbeatRef.current = heartbeat;
   const disconnectRef = useRef(disconnect);
   disconnectRef.current = disconnect;
-  const triggerBotRef = useRef(triggerBotTurn);
-  triggerBotRef.current = triggerBotTurn;
-  const isExecutingBotTurn = useRef(false);
 
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
@@ -217,65 +217,31 @@ export default function MatchRoom() {
       snapshot.winner === null
   );
 
-  // Auto-trigger bot step with crisp pacing, feedback, and reliable turn handoff
+  // Passive display: show AI activity banner and feedback reactively when server bot plays
   useEffect(() => {
-    if (!isBotTurn || isExecutingBotTurn.current) {
-      if (!isBotTurn) setIsBotRolling(false);
-      return;
-    }
-
-    isExecutingBotTurn.current = true;
-    setIsBotRolling(true);
-    setBotActionMessage("🤖 Nimiq AI is taking its turn…");
-
-    const timer = window.setTimeout(async () => {
-      try {
-        soundEngine.playDiceRoll();
-        const res = await triggerBotRef.current.mutateAsync({ matchId });
-        setIsBotRolling(false);
-
-        const nextSnapshot = res?.snapshot;
-        if (nextSnapshot) {
-          utils.match.state.setData({ id: matchId }, prev => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              stateVersion: nextSnapshot.version,
-              snapshot: nextSnapshot,
-              status: (res as any)?.status ?? prev.status,
-            };
-          });
-
-          const lastRoll = (res as any)?.snapshot?.lastRoll;
-          if (lastRoll) {
-            if (!lastRoll.hadLegalMoves) {
-              setBotActionMessage(
-                `🤖 Nimiq AI rolled ${lastRoll.value} (needs 6 to enter track) — Your turn to roll!`
-              );
-              toast.info(`🤖 Nimiq AI Rolled a ${lastRoll.value}`, {
-                description: "Requires a 6 to enter track. Your turn to roll!",
-              });
-            } else {
-              setBotActionMessage(`🤖 Nimiq AI rolled ${lastRoll.value} and moved! Your turn!`);
-              soundEngine.playPieceMove();
-            }
-          }
-        }
-      } catch {
-        setIsBotRolling(false);
-        void stateQuery.refetch();
-      } finally {
-        isExecutingBotTurn.current = false;
-        window.setTimeout(() => setBotActionMessage(null), 1800);
-      }
-    }, 450);
-
-    return () => {
-      window.clearTimeout(timer);
-      isExecutingBotTurn.current = false;
+    if (isBotTurn) {
+      setIsBotRolling(true);
+      setBotActionMessage("🤖 Nimiq AI is taking its turn…");
+    } else {
       setIsBotRolling(false);
-    };
-  }, [isBotTurn, matchId]);
+      const lastRoll = snapshot?.lastRoll;
+      if (lastRoll && lastRoll.playerId === 1) {
+        if (!lastRoll.hadLegalMoves) {
+          setBotActionMessage(
+            `🤖 Nimiq AI rolled ${lastRoll.value} (no legal moves) — Your turn!`
+          );
+        } else {
+          setBotActionMessage(
+            `🤖 Nimiq AI rolled ${lastRoll.value} and moved! Your turn!`
+          );
+        }
+        const timer = window.setTimeout(() => setBotActionMessage(null), 2400);
+        return () => window.clearTimeout(timer);
+      } else {
+        setBotActionMessage(null);
+      }
+    }
+  }, [isBotTurn, snapshot?.lastRoll]);
 
   // Sound triggers on state mutations
   useEffect(() => {
@@ -419,10 +385,20 @@ export default function MatchRoom() {
       void utils.match.state.invalidate({ id: matchId });
       void stateQuery.refetch();
 
-      toast.error("Server rejected the action", {
-        description:
-          error instanceof Error ? error.message : "Refresh and try again.",
-      });
+      const errMsg = error instanceof Error ? error.message : "";
+      const isVersionConflict =
+        errMsg.includes("version") ||
+        errMsg.includes("changed") ||
+        errMsg.includes("STALE_VERSION");
+
+      if (isVersionConflict) {
+        // Silently resync state without jarring error toast
+        console.warn("[MatchRoom] State version resynced after rejection");
+      } else {
+        toast.error("Action not applied", {
+          description: errMsg || "Please try again.",
+        });
+      }
     }
   }
 
@@ -794,16 +770,6 @@ export default function MatchRoom() {
                       <Bot size={18} className={isBotRolling ? "bot-icon-spin" : "bot-icon"} />
                       <span>{botActionMessage || (isBotTurn ? "🤖 Nimiq AI is evaluating the board…" : "")}</span>
                     </div>
-                    {isBotTurn && (
-                      <button
-                        type="button"
-                        className="bot-fast-step-btn"
-                        onClick={() => void triggerBotRef.current.mutateAsync({ matchId })}
-                        title="Force AI step immediately"
-                      >
-                        Fast Step
-                      </button>
-                    )}
                   </div>
                 )}
 
@@ -877,7 +843,8 @@ export default function MatchRoom() {
                         canRoll={
                           isYourTurn &&
                           snapshot?.dice === null &&
-                          snapshot?.winner === null
+                          snapshot?.winner === null &&
+                          !command.isPending
                         }
                         onRoll={() => sendCommand({ kind: "roll" })}
                         playerSeat={snapshot?.currentPlayer ?? 0}

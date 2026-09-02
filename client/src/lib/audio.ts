@@ -47,24 +47,24 @@ class SoundEngine {
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    // Series of snappy noise bursts & clicks simulating tumbling dice
-    for (let i = 0; i < 7; i++) {
-      const time = now + i * 0.045 + Math.random() * 0.01;
+    // Series of subtle wooden clicks simulating tumbling dice
+    for (let i = 0; i < 6; i++) {
+      const time = now + i * 0.042 + Math.random() * 0.008;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = i % 2 === 0 ? "triangle" : "square";
-      osc.frequency.setValueAtTime(180 + Math.random() * 320, time);
-      osc.frequency.exponentialRampToValueAtTime(60, time + 0.04);
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(220 + Math.random() * 180, time);
+      osc.frequency.exponentialRampToValueAtTime(70, time + 0.035);
 
-      gain.gain.setValueAtTime(0.12, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+      gain.gain.setValueAtTime(0.08, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(time);
-      osc.stop(time + 0.05);
+      osc.stop(time + 0.04);
     }
   }
 
@@ -81,7 +81,7 @@ class SoundEngine {
     osc.frequency.setValueAtTime(320, now);
     osc.frequency.exponentialRampToValueAtTime(540, now + 0.08);
 
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.14, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
     osc.connect(gain);
@@ -100,20 +100,20 @@ class SoundEngine {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    // Pitch rises with each step (1, 2, 3, 4, 5, 6)
+    // Pitch rises gently with each step (1, 2, 3, 4, 5, 6)
     const baseFreq = 340 + Math.min(stepNum, 6) * 55;
     osc.type = "sine";
     osc.frequency.setValueAtTime(baseFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq + 100, now + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq + 80, now + 0.04);
 
-    gain.gain.setValueAtTime(0.18, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.07);
+    osc.stop(now + 0.06);
   }
 
   public playCapture() {
@@ -122,24 +122,24 @@ class SoundEngine {
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    // Energetic double-frequency impact
-    [440, 220].forEach((freq, idx) => {
-      const time = now + idx * 0.07;
+    // Warm percussive impact
+    [360, 180].forEach((freq, idx) => {
+      const time = now + idx * 0.06;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = "sawtooth";
+      osc.type = "triangle";
       osc.frequency.setValueAtTime(freq, time);
-      osc.frequency.exponentialRampToValueAtTime(110, time + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(80, time + 0.1);
 
-      gain.gain.setValueAtTime(0.2, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+      gain.gain.setValueAtTime(0.14, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(time);
-      osc.stop(time + 0.15);
+      osc.stop(time + 0.13);
     });
   }
 

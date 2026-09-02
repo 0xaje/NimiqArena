@@ -1816,9 +1816,10 @@ h1 em,
 
 .ludo-standard-board-wrapper {
   width: 100%;
-  max-width: 580px;
+  max-width: min(94vw, 580px);
   margin: 0 auto;
   aspect-ratio: 1 / 1;
+  touch-action: manipulation;
 }
 
 .ludo-standard-board-frame {
@@ -2209,6 +2210,8 @@ h1 em,
 
 .ludo-3d-pawn:disabled {
   cursor: default;
+  pointer-events: none;
+  opacity: 0.88;
 }
 
 .pawn-head {

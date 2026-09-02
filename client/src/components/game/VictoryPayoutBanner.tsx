@@ -21,15 +21,17 @@ export function VictoryPayoutBanner({
   const [settlement, setSettlement] = useState<{
     netPayoutNim: number;
     protocolFeeNim: number;
-    payoutTxHash: string;
-    explorerUrl: string;
+    payoutTxHash: string | null;
+    explorerUrl: string | null;
+    settlementStatus?: string;
+    notice?: string;
   } | null>(null);
 
   useEffect(() => {
     if (totalPotNim <= 0) return;
     settlePayout
       .mutateAsync({ matchId, winnerUserId })
-      .then(res => setSettlement(res))
+      .then(res => setSettlement(res as any))
       .catch(err => {
         console.error("Payout settlement note:", err);
       });
@@ -65,12 +67,13 @@ export function VictoryPayoutBanner({
               fontSize: "11px",
               color: isWinner ? "#2ecc71" : "rgba(251, 248, 241, 0.6)",
               fontWeight: 600,
+              letterSpacing: "0.08em",
             }}
           >
-            NIMIQ SMART ESCROW SETTLEMENT
+            NIMIQ TESTNET PILOT ESCROW
           </span>
           <h3 style={{ margin: 0, fontSize: "18px", color: "var(--paper-bright)" }}>
-            {isWinner ? "🎉 You Won the Escrow Pot!" : "Match Concluded"}
+            {isWinner ? "🎉 You Won the Escrow Match!" : "Match Concluded"}
           </h3>
         </div>
       </div>
@@ -105,7 +108,7 @@ export function VictoryPayoutBanner({
         </div>
         <div>
           <span style={{ color: "rgba(251, 248, 241, 0.6)", display: "block" }}>
-            Winner Payout
+            Winner Entitlement
           </span>
           <strong
             style={{
@@ -122,32 +125,47 @@ export function VictoryPayoutBanner({
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
+            flexDirection: "column",
             gap: "8px",
             fontSize: "11px",
-            color: "rgba(251, 248, 241, 0.7)",
+            color: "rgba(251, 248, 241, 0.75)",
+            background: "rgba(0, 0, 0, 0.15)",
+            padding: "10px",
+            borderRadius: "6px",
           }}
         >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <CheckCircle size={14} color="#2ecc71" /> Payout Hash:{" "}
-            {settlement.payoutTxHash.slice(0, 18)}…
-          </span>
-          <a
-            href={settlement.explorerUrl}
-            target="_blank"
-            rel="noreferrer"
+          <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              gap: "4px",
-              color: "var(--orange)",
-              textDecoration: "none",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "8px",
             }}
           >
-            View on Nimiq Watch <ExternalLink size={12} />
-          </a>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <CheckCircle size={14} color="#2ecc71" /> Status: Ledger Entitlement Recorded
+            </span>
+            {settlement.explorerUrl && settlement.payoutTxHash && (
+              <a
+                href={settlement.explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  color: "var(--orange)",
+                  textDecoration: "none",
+                }}
+              >
+                View on Nimiq Watch <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
+          <span style={{ fontSize: "10px", color: "rgba(251, 248, 241, 0.55)", lineHeight: 1.4 }}>
+            ℹ️ {settlement.notice || "Winner pot entitlement recorded authoritatively on Testnet ledger. Automated on-chain disbursement worker is pending production signer deployment."}
+          </span>
         </div>
       )}
     </div>

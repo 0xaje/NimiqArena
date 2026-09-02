@@ -30,6 +30,7 @@ import {
   type LudoEvent,
   type LudoSnapshot,
   type LudoMode,
+  type LudoPlayerId,
 } from "../shared/game/ludo-engine";
 import { selectBestBotMove } from "../shared/game/ludo-bot";
 import {
@@ -558,42 +559,75 @@ export async function createSoloPracticeMatch(input: {
   return created[0];
 }
 
-export async function executeBotTurn(input: {
-  matchId: string;
-  userId: number;
-}) {
+const botMatchLocks = new Set<string>();
+const botMatchTimers = new Map<string, NodeJS.Timeout>();
+
+export function isMatchBotLocked(matchId: string): boolean {
+  return botMatchLocks.has(matchId);
+}
+
+async function passBotTurnToOpponent(
+  matchId: string,
+  snapshot: LudoSnapshot,
+  botSeat: number
+) {
   const db = await getDb();
-  if (!db) throw new Error("Match service is unavailable.");
+  if (!db) return;
+  await db.transaction(async tx => {
+    const latest = (
+      await tx
+        .select()
+        .from(matches)
+        .where(eq(matches.id, matchId))
+        .limit(1)
+    )[0];
+    if (!latest || latest.status !== "in_progress") return;
+
+    const nextSeat = (botSeat === 0 ? 1 : 0) as LudoPlayerId;
+    const nextSnapshot: LudoSnapshot = {
+      ...snapshot,
+      version: snapshot.version + 1,
+      dice: null,
+      currentPlayer: nextSeat,
+    };
+
+    await tx
+      .update(matches)
+      .set({
+        stateVersion: nextSnapshot.version,
+        stateJson: JSON.stringify(nextSnapshot),
+      })
+      .where(eq(matches.id, matchId));
+
+    notifyMatchUpdated(matchId);
+  });
+}
+
+async function executeAuthoritativeBotTurnCore(matchId: string) {
+  const match = await getMatchById(matchId);
+  if (!match || match.status !== "in_progress") return null;
 
   const botUser = await getOrCreateBotUser();
-
-  // 1. Fetch current match state
-  const match = await getMatchById(input.matchId);
-  if (!match) throw new Error("Match not found.");
-  if (match.status !== "in_progress") {
-    throw new Error("Match is not in progress.");
-  }
-
-  const player = await getMatchPlayer(input.matchId, input.userId);
-  if (!player) throw new Error("You are not a participant in this match.");
-
-  const botPlayer = await getMatchPlayer(input.matchId, botUser.id);
-  if (!botPlayer) throw new Error("This match is not a solo bot match.");
+  const players = await getMatchPlayers(matchId);
+  const botPlayer = players.find(p => p.userId === botUser.id);
+  if (!botPlayer) return null;
 
   // Connect 4 Bot Step
   if (match.engineVersion === "connect4-v1") {
     const c4Snapshot = JSON.parse(match.stateJson) as Connect4Snapshot;
-    if (c4Snapshot.currentPlayer !== 1) {
-      return {
-        ok: true as const,
-        message: "Not the bot's turn",
-        snapshot: c4Snapshot,
-      };
+    if (
+      c4Snapshot.currentPlayer !== botPlayer.seat ||
+      c4Snapshot.winner !== null
+    ) {
+      return { ok: true as const, snapshot: c4Snapshot };
     }
-    const bestDrop = selectBestConnect4Drop(c4Snapshot, 1);
+    const bestDrop = selectBestConnect4Drop(
+      c4Snapshot,
+      botPlayer.seat as 0 | 1
+    );
     if (bestDrop) {
       return await applyConnect4MatchCommand({
-        matchId: input.matchId,
+        matchId,
         userId: botUser.id,
         command: {
           column: bestDrop.column,
@@ -605,19 +639,22 @@ export async function executeBotTurn(input: {
     return { ok: true as const, snapshot: c4Snapshot };
   }
 
-  // Ludo Bot: authoritatively execute the bot's turn sequence until turn hands off to human
-  let maxSteps = 3;
+  // Ludo Bot Step: authoritatively execute bot's turn sequence
+  let maxSteps = 4;
   let currentSnapshot: LudoSnapshot | null = null;
 
   while (maxSteps > 0) {
     maxSteps--;
 
-    const currentMatch = await getMatchById(input.matchId);
+    const currentMatch = await getMatchById(matchId);
     if (!currentMatch || currentMatch.status !== "in_progress") break;
 
     let snapshot = JSON.parse(currentMatch.stateJson) as LudoSnapshot;
     currentSnapshot = snapshot;
-    if (snapshot.currentPlayer !== 1 || snapshot.winner !== null) {
+    if (
+      snapshot.currentPlayer !== botPlayer.seat ||
+      snapshot.winner !== null
+    ) {
       break;
     }
 
@@ -625,7 +662,7 @@ export async function executeBotTurn(input: {
     let currentDice = snapshot.dice;
     if (currentDice === null) {
       const rollResult = await applyLudoMatchCommand({
-        matchId: input.matchId,
+        matchId,
         userId: botUser.id,
         command: {
           kind: "roll",
@@ -638,17 +675,30 @@ export async function executeBotTurn(input: {
       currentDice = snapshot.dice;
     }
 
-    // If rolling forfeits turn (no legal moves possible), turn is already handed to human
-    if (currentDice === null || snapshot.currentPlayer !== 1) {
+    // If rolling forfeits turn (no legal moves possible) or game finished, break out
+    if (
+      currentDice === null ||
+      snapshot.currentPlayer !== botPlayer.seat ||
+      snapshot.winner !== null
+    ) {
       break;
     }
 
+    // Human-feeling pacing before move (skipped in automated tests for high-speed simulation)
+    if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+      await new Promise(r => setTimeout(r, 400));
+    }
+
     // 2. Choose best legal move for bot
-    const bestMove = selectBestBotMove(snapshot, 1, currentDice);
+    const bestMove = selectBestBotMove(
+      snapshot,
+      botPlayer.seat as 0 | 1,
+      currentDice
+    );
 
     if (bestMove) {
       const moveResult = await applyLudoMatchCommand({
-        matchId: input.matchId,
+        matchId,
         userId: botUser.id,
         command: {
           kind: "move",
@@ -659,45 +709,99 @@ export async function executeBotTurn(input: {
       });
       snapshot = moveResult.snapshot;
       currentSnapshot = snapshot;
-      // If move passed turn to human (dice !== 6 and no capture), break out cleanly
-      if (snapshot.currentPlayer !== 1) {
+
+      // If bot earned a bonus turn (roll of 6 or capture), wait 450ms before next roll
+      if (
+        snapshot.currentPlayer === botPlayer.seat &&
+        snapshot.winner === null
+      ) {
+        if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+          await new Promise(r => setTimeout(r, 450));
+        }
+        continue;
+      } else {
         break;
       }
     } else {
-      // No legal moves possible for bot with this dice roll -> pass turn to human (Player 0)
-      await db.transaction(async tx => {
-        const latest = (
-          await tx
-            .select()
-            .from(matches)
-            .where(eq(matches.id, input.matchId))
-            .limit(1)
-        )[0];
-        if (!latest) throw new Error("Match not found.");
-
-        const nextSnapshot: LudoSnapshot = {
-          ...snapshot,
-          version: snapshot.version + 1,
-          dice: null,
-          currentPlayer: 0,
-        };
-
-        await tx
-          .update(matches)
-          .set({
-            stateVersion: nextSnapshot.version,
-            stateJson: JSON.stringify(nextSnapshot),
-          })
-          .where(eq(matches.id, input.matchId));
-
-        notifyMatchUpdated(input.matchId);
-        currentSnapshot = nextSnapshot;
-      });
+      // Fallback if no legal move was found
+      await passBotTurnToOpponent(matchId, snapshot, botPlayer.seat);
       break;
     }
   }
 
   return { ok: true as const, snapshot: currentSnapshot };
+}
+
+export function scheduleAutonomousBotStep(matchId: string, delayMs = 450) {
+  if (botMatchLocks.has(matchId)) return;
+  const existing = botMatchTimers.get(matchId);
+  if (existing) clearTimeout(existing);
+
+  const effectiveDelay =
+    process.env.NODE_ENV === "test" || process.env.VITEST ? 10 : delayMs;
+
+  const timer = setTimeout(async () => {
+    botMatchTimers.delete(matchId);
+    if (botMatchLocks.has(matchId)) return;
+
+    botMatchLocks.add(matchId);
+    try {
+      await executeAuthoritativeBotTurnCore(matchId);
+    } catch (err) {
+      console.error(
+        `[Bot] Error during autonomous bot turn in match ${matchId}:`,
+        err
+      );
+    } finally {
+      botMatchLocks.delete(matchId);
+    }
+  }, delayMs);
+
+  botMatchTimers.set(matchId, timer);
+}
+
+export async function maybeScheduleBotTurn(
+  matchId: string,
+  nextPlayerSeat: number
+) {
+  try {
+    const botUser = await getOrCreateBotUser();
+    const players = await getMatchPlayers(matchId);
+    const nextPlayer = players.find(p => p.seat === nextPlayerSeat);
+    if (nextPlayer && nextPlayer.userId === botUser.id) {
+      scheduleAutonomousBotStep(matchId, 450);
+    }
+  } catch (err) {
+    console.error(`[Bot] Error in maybeScheduleBotTurn:`, err);
+  }
+}
+
+export async function executeBotTurn(input: {
+  matchId: string;
+  userId?: number;
+}) {
+  const match = await getMatchById(input.matchId);
+  if (!match) throw new Error("Match not found.");
+  if (match.status !== "in_progress") {
+    throw new Error("Match is not in progress.");
+  }
+
+  if (botMatchLocks.has(input.matchId)) {
+    await new Promise(r => setTimeout(r, 200));
+    const latest = await getMatchById(input.matchId);
+    return {
+      ok: true as const,
+      snapshot: latest ? JSON.parse(latest.stateJson) : null,
+    };
+  }
+
+  botMatchLocks.add(input.matchId);
+  try {
+    const res = await executeAuthoritativeBotTurnCore(input.matchId);
+    return res ?? { ok: true as const };
+  } finally {
+    botMatchLocks.delete(input.matchId);
+  }
 }
 
 export async function getMatchById(id: string): Promise<Match | undefined> {
@@ -1254,6 +1358,9 @@ export async function applyLudoMatchCommand(input: {
   });
   if (!result.idempotent) {
     notifyMatchUpdated(input.matchId);
+    if (result.status === "in_progress") {
+      void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
+    }
   }
   return result;
 }
@@ -1387,6 +1494,9 @@ export async function applyConnect4MatchCommand(input: {
 
   if (!result.idempotent) {
     notifyMatchUpdated(input.matchId);
+    if (result.status === "in_progress") {
+      void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
+    }
   }
   return result;
 }
@@ -2145,7 +2255,6 @@ export async function settleMatchWinnerPayout(input: {
       .limit(1)
   )[0];
 
-  const payoutTxHash = `0x${nanoid(32)}${nanoid(32)}`;
   const grossPotNim = escrow.totalPotNim || 0;
   const protocolFeeNim = Number((grossPotNim * 0.02).toFixed(2)); // 2% protocol fee
   const netPayoutNim = Number((grossPotNim - protocolFeeNim).toFixed(2));
@@ -2159,10 +2268,13 @@ export async function settleMatchWinnerPayout(input: {
     grossPotNim,
     protocolFeeNim,
     netPayoutNim,
-    payoutTxHash,
+    settlementStatus: "ledger_entitlement_confirmed",
+    payoutTxHash: null,
     settledAt: new Date().toISOString(),
     network: isTestnet ? "testnet" : "mainnet",
-    explorerUrl: `https://${isTestnet ? "test." : ""}nimiq.watch/#${payoutTxHash}`,
+    explorerUrl: null,
+    notice:
+      "Winner pot entitlement recorded authoritatively on Testnet ledger. Automated on-chain disbursement worker is pending production signer deployment.",
   };
 }
 
