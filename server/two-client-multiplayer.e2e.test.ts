@@ -267,7 +267,8 @@ describe.skipIf(!runDatabaseIntegration)(
         id: createdMatchId,
       });
       const hostPlayer = refreshedState.players.find((p: any) => p.seat === 0);
-      expect(hostPlayer.status).toBe("joined");
+      expect(hostPlayer).toBeDefined();
+      expect(hostPlayer?.status).toBe("joined");
 
       // Clean up SSE streams
       sseA.controller.abort();
