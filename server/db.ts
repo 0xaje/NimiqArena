@@ -2322,3 +2322,67 @@ export async function settleMatchWinnerPayout(input: {
   };
 }
 
+/* ==========================================================================
+   AUTHORITATIVE MATCH HEARTBEAT DAEMON
+   Prevents matches from stalling or freezing across server restarts,
+   browser backgrounding, dropped SSE streams, or transient network delays.
+   ========================================================================== */
+
+let matchHeartbeatTimer: NodeJS.Timeout | null = null;
+
+export function startMatchHeartbeatDaemon(intervalMs = 1500): NodeJS.Timeout | null {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    return null; // Keep unit tests isolated and deterministic
+  }
+  if (matchHeartbeatTimer) return matchHeartbeatTimer;
+
+  matchHeartbeatTimer = setInterval(async () => {
+    try {
+      const db = await getDb();
+      if (!db) return;
+
+      const activeMatches = await db
+        .select()
+        .from(matches)
+        .where(eq(matches.status, "in_progress"));
+
+      const now = Date.now();
+
+      for (const match of activeMatches) {
+        if (!match.stateJson) continue;
+
+        const isBotMatch = Boolean(match.joinCode?.startsWith("BOT"));
+        let snapshot: LudoSnapshot | null = null;
+        try {
+          snapshot = JSON.parse(match.stateJson);
+        } catch {
+          continue;
+        }
+
+        if (!snapshot || snapshot.winner !== null) continue;
+
+        // Authoritative Bot Heartbeat: If it is Bot's turn and idle for > 1.2s, execute bot step
+        if (isBotMatch && snapshot.currentPlayer === 1) {
+          const lastUpdatedMs = match.updatedAt ? new Date(match.updatedAt).getTime() : 0;
+          const idleMs = now - lastUpdatedMs;
+
+          if (idleMs > 1200 && !botMatchLocks.has(match.id)) {
+            scheduleAutonomousBotStep(match.id, 50);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[MatchHeartbeat] Tick error:", err);
+    }
+  }, intervalMs);
+
+  return matchHeartbeatTimer;
+}
+
+export function stopMatchHeartbeatDaemon() {
+  if (matchHeartbeatTimer) {
+    clearInterval(matchHeartbeatTimer);
+    matchHeartbeatTimer = null;
+  }
+}
+

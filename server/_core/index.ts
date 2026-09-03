@@ -70,6 +70,15 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    // Initialize authoritative match heartbeat daemon
+    import("../db")
+      .then(({ startMatchHeartbeatDaemon }) => {
+        startMatchHeartbeatDaemon();
+        console.log("[MatchHeartbeat] Autonomous server match heartbeat daemon started.");
+      })
+      .catch(err => {
+        console.error("[MatchHeartbeat] Failed to initialize match heartbeat daemon:", err);
+      });
   });
 }
 

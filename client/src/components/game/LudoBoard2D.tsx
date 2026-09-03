@@ -274,15 +274,31 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     onMovePiece(pieceIndex);
   };
 
+  const hasSixFace = Boolean(
+    diceValues && diceValues.length === 2
+      ? diceValues[0] === 6 || diceValues[1] === 6
+      : dice === 6
+  );
+
   const canMovePiece = (playerSeat: number, piece: Piece): boolean => {
     if (disabled || !isYourTurn || yourSeat !== playerSeat || dice === null) {
       return false;
     }
     if (piece.position === -1) {
-      return dice === 6;
+      // STRICT 6-TO-EXIT: A piece can ONLY leave the yard if at least one die physically shows 6!
+      // [3, 3] or [2, 4] NEVER allows exiting the yard!
+      return hasSixFace;
     }
     if (piece.position >= 57) {
       return false;
+    }
+    if (diceValues && diceValues.length === 2) {
+      const [d1, d2] = diceValues;
+      return (
+        piece.position + (dice ?? 0) <= 57 ||
+        piece.position + d1 <= 57 ||
+        piece.position + d2 <= 57
+      );
     }
     return piece.position + dice <= 57;
   };
@@ -295,11 +311,33 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   ): { type: "track" | "home" | "goal"; index: number } | null => {
     const { start } = getPieceInfo(playerSeat, pieceIndex, hasEightPieces);
     if (currentPos === -1) {
-      if (diceVal !== 6) return null;
+      if (!hasSixFace) return null;
+      if (diceValues && diceValues.length === 2) {
+        const otherDie = diceValues[0] === 6 ? diceValues[1] : diceValues[0];
+        const initialPos = otherDie === 6 ? 0 : otherDie;
+        return { type: "track", index: (start + initialPos) % 52 };
+      }
       return { type: "track", index: start };
     }
     const nextPos = currentPos + diceVal;
-    if (nextPos > 57) return null;
+    if (nextPos > 57) {
+      if (diceValues && diceValues.length === 2) {
+        const [d1, d2] = diceValues;
+        if (currentPos + d1 <= 57) {
+          const p = currentPos + d1;
+          if (p === 57) return { type: "goal", index: 57 };
+          if (p >= 52) return { type: "home", index: p - 52 };
+          return { type: "track", index: (start + p) % 52 };
+        }
+        if (currentPos + d2 <= 57) {
+          const p = currentPos + d2;
+          if (p === 57) return { type: "goal", index: 57 };
+          if (p >= 52) return { type: "home", index: p - 52 };
+          return { type: "track", index: (start + p) % 52 };
+        }
+      }
+      return null;
+    }
     if (nextPos === 57) return { type: "goal", index: 57 };
     if (nextPos >= 52) {
       return { type: "home", index: nextPos - 52 };

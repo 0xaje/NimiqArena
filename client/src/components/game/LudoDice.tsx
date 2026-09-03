@@ -121,7 +121,15 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
 
       {value !== null && val1 !== null && val2 !== null && (
         <div className="dual-dice-badge">
-          <span>{val1 === val2 ? `Double ${val1}!` : `${val1} & ${val2}`}</span>
+          <span>
+            {val1 === 6 || val2 === 6
+              ? val1 === val2
+                ? "Double 6! Exit base!"
+                : `${val1} & ${val2} (6 Exit!)`
+              : val1 === val2
+                ? `Double ${val1} (Bonus Turn)`
+                : `${val1} & ${val2}`}
+          </span>
         </div>
       )}
     </div>
