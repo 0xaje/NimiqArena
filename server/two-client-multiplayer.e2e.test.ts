@@ -11,7 +11,7 @@ import { sdk } from "./_core/sdk";
 import { getDb, getUserByOpenId, upsertUser } from "./db";
 import { matches, matchPlayers, matchEvents, users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 
 const runDatabaseIntegration = process.env.RUN_DB_INTEGRATION_TESTS === "1";
 if (runDatabaseIntegration && process.env.NIMIQ_ARENA_TEST_DATABASE_URL) {

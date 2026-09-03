@@ -11,7 +11,7 @@ import { sdk } from "./_core/sdk";
 import { getDb, upsertUser } from "./db";
 import { matches, matchPlayers, matchEvents, users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 import { nanoid } from "nanoid";
 
 describe("Multiplayer Chaos & State Convergence Verification Suite", () => {
