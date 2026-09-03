@@ -79,6 +79,41 @@ describe("Ludo AI Bot Heuristic Engine", () => {
     expect(move?.pieceIndex).toBe(0);
     expect(move?.reason).toContain("Capture opponent piece");
   });
+
+  it("prioritizes escaping an opponent in striking distance (threat escape)", () => {
+    const snapshot = createLudoSnapshot("match-bot-1");
+    // Bot piece 0 is at progress 5 (global 31) - unprotected, opponent is at global 29 (2 tiles behind!)
+    snapshot.players[1].pieces[0].position = 5;
+    snapshot.players[0].pieces[0].position = 29;
+
+    // Bot piece 1 is at progress 18 (global 44) - safe from any opponent
+    snapshot.players[1].pieces[1].position = 18;
+
+    // Bot rolls a 4
+    const move = selectBestBotMove(snapshot, 1, 4);
+    expect(move).not.toBeNull();
+    expect(move?.pieceIndex).toBe(0); // Fleeing piece 0 prioritized over piece 1
+    expect(move?.reason).toContain("Escape opponent threat");
+  });
+
+  it("avoids landing on an unprotected tile directly in front of an opponent (risk avoidance)", () => {
+    const snapshot = createLudoSnapshot("match-bot-1");
+    // Opponent is at global 10
+    snapshot.players[0].pieces[0].position = 10;
+
+    // Bot piece 0 at progress 35 (global (26 + 35) % 52 = 9).
+    // If piece 0 moves 3 -> lands on global 12 (2 tiles in front of opponent at 10 on unprotected tile)
+    snapshot.players[1].pieces[0].position = 35;
+
+    // Bot piece 1 at progress 20 (global 46).
+    // If piece 1 moves 3 -> lands on global 49 (miles away from opponent at 10)
+    snapshot.players[1].pieces[1].position = 20;
+
+    // Bot rolls a 3
+    const move = selectBestBotMove(snapshot, 1, 3);
+    expect(move).not.toBeNull();
+    expect(move?.pieceIndex).toBe(1); // Piece 1 chosen because piece 0 would land in immediate danger
+  });
 });
 
 describe("Solo Practice Match Router", () => {
@@ -125,6 +160,6 @@ describe("Solo Practice Match Router", () => {
       matchId: "match-solo-12345",
       userId: 9901,
     });
-    expect(res.ok).toBe(true);
+    expect((res as any).ok).toBe(true);
   });
 });

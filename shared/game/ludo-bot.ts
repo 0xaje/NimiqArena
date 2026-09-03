@@ -77,6 +77,26 @@ export function selectBestBotMove(
     let score = 50 + to;
     let reason = "Advance piece on track";
 
+    // 0. Threat Escape Check: is piece currently in danger on the track?
+    if (from < LUDO_TRACK_LENGTH) {
+      const currentGlobal = getGlobalTrackPos(botPlayerId, from, pieceIndex, mode);
+      const currentIsSafe = LUDO_SAFE_SQUARES.has(currentGlobal);
+
+      if (!currentIsSafe) {
+        const isUnderThreat = opponentPlayer?.pieces.some((oppPiece, oppIdx) => {
+          if (oppPiece.position < 0 || oppPiece.position >= LUDO_TRACK_LENGTH) return false;
+          const oppGlobal = getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode);
+          const distBehind = (currentGlobal - oppGlobal + LUDO_TRACK_LENGTH) % LUDO_TRACK_LENGTH;
+          return distBehind >= 1 && distBehind <= 6;
+        });
+
+        if (isUnderThreat) {
+          score += 250;
+          reason = "Escape opponent threat";
+        }
+      }
+    }
+
     // 1. Winning move (Home Goal)
     if (to === LUDO_HOME_ENTRY) {
       score += 1000;
@@ -102,7 +122,24 @@ export function selectBestBotMove(
         if (willCapture) {
           score += 600;
           reason = "Capture opponent piece";
+        } else {
+          // Risk avoidance: landing 1-6 steps in front of an opponent
+          const landsInDanger = opponentPlayer?.pieces.some((oppPiece, oppIdx) => {
+            if (oppPiece.position < 0 || oppPiece.position >= LUDO_TRACK_LENGTH) return false;
+            const oppGlobal = getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode);
+            const distBehind = (landingGlobal - oppGlobal + LUDO_TRACK_LENGTH) % LUDO_TRACK_LENGTH;
+            return distBehind >= 1 && distBehind <= 6;
+          });
+
+          if (landsInDanger) {
+            score -= 90;
+          }
         }
+      }
+
+      // Reward pieces nearing the home entrance (progress 40-51)
+      if (to >= 40) {
+        score += 40;
       }
     }
     // 3. Home Stretch progress (progress 52..56)

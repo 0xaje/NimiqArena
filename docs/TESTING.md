@@ -23,7 +23,7 @@ A feature is not complete when the button renders. It is complete when the serve
 
 ## Verified Production Test Suites (100% Passing)
 
-All 29 test suites and 155 automated test cases pass with full test database integration and live Nimiq Testnet JSON-RPC verification:
+All 29 test suites and 157 automated test cases pass with full test database integration and live Nimiq Testnet JSON-RPC verification:
 
 ```bash
 DATABASE_URL="mysql://root:test@127.0.0.1:3307/nimiq_test" RUN_DB_INTEGRATION_TESTS=1 npm test
@@ -44,7 +44,7 @@ DATABASE_URL="mysql://root:test@127.0.0.1:3307/nimiq_test" RUN_DB_INTEGRATION_TE
 | `rating.database.integration.test.ts` | **Elo & Seasons** | 6 | Live Elo rating transactions, rating floor, streaks, leaderboard sorting |
 | `rating-engine.test.ts` | **Elo Mathematics** | 7 | FIDE formula, expected scores, rating floor, K-factor adjustments |
 | `connect4.test.ts` | **Connect 4 Engine** | 7 | Board state, disc drops, win line checks, draw detection, bot heuristics |
-| `ludo-bot.test.ts` | **Bot Heuristics** | 6 | Scoring weights, base exit, capture priority, home goal priority |
+| `ludo-bot.test.ts` | **Bot Heuristics** | 8 | Scoring weights, base exit, capture, threat escape, risk avoidance, home goal |
 | `ludo-engine.test.ts` | **Ludo Engine** | 6 | Base exit on 6, captures, safe squares, home overshoot rules, win checks |
 | `nimiq-wallet.test.ts` | **Wallet Client** | 8 | Address validation, Luna conversion, provider state machine, balance formatting |
 | `game.router.test.ts` | **Game Catalog** | 4 | Game metadata lookup and default game seeding |
@@ -60,4 +60,4 @@ DATABASE_URL="mysql://root:test@127.0.0.1:3307/nimiq_test" RUN_DB_INTEGRATION_TE
 | `match-stream.test.ts` | **SSE Streaming** | 1 | Realtime match stream broadcast and participant authorization |
 | `auth.logout.test.ts` | **Authentication** | 1 | Session cookie clearing and logout lifecycle |
 | `match-event.test.ts` | **Event Idempotency** | 1 | Exact match event replay from database snapshots |
-| **Total** | **29 Test Files** | **155 Tests** | **100% Pass Rate (155/155 PASSED, 0 SKIPPED, 0 FAILED)** |
+| **Total** | **29 Test Files** | **157 Tests** | **100% Pass Rate (157/157 PASSED, 0 SKIPPED, 0 FAILED)** |

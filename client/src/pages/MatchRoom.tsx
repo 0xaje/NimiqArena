@@ -909,7 +909,9 @@ export default function MatchRoom() {
                         <p>
                           {isYourTurn
                             ? snapshot?.dice
-                              ? "Select your highlighted piece on the board to move."
+                              ? snapshot.dice === 6
+                                ? "Select your highlighted piece to move. Rolling a 6 grants an extra turn!"
+                                : "Select your highlighted piece on the board to move."
                               : "Roll the dice to advance or release a piece from base."
                             : isBotTurn
                               ? "The AI is evaluating legal moves authoritatively."
