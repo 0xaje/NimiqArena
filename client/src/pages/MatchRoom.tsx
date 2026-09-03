@@ -21,6 +21,8 @@ import { LudoDice } from "@/components/game/LudoDice";
 import { Connect4Board2D } from "@/components/game/Connect4Board2D";
 import { EscrowDepositModal } from "@/components/game/EscrowDepositModal";
 import { VictoryPayoutBanner } from "@/components/game/VictoryPayoutBanner";
+import { MatchWaitingRoom } from "@/components/game/MatchWaitingRoom";
+import { formatNim } from "@shared/game/pot-distribution";
 import { EmoteWheel } from "@/components/game/EmoteWheel";
 import { EmoteOverlay } from "@/components/game/EmoteOverlay";
 import { useMatchStream } from "@/lib/useMatchStream";
@@ -471,6 +473,261 @@ export default function MatchRoom() {
     }
   }
 
+  // 1. Dedicated Match Waiting Room (Player A vs Player B)
+  if (state?.status === "waiting") {
+    const hostName = yourSeat === 0 ? (authQuery.data?.name || "Player 1 (Host)") : "Player 1 (Host)";
+    const guestPlayer = state.players.find(p => p.seat === 1);
+    const guestName = guestPlayer
+      ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : "Challenger Joined")
+      : null;
+    const isDepositNeeded = Boolean(
+      escrow?.isWagered &&
+      !escrow.playerStatuses.find(p => p.seat === yourSeat)?.verified
+    );
+
+    return (
+      <div className="pure-gameplay-page">
+        <MatchWaitingRoom
+          matchId={matchId}
+          joinCode={state.joinCode || ""}
+          hostName={hostName}
+          guestName={guestName}
+          stakeNim={escrow?.stakeNim ?? null}
+          totalPotNim={escrow?.totalPotNim ?? null}
+          isHost={yourSeat === 0}
+          onLeave={() => {
+            if (confirm("Are you sure you want to leave this table?")) {
+              window.location.href = "/games/ludo-league";
+            }
+          }}
+          isDepositNeeded={isDepositNeeded}
+          onDepositPrompt={() => setIsDepositModalOpen(true)}
+        />
+        {isDepositModalOpen && escrow && (
+          <EscrowDepositModal
+            isOpen={isDepositModalOpen}
+            onClose={() => setIsDepositModalOpen(false)}
+            matchId={matchId}
+            stakeNim={escrow.stakeNim}
+            onDepositSuccess={() => {
+              void escrowQuery.refetch();
+              void stateQuery.refetch();
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // 2. Board-First Pure Gameplay Screen for Ludo
+  if (state && state.engineVersion !== "connect4-v1") {
+    const p1Name = yourSeat === 0 ? (authQuery.data?.name || "Player 1") : "Player 1";
+    const p2Name = isBotMatch
+      ? "Nimiq AI"
+      : yourSeat === 1
+        ? (authQuery.data?.name || "Player 2")
+        : "Player 2";
+    const activeSeat = snapshot?.currentPlayer ?? 0;
+    const isFinished = snapshot?.winner !== null && snapshot?.winner !== undefined;
+
+    return (
+      <div className="pure-gameplay-page">
+        {/* Minimal Topbar */}
+        <header className="gameplay-topbar">
+          <button
+            type="button"
+            className="gameplay-back-btn"
+            onClick={() => {
+              if (isFinished || confirm("Leave table and return to lobby?")) {
+                window.location.href = "/games/ludo-league";
+              }
+            }}
+          >
+            <ArrowLeft size={14} />
+            <span>LEAVE TABLE</span>
+          </button>
+
+          <div className="gameplay-pot-badge">
+            {escrow?.isWagered && escrow.totalPotNim > 0 ? (
+              <>
+                <Coins size={15} className="trophy-gold" />
+                <span>MATCH POT: {formatNim(escrow.totalPotNim)} NIM</span>
+              </>
+            ) : (
+              <>
+                <Bot size={15} />
+                <span>PRACTICE TABLE (FREE)</span>
+              </>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <EmoteWheel matchId={matchId} />
+            <button
+              type="button"
+              className="gameplay-sound-btn"
+              onClick={toggleSound}
+              title={isMuted ? "Unmute sound effects" : "Mute sound effects"}
+            >
+              {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+            </button>
+          </div>
+        </header>
+
+        {/* Players Battle Strip */}
+        <section className="battle-players-strip">
+          <div className={`battle-player-pill ${activeSeat === 0 ? "active" : ""}`}>
+            <div className="battle-avatar-wrapper">
+              <div className="battle-avatar red-avatar">
+                <span>{p1Name.charAt(0).toUpperCase()}</span>
+              </div>
+              {activeSeat === 0 && <div className="active-turn-ring" />}
+            </div>
+            <div className="battle-player-meta">
+              <span className="battle-player-name">{p1Name}</span>
+              <span className="battle-turn-label">
+                {activeSeat === 0 ? "ROLLING..." : "WAITING"}
+              </span>
+            </div>
+          </div>
+
+          <div className="center-timer-badge">
+            <span
+              style={{
+                font: "800 11px 'IBM Plex Mono', monospace",
+                color: turnSecondsLeft <= 8 ? "#ef4444" : "#fbbf24",
+              }}
+            >
+              ⏱️ {turnSecondsLeft}s
+            </span>
+          </div>
+
+          <div className={`battle-player-pill ${activeSeat === 1 ? "active" : ""}`}>
+            <div className="battle-player-meta" style={{ textAlign: "right" }}>
+              <span className="battle-player-name">{p2Name}</span>
+              <span className="battle-turn-label">
+                {activeSeat === 1
+                  ? isBotMatch
+                    ? "AI EVALUATING..."
+                    : "ROLLING..."
+                  : "WAITING"}
+              </span>
+            </div>
+            <div className="battle-avatar-wrapper">
+              <div className="battle-avatar yellow-avatar">
+                <span>{p2Name.charAt(0).toUpperCase()}</span>
+              </div>
+              {activeSeat === 1 && <div className="active-turn-ring" />}
+            </div>
+          </div>
+        </section>
+
+        {/* Dynamic Turn & Event Banner */}
+        <div
+          className={`turn-event-banner ${
+            isYourTurn
+              ? snapshot?.dice === 6
+                ? "bonus-turn"
+                : "your-turn"
+              : "opponent-turn"
+          }`}
+        >
+          {isFinished ? (
+            <span>
+              {(snapshot?.winner as any) === "draw"
+                ? "🤝 MATCH ENDED IN A DRAW"
+                : snapshot?.winner === yourSeat
+                  ? "🎉 CONGRATULATIONS! YOU WON THE MATCH!"
+                  : `MATCH OVER — ${p2Name.toUpperCase()} WON`}
+            </span>
+          ) : isYourTurn ? (
+            snapshot?.dice === 6 ? (
+              <span>🌟 YOU ROLLED A 6! CHOOSE A PAWN TO EXIT BASE (BONUS ROLL AWAITS)</span>
+            ) : snapshot?.dice !== null ? (
+              <span>👉 CHOOSE YOUR HIGHLIGHTED PAWN TO MOVE</span>
+            ) : (
+              <span>🎲 YOUR TURN — ROLL THE DICE</span>
+            )
+          ) : isBotTurn ? (
+            <span>🤖 NIMIQ AI IS EVALUATING THE BOARD…</span>
+          ) : (
+            <span>⏳ OPPONENT'S TURN — WAITING…</span>
+          )}
+        </div>
+
+        {/* Escrow Deposit Modal */}
+        <EscrowDepositModal
+          isOpen={isDepositModalOpen}
+          onClose={() => setIsDepositModalOpen(false)}
+          matchId={matchId}
+          stakeNim={escrow?.stakeNim || 10}
+          onDepositSuccess={() => {
+            void escrowQuery.refetch();
+            void stateQuery.refetch();
+          }}
+        />
+
+        {/* Victory Payout Banner Overlay */}
+        {isFinished && (
+          <VictoryPayoutBanner
+            matchId={matchId}
+            winnerUserId={
+              escrow?.playerStatuses.find(p => p.seat === snapshot?.winner)?.userId ??
+              (snapshot?.winner === yourSeat ? authQuery.data?.id ?? 0 : 0)
+            }
+            yourUserId={authQuery.data?.id ?? 0}
+            totalPotNim={escrow?.totalPotNim || 0}
+            onPlayAgain={() => {
+              window.location.href = "/games/ludo-league";
+            }}
+            onReturnToLobby={() => {
+              window.location.href = "/games/ludo-league";
+            }}
+          />
+        )}
+
+        {/* The Board - Primary Hero */}
+        <div className="board-hero-area">
+          <EmoteOverlay
+            emotes={activeEmotes}
+            chats={activeChats}
+            yourSeat={yourSeat}
+          />
+          {snapshot && (
+            <LudoBoard2D
+              players={(snapshot as any).players || []}
+              currentPlayer={(snapshot as any).currentPlayer ?? 0}
+              dice={(snapshot as any).dice ?? null}
+              diceValues={
+                (snapshot as any)?.diceValues ??
+                (snapshot?.lastRoll as any)?.diceValues ??
+                (snapshot?.dice
+                  ? [
+                      Math.ceil((snapshot.dice as number) / 2),
+                      Math.floor((snapshot.dice as number) / 2),
+                    ]
+                  : null)
+              }
+              yourSeat={yourSeat}
+              isYourTurn={isYourTurn}
+              onMovePiece={pieceIndex => sendCommand({ kind: "move", pieceIndex })}
+              onRoll={() => sendCommand({ kind: "roll" })}
+              canRoll={
+                isYourTurn &&
+                snapshot?.dice === null &&
+                snapshot?.winner === null &&
+                !command.isPending
+              }
+              isRolling={command.isPending || isBotRolling}
+              disabled={command.isPending || isBotTurn}
+              isBotMatch={isBotMatch}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="detail-page match-room-page">
       <header className="detail-header">
@@ -566,12 +823,6 @@ export default function MatchRoom() {
                 <br />
                 <em>unavailable.</em>
               </>
-            ) : state.status === "waiting" ? (
-              <>
-                Waiting for
-                <br />
-                <em>opponent.</em>
-              </>
             ) : (
               <>
                 Table is
@@ -585,9 +836,7 @@ export default function MatchRoom() {
               ? "Checking the protected match state…"
               : stateQuery.isError || !state
                 ? "A live room is only shown to an authenticated participant. No opponent, move, result, rating, or settlement is created locally."
-                : state.status === "waiting"
-                  ? "Share your invite link or code with your opponent. As soon as they join, the table goes live."
-                  : "This room renders the authoritative 2D Ludo board. Every dice roll and move is verified on-chain and backend."}
+                : "This room renders the authoritative 2D board. Every dice roll and move is verified on-chain and backend."}
           </p>
         </section>
 

@@ -16,6 +16,7 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
+import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 
 export default function LudoDetail() {
   const [, navigate] = useLocation();
@@ -32,6 +33,7 @@ export default function LudoDetail() {
   } | null>(null);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
+  const [isEntryFlowOpen, setIsEntryFlowOpen] = useState(false);
   const [selectedStake, setSelectedStake] = useState(50);
 
   const game = gameQuery.data;
@@ -218,6 +220,11 @@ export default function LudoDetail() {
         </div>
       )}
 
+      <LudoEntryFlowModal
+        isOpen={isEntryFlowOpen}
+        onClose={() => setIsEntryFlowOpen(false)}
+      />
+
       <header className="detail-header">
         <Link href="/" className="back-link">
           <ArrowLeft size={15} /> Arena home
@@ -240,43 +247,39 @@ export default function LudoDetail() {
             <div className="detail-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
               <button
                 className="primary-action"
-                onClick={handleOpenQuickMatch}
+                onClick={() => setIsEntryFlowOpen(true)}
                 disabled={!game || game.status !== "active"}
-                style={{ background: "var(--orange)" }}
+                style={{
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
+                  padding: "14px 24px",
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
               >
-                <Zap size={16} /> Quick Match (Find Opponent)
-              </button>
-              <button
-                className="secondary-chip"
-                onClick={() => setIsStakeModalOpen(true)}
-                disabled={!game || game.status !== "active"}
-                style={{ padding: "12px 16px", borderColor: "var(--orange)", color: "var(--orange)" }}
-              >
-                <Coins size={16} /> 💰 Wager NIM Match
+                <Gamepad2 size={18} /> PLAY LUDO LEAGUE
               </button>
               <button
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
                 disabled={createSolo.isPending || !game || game.status !== "active"}
-                style={{ padding: "12px 16px" }}
+                style={{ padding: "12px 18px" }}
               >
-                🤖 {createSolo.isPending ? "Starting…" : "Solo Practice (vs AI)"}
+                🤖 {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
               </button>
               <button
                 className="secondary-chip"
-                onClick={createMatch}
-                disabled={
-                  createChallenge.isPending || !game || game.status !== "active"
-                }
-                style={{ padding: "12px 16px" }}
+                onClick={handleOpenQuickMatch}
+                disabled={!game || game.status !== "active"}
+                style={{ padding: "12px 18px" }}
               >
-                <Users size={16} />{" "}
-                {createChallenge.isPending
-                  ? "Creating match…"
-                  : "Challenge a friend"}
+                <Zap size={16} /> Quick Match
               </button>
-              <Link className="text-action" href="/join">
-                <Gamepad2 size={16} /> Join by code
+              <Link className="text-action" href="/join" style={{ padding: "12px 16px" }}>
+                <Coins size={16} /> Enter Match Code
               </Link>
             </div>
             <div className="trust-line">

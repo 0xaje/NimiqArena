@@ -108,18 +108,40 @@ export default function JoinMatch() {
             minLength={6}
             maxLength={12}
           />
+          <div
+            style={{
+              background: "rgba(245, 158, 11, 0.1)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              borderRadius: "10px",
+              padding: "10px 14px",
+              margin: "12px 0",
+              fontSize: "11px",
+              color: "#fbbf24",
+              fontFamily: "IBM Plex Mono, monospace",
+              textAlign: "left",
+            }}
+          >
+            <strong style={{ display: "block", marginBottom: "4px" }}>
+              MATCH DISTRIBUTION MODEL (100%)
+            </strong>
+            <span>🏆 Winner 90% · 👷 Builder 5% · 🌐 Ecosystem 3% · ❤️ Charity 2%</span>
+          </div>
           <button
             className="primary-action"
             type="submit"
             disabled={join.isPending || joinCode.length < 6}
+            style={{
+              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              padding: "14px",
+              fontWeight: 800,
+            }}
           >
-            {join.isPending ? "Validating code…" : "Join match"}
+            {join.isPending ? "Validating table…" : "ENTER TABLE"}
           </button>
           <div className="trust-line">
             <ShieldCheck size={15} />
             <span>
-              No opponent is created locally. A successful response must come
-              from the protected backend.
+              Authoritative server matchmaking. Real Testnet smart escrow.
             </span>
           </div>
         </form>

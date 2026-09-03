@@ -28,6 +28,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
+import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
 import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
@@ -127,6 +128,7 @@ export default function Home() {
   });
   const [mobileMenu, setMobileMenu] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
+  const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
   const [clientNonce, setClientNonce] = useState(createPaymentNonce);
@@ -338,6 +340,10 @@ export default function Home() {
         onClose={() => setIsQuickMatchOpen(false)}
         gameSlug="ludo-league"
       />
+      <LudoEntryFlowModal
+        isOpen={isLudoFlowOpen}
+        onClose={() => setIsLudoFlowOpen(false)}
+      />
       <TestnetFaucetModal
         isOpen={isFaucetOpen}
         onClose={() => setIsFaucetOpen(false)}
@@ -533,25 +539,41 @@ export default function Home() {
               <button
                 type="button"
                 className="primary-action"
-                onClick={() => setIsQuickMatchOpen(true)}
-                style={{ background: "var(--orange)", border: "none", cursor: "pointer" }}
+                onClick={() => setIsLudoFlowOpen(true)}
+                style={{
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "14px 24px",
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
               >
-                <Zap size={17} /> Quick Match (Find Opponent)
+                <Gamepad2 size={18} /> PLAY LUDO LEAGUE
               </button>
               <button
                 type="button"
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
                 disabled={createSolo.isPending}
-                style={{ padding: "12px 16px" }}
+                style={{ padding: "12px 18px" }}
               >
-                🤖 {createSolo.isPending ? "Starting…" : "Solo Practice (vs AI)"}
+                🤖 {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
               </button>
-              <Link className="secondary-chip" href="/games/ludo-league" style={{ padding: "12px 16px" }}>
-                Game Info <ArrowUpRight size={17} />
-              </Link>
-              <Link className="text-action" href="/join">
-                Join a friend's table <ChevronRight size={16} />
+              <button
+                type="button"
+                className="secondary-chip"
+                onClick={() => setIsQuickMatchOpen(true)}
+                style={{ padding: "12px 18px" }}
+              >
+                <Zap size={16} /> Quick Match
+              </button>
+              <Link className="text-action" href="/join" style={{ padding: "12px 16px" }}>
+                <Coins size={16} /> Enter Match Code
               </Link>
             </div>
             <div className="trust-line">

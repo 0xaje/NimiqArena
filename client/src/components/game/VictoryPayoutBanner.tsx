@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from "react";
+import {
+  CheckCircle2,
+  Coins,
+  ExternalLink,
+  Globe,
+  Hammer,
+  Heart,
+  RefreshCw,
+  ShieldCheck,
+  Trophy,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { Trophy, ExternalLink, CheckCircle, Coins, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
 
 interface VictoryPayoutBannerProps {
   matchId: string;
   winnerUserId: number;
   yourUserId: number;
   totalPotNim: number;
+  onPlayAgain?: () => void;
+  onReturnToLobby?: () => void;
 }
 
 export function VictoryPayoutBanner({
@@ -15,12 +27,20 @@ export function VictoryPayoutBanner({
   winnerUserId,
   yourUserId,
   totalPotNim,
+  onPlayAgain,
+  onReturnToLobby,
 }: VictoryPayoutBannerProps) {
   const isWinner = yourUserId === winnerUserId;
   const settlePayout = trpc.match.settlePayout.useMutation();
   const [settlement, setSettlement] = useState<{
     netPayoutNim: number;
     protocolFeeNim: number;
+    distribution?: {
+      winnerNim: number;
+      builderNim: number;
+      ecosystemNim: number;
+      charityNim: number;
+    };
     payoutTxHash: string | null;
     explorerUrl: string | null;
     settlementStatus?: string;
@@ -37,137 +57,122 @@ export function VictoryPayoutBanner({
       });
   }, [matchId, winnerUserId, totalPotNim]);
 
-  if (totalPotNim <= 0) return null;
+  const dist = settlement?.distribution
+    ? {
+        totalPotNim,
+        winnerNim: settlement.distribution.winnerNim,
+        builderNim: settlement.distribution.builderNim,
+        ecosystemNim: settlement.distribution.ecosystemNim,
+        charityNim: settlement.distribution.charityNim,
+      }
+    : calculatePotDistribution(totalPotNim);
 
   return (
-    <div
-      style={{
-        background: isWinner
-          ? "linear-gradient(135deg, rgba(46, 204, 113, 0.15), rgba(39, 174, 96, 0.05))"
-          : "rgba(0, 0, 0, 0.2)",
-        border: `1px solid ${isWinner ? "#2ecc71" : "rgba(251, 248, 241, 0.15)"}`,
-        borderRadius: "8px",
-        padding: "20px",
-        margin: "16px 0",
-        fontFamily: "IBM Plex Mono, monospace",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          marginBottom: "12px",
-        }}
-      >
-        <Trophy size={28} color={isWinner ? "#f1c40f" : "#95a5a6"} />
-        <div>
-          <span
-            style={{
-              fontSize: "11px",
-              color: isWinner ? "#2ecc71" : "rgba(251, 248, 241, 0.6)",
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-            }}
-          >
-            NIMIQ TESTNET PILOT ESCROW
-          </span>
-          <h3 style={{ margin: 0, fontSize: "18px", color: "var(--paper-bright)" }}>
-            {isWinner ? "🎉 You Won the Escrow Match!" : "Match Concluded"}
-          </h3>
+    <div className={`victory-result-card ${isWinner ? "winner-theme" : "loser-theme"}`}>
+      {/* Grand Result Moment */}
+      <div className="victory-header-moment">
+        <div className="trophy-ring">
+          <Trophy size={48} className={isWinner ? "trophy-gold" : "trophy-silver"} />
         </div>
+        <span className="victory-sub-label">
+          {totalPotNim > 0 ? "COMPETITIVE MATCH CONCLUDED" : "PRACTICE MATCH COMPLETE"}
+        </span>
+        <h2 className="victory-main-title">
+          {isWinner ? "🏆 YOU WON THE MATCH!" : "MATCH CONCLUDED"}
+        </h2>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-          gap: "10px",
-          background: "rgba(0, 0, 0, 0.2)",
-          padding: "12px",
-          borderRadius: "6px",
-          marginBottom: "12px",
-          fontSize: "12px",
-        }}
-      >
-        <div>
-          <span style={{ color: "rgba(251, 248, 241, 0.6)", display: "block" }}>
-            Total Pot
-          </span>
-          <strong style={{ color: "var(--paper-bright)", fontSize: "14px" }}>
-            {totalPotNim} NIM
-          </strong>
-        </div>
-        <div>
-          <span style={{ color: "rgba(251, 248, 241, 0.6)", display: "block" }}>
-            Protocol Fee (2%)
-          </span>
-          <span style={{ color: "rgba(251, 248, 241, 0.8)" }}>
-            {settlement ? `${settlement.protocolFeeNim} NIM` : "—"}
-          </span>
-        </div>
-        <div>
-          <span style={{ color: "rgba(251, 248, 241, 0.6)", display: "block" }}>
-            Winner Entitlement
-          </span>
-          <strong
-            style={{
-              color: isWinner ? "#2ecc71" : "var(--orange)",
-              fontSize: "14px",
-            }}
-          >
-            {settlement ? `${settlement.netPayoutNim} NIM` : `${totalPotNim} NIM`}
-          </strong>
-        </div>
-      </div>
+      {/* Financial Settlement Breakdown (Only for Wagered Matches) */}
+      {totalPotNim > 0 ? (
+        <div className="victory-pot-breakdown">
+          <div className="pot-total-highlight">
+            <span className="pot-caption">TOTAL MATCH POT</span>
+            <span className="pot-big-val">{formatNim(totalPotNim)} NIM</span>
+          </div>
 
-      {settlement && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            fontSize: "11px",
-            color: "rgba(251, 248, 241, 0.75)",
-            background: "rgba(0, 0, 0, 0.15)",
-            padding: "10px",
-            borderRadius: "6px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "8px",
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <CheckCircle size={14} color="#2ecc71" /> Status: Ledger Entitlement Recorded
-            </span>
-            {settlement.explorerUrl && settlement.payoutTxHash && (
+          <div className="winner-take-banner">
+            <Trophy size={20} className="trophy-gold" />
+            <div className="winner-take-text">
+              <span className="winner-take-label">
+                {isWinner ? "YOUR WINNER ALLOCATION (90%)" : "WINNER ALLOCATION (90%)"}
+              </span>
+              <span className="winner-take-amount">{formatNim(dist.winnerNim)} NIM</span>
+            </div>
+          </div>
+
+          <div className="platform-split-grid">
+            <div className="platform-split-item">
+              <Hammer size={15} className="icon-blue" />
+              <div className="split-info">
+                <span className="split-role">Builder (5%)</span>
+                <span className="split-num">{formatNim(dist.builderNim)} NIM</span>
+              </div>
+            </div>
+
+            <div className="platform-split-item">
+              <Globe size={15} className="icon-teal" />
+              <div className="split-info">
+                <span className="split-role">Ecosystem (3%)</span>
+                <span className="split-num">{formatNim(dist.ecosystemNim)} NIM</span>
+              </div>
+            </div>
+
+            <div className="platform-split-item">
+              <Heart size={15} className="icon-pink" />
+              <div className="split-info">
+                <span className="split-role">Charity (2%)</span>
+                <span className="split-num">{formatNim(dist.charityNim)} NIM</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Truthful Settlement Notice */}
+          <div className="settlement-truth-badge">
+            <div className="truth-status-line">
+              <CheckCircle2 size={16} className="icon-emerald" />
+              <span>
+                Status: <strong>Ledger Entitlement Recorded</strong>
+              </span>
+            </div>
+            <p className="truth-notice-text">
+              {settlement?.notice ||
+                "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Automated on-chain disbursement worker is pending production signer deployment."}
+            </p>
+            {settlement?.explorerUrl && settlement?.payoutTxHash && (
               <a
                 href={settlement.explorerUrl}
                 target="_blank"
                 rel="noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  color: "var(--orange)",
-                  textDecoration: "none",
-                }}
+                className="truth-explorer-link"
               >
-                View on Nimiq Watch <ExternalLink size={12} />
+                <span>View On-Chain Receipt</span>
+                <ExternalLink size={13} />
               </a>
             )}
           </div>
-          <span style={{ fontSize: "10px", color: "rgba(251, 248, 241, 0.55)", lineHeight: 1.4 }}>
-            ℹ️ {settlement.notice || "Winner pot entitlement recorded authoritatively on Testnet ledger. Automated on-chain disbursement worker is pending production signer deployment."}
-          </span>
+        </div>
+      ) : (
+        <div className="victory-practice-note">
+          <p>
+            Great game! Practice matches have zero stake and are designed to hone your tactical skills against the Nimiq AI.
+          </p>
         </div>
       )}
+
+      {/* Post-Match Action CTAs */}
+      <div className="victory-action-row">
+        {onPlayAgain && (
+          <button type="button" className="btn-victory-primary" onClick={onPlayAgain}>
+            <RefreshCw size={18} />
+            <span>PLAY AGAIN</span>
+          </button>
+        )}
+        {onReturnToLobby && (
+          <button type="button" className="btn-victory-secondary" onClick={onReturnToLobby}>
+            <span>RETURN TO LOBBY</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

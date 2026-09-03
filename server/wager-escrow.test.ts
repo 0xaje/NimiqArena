@@ -142,8 +142,8 @@ describe("Wagered NIM Matches & Smart Escrow Router", () => {
       winnerUserId: 7701,
       winnerName: "Wager Challenger",
       grossPotNim: 100,
-      protocolFeeNim: 2,
-      netPayoutNim: 98,
+      protocolFeeNim: 10,
+      netPayoutNim: 90,
       payoutTxHash: "0xpayouttx123456",
       settledAt: new Date().toISOString(),
       network: "testnet",
@@ -160,7 +160,7 @@ describe("Wagered NIM Matches & Smart Escrow Router", () => {
       matchId: "match-wager-12345",
       winnerUserId: 7701,
     });
-    expect(res.netPayoutNim).toBe(98);
+    expect(res.netPayoutNim).toBe(90);
     expect(res.payoutTxHash).toBe("0xpayouttx123456");
   });
 });

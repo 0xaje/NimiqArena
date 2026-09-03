@@ -42,6 +42,7 @@ import {
 } from "../shared/game/connect4-engine";
 import { selectBestConnect4Drop } from "../shared/game/connect4-bot";
 import { replayStoredMatchEvent } from "../shared/game/match-event";
+import { calculatePotDistribution } from "../shared/game/pot-distribution";
 import { nanoid } from "nanoid";
 import { ENV } from "./_core/env";
 import { notifyMatchUpdated } from "./match-stream";
@@ -2313,8 +2314,11 @@ export async function settleMatchWinnerPayout(input: {
   )[0];
 
   const grossPotNim = escrow.totalPotNim || 0;
-  const protocolFeeNim = Number((grossPotNim * 0.02).toFixed(2)); // 2% protocol fee
-  const netPayoutNim = Number((grossPotNim - protocolFeeNim).toFixed(2));
+  const dist = calculatePotDistribution(grossPotNim);
+  const protocolFeeNim = Number(
+    (dist.builderNim + dist.ecosystemNim + dist.charityNim).toFixed(2)
+  ); // 10% platform total (5% Builder, 3% Ecosystem, 2% Charity)
+  const netPayoutNim = dist.winnerNim; // 90% Winner
   const isTestnet = ENV.nimiqNetworkId === 5;
 
   return {
@@ -2325,13 +2329,19 @@ export async function settleMatchWinnerPayout(input: {
     grossPotNim,
     protocolFeeNim,
     netPayoutNim,
+    distribution: {
+      winnerNim: dist.winnerNim,
+      builderNim: dist.builderNim,
+      ecosystemNim: dist.ecosystemNim,
+      charityNim: dist.charityNim,
+    },
     settlementStatus: "ledger_entitlement_confirmed",
     payoutTxHash: null,
     settledAt: new Date().toISOString(),
     network: isTestnet ? "testnet" : "mainnet",
     explorerUrl: null,
     notice:
-      "Winner pot entitlement recorded authoritatively on Testnet ledger. Automated on-chain disbursement worker is pending production signer deployment.",
+      "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Platform allocation: 5% Builder, 3% Ecosystem, 2% Charity. Automated on-chain disbursement worker is pending production signer deployment.",
   };
 }
 
