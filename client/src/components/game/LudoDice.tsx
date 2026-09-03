@@ -126,46 +126,71 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
         canRoll ? "can-roll-pulse" : ""
       }`}
     >
-      <button
-        type="button"
-        className={`dual-dice-button p${playerSeat}-dice-btn ${
-          canRoll ? "active-roll-btn" : ""
-        }`}
-        disabled={!canRoll || isRolling}
-        onClick={handleRollClick}
-        title={canRoll ? "Tap to roll the two dice" : "Waiting for move"}
-      >
-        <div className="dual-dice-pair">
-          <div
-            className={`ludo-dice-cube dice-one p${playerSeat}-dice ${
-              isRolling ? "is-rolling tumble-left" : ""
-            } ${!d1Available ? "die-used" : ""} ${selectedDie === val1 ? "die-selected" : ""}`}
-            onClick={e => d1Available && handleDieClick(val1, e)}
-            style={{
-              opacity: d1Available ? 1 : 0.35,
-              filter: d1Available ? "none" : "grayscale(0.8)",
-              transform: selectedDie === val1 ? "scale(1.1)" : undefined,
-              boxShadow: selectedDie === val1 ? "0 0 12px #22c55e" : undefined,
-            }}
-          >
-            {renderPips(val1)}
+      {canRoll ? (
+        <button
+          type="button"
+          className={`dual-dice-button p${playerSeat}-dice-btn active-roll-btn`}
+          disabled={isRolling}
+          onClick={handleRollClick}
+          title="Tap to roll the two dice"
+        >
+          <div className="dual-dice-pair">
+            <div
+              className={`ludo-dice-cube dice-one p${playerSeat}-dice ${
+                isRolling ? "is-rolling tumble-left" : ""
+              }`}
+            >
+              {renderPips(val1)}
+            </div>
+            <div
+              className={`ludo-dice-cube dice-two p${playerSeat}-dice ${
+                isRolling ? "is-rolling tumble-right" : ""
+              }`}
+            >
+              {renderPips(val2)}
+            </div>
           </div>
-          <div
-            className={`ludo-dice-cube dice-two p${playerSeat}-dice ${
-              isRolling ? "is-rolling tumble-right" : ""
-            } ${!d2Available ? "die-used" : ""} ${selectedDie === val2 ? "die-selected" : ""}`}
-            onClick={e => d2Available && handleDieClick(val2, e)}
-            style={{
-              opacity: d2Available ? 1 : 0.35,
-              filter: d2Available ? "none" : "grayscale(0.8)",
-              transform: selectedDie === val2 ? "scale(1.1)" : undefined,
-              boxShadow: selectedDie === val2 ? "0 0 12px #22c55e" : undefined,
-            }}
-          >
-            {renderPips(val2)}
+        </button>
+      ) : (
+        <div className="dual-dice-button p${playerSeat}-dice-btn interactive-dice-btn">
+          <div className="dual-dice-pair">
+            <div
+              className={`ludo-dice-cube dice-one p${playerSeat}-dice ${
+                !d1Available ? "die-used" : "die-clickable"
+              } ${selectedDie === val1 ? "die-selected" : ""}`}
+              onClick={e => d1Available && handleDieClick(val1, e)}
+              title={d1Available ? `Click to use ${val1} for your next move` : "Die already played"}
+              style={{
+                opacity: d1Available ? 1 : 0.35,
+                filter: d1Available ? "none" : "grayscale(0.8)",
+                cursor: d1Available ? "pointer" : "default",
+                transform: selectedDie === val1 ? "scale(1.12)" : undefined,
+                boxShadow: selectedDie === val1 ? "0 0 16px #22c55e, inset 0 0 8px #22c55e" : undefined,
+                borderColor: selectedDie === val1 ? "#22c55e" : undefined,
+              }}
+            >
+              {renderPips(val1)}
+            </div>
+            <div
+              className={`ludo-dice-cube dice-two p${playerSeat}-dice ${
+                !d2Available ? "die-used" : "die-clickable"
+              } ${selectedDie === val2 ? "die-selected" : ""}`}
+              onClick={e => d2Available && handleDieClick(val2, e)}
+              title={d2Available ? `Click to use ${val2} for your next move` : "Die already played"}
+              style={{
+                opacity: d2Available ? 1 : 0.35,
+                filter: d2Available ? "none" : "grayscale(0.8)",
+                cursor: d2Available ? "pointer" : "default",
+                transform: selectedDie === val2 ? "scale(1.12)" : undefined,
+                boxShadow: selectedDie === val2 ? "0 0 16px #22c55e, inset 0 0 8px #22c55e" : undefined,
+                borderColor: selectedDie === val2 ? "#22c55e" : undefined,
+              }}
+            >
+              {renderPips(val2)}
+            </div>
           </div>
         </div>
-      </button>
+      )}
 
       {canRoll && !value && (
         <div className="dice-roll-hint">
@@ -173,11 +198,49 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
         </div>
       )}
 
+      {/* Die Choice Pills: Let user pick whether to count die 1 or die 2 first */}
+      {!canRoll && value !== null && val1 !== null && val2 !== null && (
+        <div className="dice-choice-pills">
+          {d1Available && d2Available && val1 !== val2 ? (
+            <>
+              <button
+                type="button"
+                className={`dice-choice-pill ${selectedDie === val1 ? "active-choice" : ""}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  onSelectDie?.(selectedDie === val1 ? null : val1);
+                }}
+              >
+                {selectedDie === val1 ? `✓ Using ${val1} First` : `Count ${val1} First`}
+              </button>
+              <button
+                type="button"
+                className={`dice-choice-pill ${selectedDie === val2 ? "active-choice" : ""}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  onSelectDie?.(selectedDie === val2 ? null : val2);
+                }}
+              >
+                {selectedDie === val2 ? `✓ Using ${val2} First` : `Count ${val2} First`}
+              </button>
+            </>
+          ) : remainingDice && remainingDice.length === 1 ? (
+            <span className="dice-choice-single">
+              👉 Next die: <strong>{remainingDice[0]}</strong>
+            </span>
+          ) : val1 === val2 && d1Available && d2Available ? (
+            <span className="dice-choice-single">
+              🌟 Double {val1}: Play both {val1}s (Bonus Roll Awaits!)
+            </span>
+          ) : null}
+        </div>
+      )}
+
       {value !== null && val1 !== null && val2 !== null && (
         <div className="dual-dice-badge">
           <span>
             {remainingDice && remainingDice.length === 1 ? (
-              `1 die left: [${remainingDice[0]}]`
+              `1 move remaining: [${remainingDice[0]}]`
             ) : val1 === 6 && val2 === 6 ? (
               "🌟 Double 6! Take out 2 pawns!"
             ) : val1 === val2 ? (

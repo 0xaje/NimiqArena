@@ -903,6 +903,9 @@ export async function heartbeatMatchPlayer(matchId: string, userId: number) {
 }
 
 export async function disconnectMatchPlayer(matchId: string, userId: number) {
+  const botUser = await getOrCreateBotUser();
+  if (userId === botUser.id) return; // Never disconnect the bot
+
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
   await db
@@ -932,6 +935,7 @@ export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
         .where(eq(matches.id, matchId));
       return { ...match, status: "expired" as const };
     }
+    const botUser = await getOrCreateBotUser();
     const staleBefore = new Date(now.getTime() - PLAYER_HEARTBEAT_TIMEOUT_MS);
     await tx
       .update(matchPlayers)
@@ -940,7 +944,19 @@ export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
         and(
           eq(matchPlayers.matchId, matchId),
           eq(matchPlayers.status, "joined"),
+          ne(matchPlayers.userId, botUser.id),
           lt(matchPlayers.lastSeenAt, staleBefore)
+        )
+      );
+
+    // Perpetually keep the bot player joined and active with current timestamp
+    await tx
+      .update(matchPlayers)
+      .set({ status: "joined", lastSeenAt: now })
+      .where(
+        and(
+          eq(matchPlayers.matchId, matchId),
+          eq(matchPlayers.userId, botUser.id)
         )
       );
     const players = await tx
@@ -1291,7 +1307,8 @@ export async function applyLudoMatchCommand(input: {
         .limit(1)
     )[0];
     if (!match) throw new Error("Match not found.");
-    const player = (
+    const botUser = await getOrCreateBotUser();
+    let player = (
       await tx
         .select()
         .from(matchPlayers)
@@ -1303,6 +1320,13 @@ export async function applyLudoMatchCommand(input: {
         )
         .limit(1)
     )[0];
+    if (player && player.status !== "joined" && player.userId === botUser.id) {
+      await tx
+        .update(matchPlayers)
+        .set({ status: "joined", lastSeenAt: new Date() })
+        .where(eq(matchPlayers.id, player.id));
+      player = { ...player, status: "joined" };
+    }
     if (!player || player.status !== "joined")
       throw new Error("You are not a joined player in this match.");
 
@@ -1438,7 +1462,8 @@ export async function applyConnect4MatchCommand(input: {
         .limit(1)
     )[0];
     if (!match) throw new Error("Match not found.");
-    const player = (
+    const botUser = await getOrCreateBotUser();
+    let player = (
       await tx
         .select()
         .from(matchPlayers)
@@ -1450,6 +1475,13 @@ export async function applyConnect4MatchCommand(input: {
         )
         .limit(1)
     )[0];
+    if (player && player.status !== "joined" && player.userId === botUser.id) {
+      await tx
+        .update(matchPlayers)
+        .set({ status: "joined", lastSeenAt: new Date() })
+        .where(eq(matchPlayers.id, player.id));
+      player = { ...player, status: "joined" };
+    }
     if (!player || player.status !== "joined") {
       throw new Error("You are not a joined player in this match.");
     }
