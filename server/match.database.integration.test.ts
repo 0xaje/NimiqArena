@@ -14,6 +14,7 @@ import {
 } from "./db";
 import { matchEvents, matchPlayers, matches, users } from "../drizzle/schema";
 import { selectBestBotMove } from "../shared/game/ludo-bot";
+import type { LudoPlayerId } from "../shared/game/ludo-engine";
 import { nanoid } from "nanoid";
 
 const runDatabaseIntegration = process.env.RUN_DB_INTEGRATION_TESTS === "1";

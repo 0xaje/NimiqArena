@@ -693,7 +693,7 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
       botPlayer.seat as 0 | 1
     );
     if (bestDrop) {
-      return await applyConnect4MatchCommand({
+      const dropRes = await applyConnect4MatchCommand({
         matchId,
         userId: botUser.id,
         command: {
@@ -702,6 +702,7 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
           nonce: nanoid(24),
         },
       });
+      return { ok: true as const, ...dropRes };
     }
     return { ok: true as const, snapshot: c4Snapshot };
   }
