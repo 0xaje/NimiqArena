@@ -44,7 +44,7 @@ export function LudoEntryFlowModal({
   const [selectedStake, setSelectedStake] = useState<number>(defaultStake);
   const [customStakeInput, setCustomStakeInput] = useState<string>("");
   const [isCustom, setIsCustom] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<"friend" | "private">("private");
+  const [selectedMode, setSelectedMode] = useState<"bot" | "private" | "friend">("bot");
   const [friendUsername, setFriendUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -89,6 +89,15 @@ export function LudoEntryFlowModal({
     try {
       setIsSubmitting(true);
       await ensureAuthenticated();
+
+      if (selectedMode === "bot") {
+        toast.info("Entering Arena Table vs Nimiq AI Bot…");
+        const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
+        onClose();
+        navigate(`/matches/${match.id}`);
+        return;
+      }
+
       toast.info(`Setting up Table (${formatNim(currentStake)} NIM Stake)…`);
 
       const res = await createWagered.mutateAsync({
@@ -297,10 +306,24 @@ export function LudoEntryFlowModal({
             <div className="ludo-step-section">
               <div className="ludo-step-label">
                 <span className="step-num">2</span>
-                <span>CHOOSE HOW TO PLAY</span>
+                <span>CHOOSE OPPONENT TYPE</span>
               </div>
 
               <div className="mode-selection-row">
+                <button
+                  type="button"
+                  className={`mode-card ${selectedMode === "bot" ? "active" : ""}`}
+                  onClick={() => setSelectedMode("bot")}
+                >
+                  <div className="mode-card-icon">
+                    <Bot size={24} />
+                  </div>
+                  <div className="mode-card-info">
+                    <h4>Arena AI Bot (Live Play)</h4>
+                    <p>Instant start! Play directly against the Nimiq AI on a live table.</p>
+                  </div>
+                </button>
+
                 <button
                   type="button"
                   className={`mode-card ${selectedMode === "private" ? "active" : ""}`}
@@ -311,7 +334,7 @@ export function LudoEntryFlowModal({
                   </div>
                   <div className="mode-card-info">
                     <h4>Private Table Code</h4>
-                    <p>Generate a match code to send to any friend or rival.</p>
+                    <p>Generate a match code to invite any friend or rival.</p>
                   </div>
                 </button>
 
@@ -324,8 +347,8 @@ export function LudoEntryFlowModal({
                     <Users size={24} />
                   </div>
                   <div className="mode-card-info">
-                    <h4>Play with a Friend Online</h4>
-                    <p>Invite an active player directly by name or username.</p>
+                    <h4>Invite Player Online</h4>
+                    <p>Invite an active player directly by name or tag.</p>
                   </div>
                 </button>
               </div>
@@ -351,8 +374,10 @@ export function LudoEntryFlowModal({
               disabled={isSubmitting || currentStake <= 0}
             >
               {isSubmitting
-                ? "CREATING TABLE…"
-                : `CONFIRM & CREATE TABLE (${formatNim(currentStake)} NIM)`}
+                ? "LAUNCHING ARENA TABLE…"
+                : selectedMode === "bot"
+                  ? "PLAY VS ARENA BOT NOW (INSTANT)"
+                  : `CONFIRM & CREATE TABLE (${formatNim(currentStake)} NIM)`}
             </button>
           </div>
         )}

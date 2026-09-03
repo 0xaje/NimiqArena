@@ -10,6 +10,7 @@ import {
   createPaymentIntent,
   createSoloPracticeMatch,
   createWageredChallengeMatch,
+  addBotToWaitingMatch,
   executeBotTurn,
   findOrCreateQuickMatch,
   getActiveSeason,
@@ -291,6 +292,26 @@ export const appRouter = router({
               error instanceof Error
                 ? error.message
                 : "Failed to create practice match.",
+          });
+        }
+      }),
+    addBotToMatch: protectedProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const match = await addBotToWaitingMatch(input.matchId, ctx.user.id);
+          return {
+            id: match.id,
+            joinCode: match.joinCode,
+            status: match.status,
+          };
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to add bot to match.",
           });
         }
       }),

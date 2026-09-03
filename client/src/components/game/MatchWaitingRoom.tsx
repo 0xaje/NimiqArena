@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ArrowLeft,
+  Bot,
   CheckCircle2,
   Clock,
   Coins,
@@ -12,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
 
 interface MatchWaitingRoomProps {
@@ -42,6 +44,19 @@ export function MatchWaitingRoom({
   const [copied, setCopied] = useState(false);
   const [showDistDetails, setShowDistDetails] = useState(false);
 
+  const utils = trpc.useUtils();
+  const addBot = trpc.match.addBotToMatch.useMutation({
+    onSuccess: () => {
+      toast.success("Arena AI Bot Joined!", {
+        description: "Launching live game now…",
+      });
+      utils.match.state.invalidate({ id: matchId });
+    },
+    onError: err => {
+      toast.error("Could not add bot", { description: err.message });
+    },
+  });
+
   const effectivePot = totalPotNim || (stakeNim ? stakeNim * 2 : 0);
   const dist = calculatePotDistribution(effectivePot);
 
@@ -58,16 +73,16 @@ export function MatchWaitingRoom({
       });
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      toast.info(`Match Code: ${joinCode}`);
+      toast.error("Could not copy code");
     }
   };
 
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success("Direct match invite link copied!");
+      toast.success("Invite link copied to clipboard!");
     } catch {
-      toast.info(shareUrl);
+      toast.error("Could not copy link");
     }
   };
 
@@ -182,6 +197,27 @@ export function MatchWaitingRoom({
             <span>Copy Direct Invite Link</span>
           </button>
         </div>
+
+        {isHost && !guestName && (
+          <div className="waiting-bot-cta">
+            <button
+              type="button"
+              className="start-with-bot-btn"
+              onClick={() => addBot.mutate({ matchId })}
+              disabled={addBot.isPending}
+            >
+              <Bot size={18} />
+              <span>
+                {addBot.isPending
+                  ? "LAUNCHING LIVE GAME…"
+                  : "PLAY WITH ARENA BOT (INSTANT START)"}
+              </span>
+            </button>
+            <span className="waiting-bot-subtext">
+              Don't want to wait? Start playing immediately against the Nimiq AI!
+            </span>
+          </div>
+        )}
 
         {isDepositNeeded && onDepositPrompt && (
           <div className="waiting-deposit-alert">

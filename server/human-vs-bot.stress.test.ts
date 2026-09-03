@@ -422,31 +422,19 @@ describe("Human vs Bot Stress & Chaos Validation Suite", () => {
           currentVersion = rollRes.snapshot.version;
           stepsCompleted++;
         } else {
-          const movablePieces: number[] = [];
-          const [d1, d2] = snapshot.diceValues ?? [snapshot.dice ?? 0, 0];
-          const hasSix = snapshot.diceValues
-            ? d1 === 6 || d2 === 6
-            : snapshot.dice === 6;
-          snapshot.players[0].pieces.forEach((p: any, idx: number) => {
-            if (p.position === -1 && hasSix) {
-              movablePieces.push(idx);
-            } else if (
-              p.position >= 0 &&
-              (p.position + (snapshot.dice ?? 0) <= 57 ||
-                p.position + d1 <= 57 ||
-                p.position + d2 <= 57)
-            ) {
-              movablePieces.push(idx);
-            }
-          });
-
-          if (movablePieces.length > 0) {
+          const bestHumanMove = selectBestBotMove(
+            snapshot,
+            0 as LudoPlayerId,
+            snapshot.dice
+          );
+          if (bestHumanMove) {
             const moveRes = await applyLudoMatchCommand({
               matchId: match.id,
               userId: user.id,
               command: {
                 kind: "move",
-                pieceIndex: movablePieces[0],
+                pieceIndex: bestHumanMove.pieceIndex,
+                dieValue: bestHumanMove.dieValue,
                 expectedVersion: currentVersion,
                 nonce: `step100-m-${nanoid(16)}`,
               },

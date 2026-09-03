@@ -560,6 +560,63 @@ export async function createSoloPracticeMatch(input: {
   return created[0];
 }
 
+export async function addBotToWaitingMatch(
+  matchId: string,
+  requestingUserId: number
+): Promise<Match> {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const match = await getMatchById(matchId);
+  if (!match) throw new Error("Match not found.");
+  if (match.status !== "waiting") {
+    throw new Error("Match is already in progress or completed.");
+  }
+  if (match.hostUserId !== requestingUserId) {
+    throw new Error("Only the host can add a bot to this match.");
+  }
+
+  const botUser = await getOrCreateBotUser();
+
+  await db.transaction(async tx => {
+    const existingPlayers = await tx
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.matchId, matchId));
+
+    const p1 = existingPlayers.find(p => p.seat === 1);
+    if (!p1) {
+      await tx.insert(matchPlayers).values({
+        matchId,
+        userId: botUser.id,
+        seat: 1,
+        status: "joined",
+      });
+    } else {
+      await tx
+        .update(matchPlayers)
+        .set({ userId: botUser.id, status: "joined", lastSeenAt: new Date() })
+        .where(eq(matchPlayers.id, p1.id));
+    }
+
+    const newJoinCode = match.joinCode.startsWith("BOT")
+      ? match.joinCode
+      : `BOT${match.joinCode.slice(0, 7)}`;
+
+    await tx
+      .update(matches)
+      .set({
+        status: "in_progress",
+        joinCode: newJoinCode,
+      })
+      .where(eq(matches.id, matchId));
+  });
+
+  notifyMatchUpdated(matchId);
+  const updated = await getMatchById(matchId);
+  if (!updated) throw new Error("Failed to load updated match.");
+  return updated;
+}
+
 const botMatchLocks = new Set<string>();
 const botMatchTimers = new Map<string, NodeJS.Timeout>();
 
@@ -1307,7 +1364,6 @@ export async function applyLudoMatchCommand(input: {
         .limit(1)
     )[0];
     if (!match) throw new Error("Match not found.");
-    const botUser = await getOrCreateBotUser();
     let player = (
       await tx
         .select()
@@ -1320,15 +1376,14 @@ export async function applyLudoMatchCommand(input: {
         )
         .limit(1)
     )[0];
-    if (player && player.status !== "joined" && player.userId === botUser.id) {
+    if (!player) throw new Error("You are not a joined player in this match.");
+    if (player.status !== "joined") {
       await tx
         .update(matchPlayers)
         .set({ status: "joined", lastSeenAt: new Date() })
         .where(eq(matchPlayers.id, player.id));
       player = { ...player, status: "joined" };
     }
-    if (!player || player.status !== "joined")
-      throw new Error("You are not a joined player in this match.");
 
     const previousEvent = (
       await tx
@@ -1462,7 +1517,6 @@ export async function applyConnect4MatchCommand(input: {
         .limit(1)
     )[0];
     if (!match) throw new Error("Match not found.");
-    const botUser = await getOrCreateBotUser();
     let player = (
       await tx
         .select()
@@ -1475,15 +1529,13 @@ export async function applyConnect4MatchCommand(input: {
         )
         .limit(1)
     )[0];
-    if (player && player.status !== "joined" && player.userId === botUser.id) {
+    if (!player) throw new Error("You are not a joined player in this match.");
+    if (player.status !== "joined") {
       await tx
         .update(matchPlayers)
         .set({ status: "joined", lastSeenAt: new Date() })
         .where(eq(matchPlayers.id, player.id));
       player = { ...player, status: "joined" };
-    }
-    if (!player || player.status !== "joined") {
-      throw new Error("You are not a joined player in this match.");
     }
 
     const previousEvent = (

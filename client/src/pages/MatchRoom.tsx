@@ -147,11 +147,8 @@ export default function MatchRoom() {
     return () => {
       closed = true;
       if (timer !== null) window.clearTimeout(timer);
-      if (!isBotMatch) {
-        disconnectRef.current.mutate({ id: matchId });
-      }
     };
-  }, [matchId, isBotMatch]);
+  }, [matchId]);
 
   const snapshot = state?.snapshot as
     | {
