@@ -374,7 +374,9 @@ export default function MatchRoom() {
   }
 
   async function sendCommand(
-    commandInput: { kind: "roll" } | { kind: "move"; pieceIndex: number }
+    commandInput:
+      | { kind: "roll" }
+      | { kind: "move"; pieceIndex: number; dieValue?: number }
   ) {
     if (!snapshot || !state) return;
     if (commandInput.kind === "roll") {
@@ -641,8 +643,10 @@ export default function MatchRoom() {
                   : `MATCH OVER — ${p2Name.toUpperCase()} WON`}
             </span>
           ) : isYourTurn ? (
-            snapshot?.dice === 6 ? (
-              <span>🌟 YOU ROLLED A 6! CHOOSE A PAWN TO EXIT BASE (BONUS ROLL AWAITS)</span>
+            (snapshot as any)?.remainingDice && (snapshot as any).remainingDice.length === 2 && (snapshot as any).remainingDice[0] === 6 && (snapshot as any).remainingDice[1] === 6 ? (
+              <span>🌟 DOUBLE 6! Deploy 2 pawns from base or move! (Bonus roll awaits)</span>
+            ) : (snapshot as any)?.remainingDice && (snapshot as any).remainingDice.length === 1 ? (
+              <span>👉 1 MOVE REMAINING ([{(snapshot as any).remainingDice[0]}]) — Select next piece to move</span>
             ) : snapshot?.dice !== null ? (
               <span>👉 CHOOSE YOUR HIGHLIGHTED PAWN TO MOVE</span>
             ) : (
@@ -698,6 +702,7 @@ export default function MatchRoom() {
               players={(snapshot as any).players || []}
               currentPlayer={(snapshot as any).currentPlayer ?? 0}
               dice={(snapshot as any).dice ?? null}
+              remainingDice={(snapshot as any)?.remainingDice}
               diceValues={
                 (snapshot as any)?.diceValues ??
                 (snapshot?.lastRoll as any)?.diceValues ??
@@ -710,11 +715,12 @@ export default function MatchRoom() {
               }
               yourSeat={yourSeat}
               isYourTurn={isYourTurn}
-              onMovePiece={pieceIndex => sendCommand({ kind: "move", pieceIndex })}
+              onMovePiece={(pieceIndex, dieValue) => sendCommand({ kind: "move", pieceIndex, dieValue })}
               onRoll={() => sendCommand({ kind: "roll" })}
               canRoll={
                 isYourTurn &&
                 snapshot?.dice === null &&
+                (!(snapshot as any)?.remainingDice || (snapshot as any).remainingDice.length === 0) &&
                 snapshot?.winner === null &&
                 !command.isPending
               }
@@ -1108,6 +1114,7 @@ export default function MatchRoom() {
                       players={(snapshot as any).players || []}
                       currentPlayer={(snapshot as any).currentPlayer ?? 0}
                       dice={(snapshot as any).dice ?? null}
+                      remainingDice={(snapshot as any)?.remainingDice}
                       diceValues={
                         (snapshot as any)?.diceValues ??
                         (snapshot?.lastRoll as any)?.diceValues ??
@@ -1115,13 +1122,14 @@ export default function MatchRoom() {
                       }
                       yourSeat={yourSeat}
                       isYourTurn={isYourTurn}
-                      onMovePiece={pieceIndex =>
-                        sendCommand({ kind: "move", pieceIndex })
+                      onMovePiece={(pieceIndex, dieValue) =>
+                        sendCommand({ kind: "move", pieceIndex, dieValue })
                       }
                       onRoll={() => sendCommand({ kind: "roll" })}
                       canRoll={
                         isYourTurn &&
                         snapshot?.dice === null &&
+                        (!(snapshot as any)?.remainingDice || (snapshot as any).remainingDice.length === 0) &&
                         snapshot?.winner === null &&
                         !command.isPending
                       }

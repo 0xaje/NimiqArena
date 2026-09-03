@@ -650,7 +650,7 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
   }
 
   // Ludo Bot Step: authoritatively execute bot's turn sequence
-  let maxSteps = 4;
+  let maxSteps = 6;
   let currentSnapshot: LudoSnapshot | null = null;
 
   while (maxSteps > 0) {
@@ -714,6 +714,7 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
           command: {
             kind: "move",
             pieceIndex: bestMove.pieceIndex,
+            dieValue: bestMove.dieValue,
             expectedVersion: snapshot.version,
             nonce: nanoid(24),
           },
@@ -721,7 +722,7 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
         snapshot = moveResult.snapshot;
         currentSnapshot = snapshot;
 
-        // If bot earned a bonus turn (roll of 6 or capture), wait 150ms before next roll
+        // If bot continues turn (remaining dice or bonus turn), wait 150ms before next action
         if (
           snapshot.currentPlayer === botPlayer.seat &&
           snapshot.winner === null

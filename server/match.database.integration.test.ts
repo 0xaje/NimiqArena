@@ -13,6 +13,8 @@ import {
   sweepMatchLifecycle,
 } from "./db";
 import { matchEvents, matchPlayers, matches, users } from "../drizzle/schema";
+import { selectBestBotMove } from "../shared/game/ludo-bot";
+import { nanoid } from "nanoid";
 
 const runDatabaseIntegration = process.env.RUN_DB_INTEGRATION_TESTS === "1";
 if (runDatabaseIntegration && process.env.NIMIQ_ARENA_TEST_DATABASE_URL) {
@@ -506,33 +508,30 @@ describe.skipIf(!runDatabaseIntegration)(
                 nonce: `human-roll-${turn}`,
               },
             });
-            const afterRoll = rollRes.snapshot;
-            if (afterRoll.currentPlayer === 0 && afterRoll.dice !== null) {
-              const p0 = afterRoll.players[0];
-              const [d1, d2] = afterRoll.diceValues ?? [afterRoll.dice ?? 0, 0];
-              const hasSix = afterRoll.diceValues
-                ? d1 === 6 || d2 === 6
-                : afterRoll.dice === 6;
-              const movableIdx = p0.pieces.findIndex(p => {
-                if (p.position === -1) return hasSix;
-                return (
-                  p.position + afterRoll.dice! <= 57 ||
-                  p.position + d1 <= 57 ||
-                  p.position + d2 <= 57
-                );
+            let snapP0 = rollRes.snapshot;
+            while (
+              snapP0.currentPlayer === 0 &&
+              snapP0.dice !== null &&
+              snapP0.winner === null
+            ) {
+              const bestMove = selectBestBotMove(
+                snapP0,
+                0 as LudoPlayerId,
+                snapP0.dice
+              );
+              if (!bestMove) break;
+              const mRes = await applyLudoMatchCommand({
+                matchId: soloMatch.id,
+                userId: user1.id,
+                command: {
+                  kind: "move",
+                  pieceIndex: bestMove.pieceIndex,
+                  dieValue: bestMove.dieValue,
+                  expectedVersion: snapP0.version,
+                  nonce: `human-move-${turn}-${nanoid(6)}`,
+                },
               });
-              if (movableIdx >= 0) {
-                await applyLudoMatchCommand({
-                  matchId: soloMatch.id,
-                  userId: user1.id,
-                  command: {
-                    kind: "move",
-                    pieceIndex: movableIdx,
-                    expectedVersion: afterRoll.version,
-                    nonce: `human-move-${turn}`,
-                  },
-                });
-              }
+              snapP0 = mRes.snapshot;
             }
           } else {
             // Bot turn: execute bot turn

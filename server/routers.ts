@@ -62,6 +62,7 @@ const ludoCommandSchema = z.discriminatedUnion("kind", [
     expectedVersion: z.number().int().nonnegative(),
     nonce: clientNonceSchema,
     pieceIndex: z.number().int().min(0).max(7),
+    dieValue: z.number().int().min(1).max(6).optional(),
   }),
 ]);
 

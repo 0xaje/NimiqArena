@@ -79,26 +79,32 @@ describe("Human vs Bot Stress & Chaos Validation Suite", () => {
           currentVersion = rollRes.snapshot.version;
 
           // If dice was rolled and human has a legal move, move piece
-          if (rollRes.snapshot.dice !== null && rollRes.snapshot.currentPlayer === 0) {
+          let currentSnap = rollRes.snapshot;
+          while (
+            currentSnap.dice !== null &&
+            currentSnap.currentPlayer === 0 &&
+            currentSnap.winner === null
+          ) {
             const bestHumanMove = selectBestBotMove(
-              rollRes.snapshot,
+              currentSnap,
               0 as LudoPlayerId,
-              rollRes.snapshot.dice
+              currentSnap.dice
             );
+            if (!bestHumanMove) break;
 
-            if (bestHumanMove) {
-              const moveRes = await applyLudoMatchCommand({
-                matchId: match.id,
-                userId: user.id,
-                command: {
-                  kind: "move",
-                  pieceIndex: bestHumanMove.pieceIndex,
-                  expectedVersion: currentVersion,
-                  nonce: `h-move-${matchIndex}-${turnsPlayed}-${nanoid(8)}`,
-                },
-              });
-              currentVersion = moveRes.snapshot.version;
-            }
+            const moveRes = await applyLudoMatchCommand({
+              matchId: match.id,
+              userId: user.id,
+              command: {
+                kind: "move",
+                pieceIndex: bestHumanMove.pieceIndex,
+                dieValue: bestHumanMove.dieValue,
+                expectedVersion: currentVersion,
+                nonce: `h-move-${matchIndex}-${turnsPlayed}-${nanoid(8)}`,
+              },
+            });
+            currentSnap = moveRes.snapshot;
+            currentVersion = moveRes.snapshot.version;
           }
         } else if (snapshot.currentPlayer === 1) {
           // Bot turn: execute authoritatively via server bot execution
@@ -168,26 +174,32 @@ describe("Human vs Bot Stress & Chaos Validation Suite", () => {
           });
           currentVersion = rollRes.snapshot.version;
 
-          if (rollRes.snapshot.dice !== null && rollRes.snapshot.currentPlayer === 0) {
+          let currentSnap2 = rollRes.snapshot;
+          while (
+            currentSnap2.dice !== null &&
+            currentSnap2.currentPlayer === 0 &&
+            currentSnap2.winner === null
+          ) {
             const bestHumanMove = selectBestBotMove(
-              rollRes.snapshot,
+              currentSnap2,
               0 as LudoPlayerId,
-              rollRes.snapshot.dice
+              currentSnap2.dice
             );
+            if (!bestHumanMove) break;
 
-            if (bestHumanMove) {
-              const moveRes = await applyLudoMatchCommand({
-                matchId: match.id,
-                userId: user.id,
-                command: {
-                  kind: "move",
-                  pieceIndex: bestHumanMove.pieceIndex,
-                  expectedVersion: currentVersion,
-                  nonce: `h2-move-${matchIndex}-${turnsPlayed}-${nanoid(8)}`,
-                },
-              });
-              currentVersion = moveRes.snapshot.version;
-            }
+            const moveRes = await applyLudoMatchCommand({
+              matchId: match.id,
+              userId: user.id,
+              command: {
+                kind: "move",
+                pieceIndex: bestHumanMove.pieceIndex,
+                dieValue: bestHumanMove.dieValue,
+                expectedVersion: currentVersion,
+                nonce: `h2-move-${matchIndex}-${turnsPlayed}-${nanoid(8)}`,
+              },
+            });
+            currentSnap2 = moveRes.snapshot;
+            currentVersion = moveRes.snapshot.version;
           }
         } else if (snapshot.currentPlayer === 1) {
           const botResult = await executeBotTurn({

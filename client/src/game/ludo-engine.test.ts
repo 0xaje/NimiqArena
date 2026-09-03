@@ -184,25 +184,46 @@ describe("ludo engine", () => {
       expect(result.snapshot.lastRoll?.hadLegalMoves).toBe(true);
       expect(result.snapshot.currentPlayer).toBe(0); // Player 0 can now move
 
-      // Move piece 0 out of base: exits to start with the 6, and advances by 2
-      const moveRes = applyCommand(
+      // Move 1: piece 0 exits base with the 6 (remaining dice has [2])
+      const moveRes1 = applyCommand(
         result.snapshot,
         {
           kind: "move",
           matchId: snapshot.matchId,
           playerId: 0,
           expectedVersion: result.snapshot.version,
-          nonce: "move-piece-0",
+          nonce: "move-piece-0-step1",
           pieceIndex: 0,
         },
         () => 1
       );
 
-      expect(moveRes.ok).toBe(true);
-      if (!moveRes.ok) return;
-      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(2);
-      // Extra turn awarded because a 6 was rolled!
-      expect(moveRes.snapshot.currentPlayer).toBe(0);
+      expect(moveRes1.ok).toBe(true);
+      if (!moveRes1.ok) return;
+      expect(moveRes1.snapshot.players[0].pieces[0].position).toBe(0);
+      expect(moveRes1.snapshot.remainingDice).toEqual([2]);
+      expect(moveRes1.snapshot.currentPlayer).toBe(0); // Player 0 still has their 2 to play!
+
+      // Move 2: advance piece 0 by remaining 2 (from 0 to 2)
+      const moveRes2 = applyCommand(
+        moveRes1.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: moveRes1.snapshot.version,
+          nonce: "move-piece-0-step2",
+          pieceIndex: 0,
+        },
+        () => 1
+      );
+
+      expect(moveRes2.ok).toBe(true);
+      if (!moveRes2.ok) return;
+      expect(moveRes2.snapshot.players[0].pieces[0].position).toBe(2);
+      expect(moveRes2.snapshot.remainingDice).toEqual([]);
+      // Turn passes to Player 1 because [6, 2] is not doubles
+      expect(moveRes2.snapshot.currentPlayer).toBe(1);
     });
 
     it("awards bonus turn on doubles (e.g. [4, 4]) when moving on track", () => {
@@ -224,26 +245,48 @@ describe("ludo engine", () => {
       expect(rollRes.ok).toBe(true);
       if (!rollRes.ok) return;
       expect(rollRes.snapshot.diceValues).toEqual([4, 4]);
+      expect(rollRes.snapshot.remainingDice).toEqual([4, 4]);
 
-      const moveRes = applyCommand(
+      // Move 1: advance by first 4 (10 -> 14)
+      const moveRes1 = applyCommand(
         rollRes.snapshot,
         {
           kind: "move",
           matchId: snapshot.matchId,
           playerId: 0,
           expectedVersion: rollRes.snapshot.version,
-          nonce: "move-4-4",
+          nonce: "move-4-4-step1",
           pieceIndex: 0,
         },
         () => 1
       );
 
-      expect(moveRes.ok).toBe(true);
-      if (!moveRes.ok) return;
-      // 10 + 8 = 18
-      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(18);
+      expect(moveRes1.ok).toBe(true);
+      if (!moveRes1.ok) return;
+      expect(moveRes1.snapshot.players[0].pieces[0].position).toBe(14);
+      expect(moveRes1.snapshot.remainingDice).toEqual([4]);
+      expect(moveRes1.snapshot.currentPlayer).toBe(0);
+
+      // Move 2: advance by second 4 (14 -> 18)
+      const moveRes2 = applyCommand(
+        moveRes1.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: moveRes1.snapshot.version,
+          nonce: "move-4-4-step2",
+          pieceIndex: 0,
+        },
+        () => 1
+      );
+
+      expect(moveRes2.ok).toBe(true);
+      if (!moveRes2.ok) return;
+      expect(moveRes2.snapshot.players[0].pieces[0].position).toBe(18);
+      expect(moveRes2.snapshot.remainingDice).toEqual([]);
       // Extra turn awarded for doubles [4, 4]!
-      expect(moveRes.snapshot.currentPlayer).toBe(0);
+      expect(moveRes2.snapshot.currentPlayer).toBe(0);
     });
   });
 });

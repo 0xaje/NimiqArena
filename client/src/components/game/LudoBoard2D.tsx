@@ -18,9 +18,10 @@ export interface LudoBoard2DProps {
   currentPlayer: number;
   dice: number | null;
   diceValues?: [number, number] | null;
+  remainingDice?: number[];
   yourSeat: number;
   isYourTurn: boolean;
-  onMovePiece: (pieceIndex: number) => void;
+  onMovePiece: (pieceIndex: number, dieValue?: number) => void;
   onRoll?: () => void;
   canRoll?: boolean;
   isRolling?: boolean;
@@ -187,6 +188,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   currentPlayer,
   dice,
   diceValues,
+  remainingDice,
   yourSeat,
   isYourTurn,
   onMovePiece,
@@ -196,6 +198,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   disabled = false,
   isBotMatch = true,
 }) => {
+  const [selectedDie, setSelectedDie] = useState<number | null>(null);
   const [hoveredPiece, setHoveredPiece] = useState<{
     player: number;
     pieceIndex: number;
@@ -269,38 +272,53 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
     };
   }, [players]);
 
+  const dicePool = React.useMemo(() => {
+    if (remainingDice && remainingDice.length > 0) return remainingDice;
+    if (diceValues && diceValues.length === 2) return diceValues;
+    if (dice !== null) return [dice];
+    return [];
+  }, [remainingDice, diceValues, dice]);
+
   const handlePieceMove = (pieceIndex: number) => {
     soundEngine.playPieceMove();
-    onMovePiece(pieceIndex);
+    const piece = players[yourSeat]?.pieces[pieceIndex];
+    if (!piece) {
+      onMovePiece(pieceIndex);
+      return;
+    }
+
+    if (piece.position === -1) {
+      // Exiting yard requires 6
+      onMovePiece(pieceIndex, 6);
+      return;
+    }
+
+    // On track: filter valid dice from pool
+    const validDice = dicePool.filter(d => piece.position + d <= 57);
+    if (validDice.length === 0) return;
+
+    // Use selectedDie if legal for this pawn, otherwise use first valid die
+    const dieToUse = selectedDie && validDice.includes(selectedDie)
+      ? selectedDie
+      : validDice[0];
+
+    onMovePiece(pieceIndex, dieToUse);
   };
 
-  const hasSixFace = Boolean(
-    diceValues && diceValues.length === 2
-      ? diceValues[0] === 6 || diceValues[1] === 6
-      : dice === 6
-  );
+  const hasSixFace = Boolean(dicePool.includes(6));
 
   const canMovePiece = (playerSeat: number, piece: Piece): boolean => {
-    if (disabled || !isYourTurn || yourSeat !== playerSeat || dice === null) {
+    if (disabled || !isYourTurn || yourSeat !== playerSeat || dice === null || dicePool.length === 0) {
       return false;
     }
     if (piece.position === -1) {
       // STRICT 6-TO-EXIT: A piece can ONLY leave the yard if at least one die physically shows 6!
-      // [3, 3] or [2, 4] NEVER allows exiting the yard!
       return hasSixFace;
     }
     if (piece.position >= 57) {
       return false;
     }
-    if (diceValues && diceValues.length === 2) {
-      const [d1, d2] = diceValues;
-      return (
-        piece.position + (dice ?? 0) <= 57 ||
-        piece.position + d1 <= 57 ||
-        piece.position + d2 <= 57
-      );
-    }
-    return piece.position + dice <= 57;
+    return dicePool.some(d => piece.position + d <= 57);
   };
 
   const getTargetTrackIndex = (
@@ -767,6 +785,9 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
               <LudoDice
                 value={dice}
                 diceValues={diceValues}
+                remainingDice={remainingDice}
+                selectedDie={selectedDie}
+                onSelectDie={setSelectedDie}
                 isRolling={Boolean(isRolling)}
                 canRoll={Boolean(canRoll)}
                 onRoll={onRoll ?? (() => {})}

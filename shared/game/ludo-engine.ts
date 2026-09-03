@@ -16,6 +16,8 @@ export type LudoSnapshot = {
   dice: number | null;
   diceCount?: 1 | 2;
   diceValues?: [number, number] | null;
+  remainingDice?: number[];
+  rolledDoubles?: boolean;
   mode?: LudoMode;
   lastRoll?: {
     playerId: LudoPlayerId;
@@ -43,6 +45,7 @@ export type LudoCommand =
       expectedVersion: number;
       nonce: string;
       pieceIndex: number;
+      dieValue?: number;
     };
 
 export type LudoEvent =
@@ -58,7 +61,13 @@ export type LudoEvent =
       pieceIndex: number;
       from: number;
       to: number;
+      dieUsed?: number;
+      remainingDice?: number[];
       captured?: {
+        playerId: LudoPlayerId;
+        pieceIndex: number;
+      };
+      capturedPiece?: {
         playerId: LudoPlayerId;
         pieceIndex: number;
       };
@@ -143,6 +152,8 @@ function cloneSnapshot(snapshot: LudoSnapshot): LudoSnapshot {
   return {
     ...snapshot,
     diceValues: snapshot.diceValues ? [snapshot.diceValues[0], snapshot.diceValues[1]] : null,
+    remainingDice: snapshot.remainingDice ? [...snapshot.remainingDice] : undefined,
+    rolledDoubles: snapshot.rolledDoubles,
     players: snapshot.players.map(player => ({
       ...player,
       pieces: player.pieces.map(piece => ({ ...piece })),
@@ -175,26 +186,28 @@ export function hasLegalMoves(
   });
 }
 
+export function hasLegalMovesForDice(
+  snapshot: LudoSnapshot,
+  playerId: LudoPlayerId,
+  dicePool: number[]
+): boolean {
+  const player = snapshot.players[playerId];
+  if (!player || !dicePool || dicePool.length === 0) return false;
+  const hasSix = dicePool.includes(6);
+  return player.pieces.some(piece => {
+    if (piece.position === -1) return hasSix;
+    if (piece.position >= LUDO_HOME_ENTRY) return false;
+    return dicePool.some(d => piece.position + d <= LUDO_HOME_ENTRY);
+  });
+}
+
 export function hasLegalMoves2D(
   snapshot: LudoSnapshot,
   playerId: LudoPlayerId,
   d1: number,
   d2: number
 ): boolean {
-  const player = snapshot.players[playerId];
-  if (!player) return false;
-  const hasSix = d1 === 6 || d2 === 6;
-  const combined = d1 + d2;
-
-  return player.pieces.some(piece => {
-    if (piece.position === -1) return hasSix;
-    if (piece.position >= LUDO_HOME_ENTRY) return false;
-    return (
-      piece.position + combined <= LUDO_HOME_ENTRY ||
-      piece.position + d1 <= LUDO_HOME_ENTRY ||
-      piece.position + d2 <= LUDO_HOME_ENTRY
-    );
-  });
+  return hasLegalMovesForDice(snapshot, playerId, [d1, d2]);
 }
 
 export function applyCommand(
@@ -217,7 +230,7 @@ export function applyCommand(
   const totalPlayers = snapshot.players.length;
 
   if (command.kind === "roll") {
-    if (snapshot.dice !== null)
+    if (snapshot.dice !== null && snapshot.remainingDice && snapshot.remainingDice.length > 0)
       return reject(
         "DICE_ALREADY_ROLLED",
         "Move the current dice before rolling again."
@@ -239,12 +252,15 @@ export function applyCommand(
       next.version += 1;
       next.usedNonces.push(command.nonce);
       next.diceValues = [d1, d2];
+      next.remainingDice = [d1, d2];
+      next.rolledDoubles = d1 === d2;
       const combined = d1 + d2;
+      next.dice = combined;
 
-      const canMove = hasLegalMoves2D(snapshot, command.playerId, d1, d2);
+      const canMove = hasLegalMovesForDice(snapshot, command.playerId, [d1, d2]);
       if (!canMove) {
         next.dice = null;
-        next.diceValues = [d1, d2];
+        next.remainingDice = [];
         next.lastRoll = {
           playerId: command.playerId,
           value: combined,
@@ -264,8 +280,6 @@ export function applyCommand(
         };
       }
 
-      next.dice = combined;
-      next.diceValues = [d1, d2];
       next.lastRoll = {
         playerId: command.playerId,
         value: combined,
@@ -293,11 +307,15 @@ export function applyCommand(
     const next = cloneSnapshot(snapshot);
     next.version += 1;
     next.usedNonces.push(command.nonce);
+    next.dice = value;
+    next.remainingDice = [value];
+    next.rolledDoubles = false;
 
     const canMove = hasLegalMoves(snapshot, command.playerId, value);
     if (!canMove) {
       // Rolling with zero legal moves forfeits the roll and passes turn
       next.dice = null;
+      next.remainingDice = [];
       next.lastRoll = { playerId: command.playerId, value, hadLegalMoves: false };
       next.currentPlayer = ((command.playerId + 1) % totalPlayers) as LudoPlayerId;
       return {
@@ -307,7 +325,6 @@ export function applyCommand(
       };
     }
 
-    next.dice = value;
     next.lastRoll = { playerId: command.playerId, value, hadLegalMoves: true };
     return {
       ok: true,
@@ -316,7 +333,12 @@ export function applyCommand(
     };
   }
 
-  if (snapshot.dice === null)
+  // Handle "move"
+  const remaining = snapshot.remainingDice && snapshot.remainingDice.length > 0
+    ? [...snapshot.remainingDice]
+    : (snapshot.dice !== null ? [snapshot.dice] : []);
+
+  if (remaining.length === 0)
     return reject("DICE_NOT_ROLLED", "Roll the dice before moving a piece.");
 
   const playerPieces = snapshot.players[command.playerId]?.pieces;
@@ -332,43 +354,43 @@ export function applyCommand(
     );
 
   const piece = playerPieces[command.pieceIndex];
-  const dice = snapshot.dice;
-  const isTwoDice = snapshot.diceCount === 2 && Boolean(snapshot.diceValues);
-  const [d1, d2] = snapshot.diceValues ?? [dice ?? 0, 0];
   const from = piece.position;
+  if (from >= LUDO_HOME_ENTRY) {
+    return reject("ILLEGAL_MOVE", "A finished piece cannot move again.");
+  }
 
-  let to: number;
-  if (from === -1) {
-    if (isTwoDice) {
-      if (d1 !== 6 && d2 !== 6) {
-        return reject("ILLEGAL_MOVE", "A piece can only leave base when a six is rolled on at least one die.");
-      }
-      const otherDie = d1 === 6 ? d2 : d1;
-      to = otherDie === 6 ? 0 : otherDie;
-    } else {
-      if (dice !== 6) {
+  // Determine die to use
+  let dieToUse: number;
+  if (command.dieValue !== undefined) {
+    if (!remaining.includes(command.dieValue)) {
+      return reject("INVALID_DICE", "The specified die value is not available in remaining dice.");
+    }
+    if (from === -1) {
+      if (command.dieValue !== 6) {
         return reject("ILLEGAL_MOVE", "A piece can only leave base on a six.");
       }
-      to = 0;
+    } else if (from + command.dieValue > LUDO_HOME_ENTRY) {
+      return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
     }
-  } else if (from >= LUDO_HOME_ENTRY) {
-    return reject("ILLEGAL_MOVE", "A finished piece cannot move again.");
+    dieToUse = command.dieValue;
   } else {
-    to = from + (dice ?? 0);
-    if (to > LUDO_HOME_ENTRY) {
-      if (isTwoDice) {
-        if (from + d1 <= LUDO_HOME_ENTRY) {
-          to = from + d1;
-        } else if (from + d2 <= LUDO_HOME_ENTRY) {
-          to = from + d2;
-        } else {
-          return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
-        }
-      } else {
-        return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
-      }
+    // Auto-select valid die for this piece from remaining
+    const validDice = remaining.filter(d =>
+      from === -1 ? d === 6 : from + d <= LUDO_HOME_ENTRY
+    );
+    if (validDice.length === 0) {
+      return reject(
+        "ILLEGAL_MOVE",
+        from === -1
+          ? "A piece can only leave base on a six."
+          : "The move overshoots the home entry."
+      );
     }
+    // If piece in base, must use 6; otherwise pick first matching die
+    dieToUse = validDice[0];
   }
+
+  const to = from === -1 ? 0 : from + dieToUse;
 
   const next = cloneSnapshot(snapshot);
   const nextPiece = next.players[command.playerId].pieces[command.pieceIndex];
@@ -378,9 +400,7 @@ export function applyCommand(
   if (to < LUDO_TRACK_LENGTH) {
     const landing = globalTrackPosition(command.playerId, to, command.pieceIndex, mode);
 
-    if (LUDO_SAFE_SQUARES.has(landing)) {
-      // Safe star square: protected from captures
-    } else {
+    if (!LUDO_SAFE_SQUARES.has(landing)) {
       // Check for capture of any opponent piece on this cell
       for (const opponent of next.players) {
         if (opponent.id === command.playerId) continue;
@@ -399,8 +419,17 @@ export function applyCommand(
     }
   }
 
+  // Splice used die from next.remainingDice
+  if (!next.remainingDice || next.remainingDice.length === 0) {
+    next.remainingDice = remaining;
+  }
+  const dieIdx = next.remainingDice.indexOf(dieToUse);
+  if (dieIdx !== -1) {
+    next.remainingDice.splice(dieIdx, 1);
+  }
+  next.dice = next.remainingDice.length > 0 ? next.remainingDice.reduce((a, b) => a + b, 0) : null;
+
   next.version += 1;
-  next.dice = null;
   next.usedNonces.push(command.nonce);
 
   // Win check: 4 pieces in home goal (or all pieces if fewer than 4)
@@ -418,16 +447,51 @@ export function applyCommand(
     };
   }
 
-  // Turn rotation: in single-die mode roll of 6 or capture awards bonus.
-  // In two-dice mode: rolling doubles (d1 === d2) OR rolling a 6 on either die OR capture awards a bonus turn!
-  const isDouble = isTwoDice && d1 === d2;
+  // Multi-die move continuation:
+  // If there are remaining dice from this roll, check if any piece can move
+  if (next.remainingDice.length > 0) {
+    const canContinue = hasLegalMovesForDice(next, command.playerId, next.remainingDice);
+    if (canContinue) {
+      // Player continues their turn to spend remaining dice!
+      next.currentPlayer = command.playerId;
+      return {
+        ok: true,
+        snapshot: next,
+        event: {
+          type: "moved",
+          playerId: command.playerId,
+          pieceIndex: command.pieceIndex,
+          from,
+          to,
+          dieUsed: dieToUse,
+          remainingDice: [...next.remainingDice],
+          ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),
+        },
+      };
+    } else {
+      // Forfeit unplayable remaining dice
+      next.remainingDice = [];
+      next.dice = null;
+    }
+  }
+
+  // All dice in this turn's roll have been played (or forfeited):
+  // Check bonus turn:
+  // In 2-dice mode: doubles (e.g. [6, 6], [4, 4]) OR a piece capture grants a bonus roll!
+  // In single-die mode: rolling a 6 OR a piece capture grants a bonus roll!
+  const isTwoDice = snapshot.diceCount === 2 && Boolean(snapshot.diceValues);
   const earnedBonus = isTwoDice
-    ? (isDouble || d1 === 6 || d2 === 6 || Boolean(capturedPiece))
-    : (dice === 6 || Boolean(capturedPiece));
+    ? Boolean(snapshot.rolledDoubles || capturedPiece)
+    : (dieToUse === 6 || Boolean(capturedPiece));
 
   if (!earnedBonus) {
     next.currentPlayer = ((command.playerId + 1) % totalPlayers) as LudoPlayerId;
+  } else {
+    next.currentPlayer = command.playerId;
   }
+
+  next.dice = null;
+  next.remainingDice = [];
 
   return {
     ok: true,
@@ -438,7 +502,9 @@ export function applyCommand(
       pieceIndex: command.pieceIndex,
       from,
       to,
-      ...(capturedPiece ? { capturedPiece } : {}),
+      dieUsed: dieToUse,
+      remainingDice: [],
+      ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),
     },
   };
 }
