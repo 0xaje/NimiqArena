@@ -45,7 +45,7 @@ export interface NimiqSendTransactionParams {
 }
 
 // Authoritative public Nimiq PoS Testnet RPC endpoint
-export const TESTNET_RPC_URL = "https://rpc.testnet.nimiq.watch";
+export const TESTNET_RPC_URL = "https://rpc.testnet.nimiqwatch.com";
 
 let _activeProvider: NimiqProvider | null = null;
 

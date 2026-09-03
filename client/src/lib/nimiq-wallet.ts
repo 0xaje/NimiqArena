@@ -30,7 +30,7 @@ export interface ConnectedWalletState {
 
 export const NIMIQ_TESTNET_HUB_URL = "https://hub.nimiq-testnet.com";
 export const NIMIQ_MAINNET_HUB_URL = "https://hub.nimiq.com";
-export const NIMIQ_TESTNET_RPC_URL = "https://rpc.testnet.nimiq.watch";
+export const NIMIQ_TESTNET_RPC_URL = "https://rpc.testnet.nimiqwatch.com";
 
 let _miniAppProvider: NimiqProvider | null = null;
 let _hubApi: HubApi | null = null;

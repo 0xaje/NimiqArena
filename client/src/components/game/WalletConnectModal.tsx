@@ -259,7 +259,7 @@ export function WalletConnectModal({
                   <Copy size={14} /> Copy
                 </button>
                 <a
-                  href={`https://nimiq.watch/account/${cleanAddress}`}
+                  href={`https://nimiqwatch.com/#${cleanAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
