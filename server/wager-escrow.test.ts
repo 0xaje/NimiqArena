@@ -37,7 +37,7 @@ function createContext(userId = 7701): TrpcContext {
   };
 }
 
-describe("Wagered NIM Matches & Smart Escrow Router", () => {
+describe("Wagered NIM Matches & Escrow Router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

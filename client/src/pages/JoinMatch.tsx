@@ -141,7 +141,7 @@ export default function JoinMatch() {
           <div className="trust-line">
             <ShieldCheck size={15} />
             <span>
-              Authoritative server matchmaking. Real Testnet smart escrow.
+              Authoritative server matchmaking. Real Testnet deposit verification.
             </span>
           </div>
         </form>

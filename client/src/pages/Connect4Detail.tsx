@@ -201,8 +201,8 @@ export default function Connect4Detail() {
                   margin: "0 0 20px",
                 }}
               >
-                Both players deposit matching stakes into smart escrow. Winner
-                takes the full pot!
+                Both players deposit matching stakes into table escrow. Winner
+                receives 90% of the total match pot!
               </p>
 
               <div

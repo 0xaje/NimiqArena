@@ -2349,32 +2349,36 @@ h1 em,
   z-index: 35 !important;
 }
 
-/* Movable Glow & Hop Animation */
+/* Movable Glow & Tactile Hop Animation */
 .pawn-movable-glow {
-  animation: ludoPawnHop 1.2s infinite ease-in-out;
+  animation: ludoPawnHop 1.1s infinite ease-in-out;
   cursor: pointer !important;
-  z-index: 35 !important;
+  z-index: 45 !important;
   opacity: 1 !important;
+  outline: 2.5px solid #22c55e;
+  outline-offset: 2.5px;
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.85);
 }
 
 @keyframes ludoPawnHop {
   0% {
-    transform: translateY(0) scale(1.05);
-    filter: drop-shadow(0 0 4px #fbbf24);
+    transform: translateY(0) scale(1.08);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
   }
   50% {
-    transform: translateY(-4px) scale(1.2);
-    filter: drop-shadow(0 0 12px #f59e0b);
+    transform: translateY(-5px) scale(1.25);
+    box-shadow: 0 0 22px rgba(34, 197, 94, 1), 0 0 8px #fbbf24;
   }
   100% {
-    transform: translateY(0) scale(1.05);
-    filter: drop-shadow(0 0 4px #fbbf24);
+    transform: translateY(0) scale(1.08);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
   }
 }
 
 .pawn-movable-glow:hover {
-  transform: translateY(-6px) scale(1.28) !important;
-  filter: drop-shadow(0 0 16px #fbbf24) !important;
+  transform: translateY(-7px) scale(1.32) !important;
+  box-shadow: 0 0 28px rgba(34, 197, 94, 1) !important;
 }
 
 /* 3D Animated Dice Component */
@@ -5011,5 +5015,84 @@ h1 em,
 @keyframes scaleUp {
   0% { transform: scale(0.92); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+/* ==========================================================================
+   MOBILE FIRST RESPONSIVE RULES (375px, 390px, 412px, 768px, 1280px)
+   ========================================================================== */
+@media (max-width: 480px) {
+  .pure-gameplay-page {
+    padding: 4px 4px 16px;
+    gap: 4px;
+  }
+  .gameplay-topbar {
+    padding: 4px 8px;
+    margin-bottom: 2px;
+  }
+  .battle-players-strip {
+    padding: 2px 4px;
+    margin-bottom: 4px;
+    gap: 6px;
+  }
+  .battle-player-pill {
+    padding: 4px 8px 4px 4px;
+    gap: 6px;
+  }
+  .battle-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+  .battle-player-name {
+    font-size: 11px;
+    max-width: 75px;
+  }
+  .battle-turn-label {
+    font-size: 8px;
+  }
+  .turn-event-banner {
+    font-size: 10px;
+    padding: 4px 8px;
+    margin-bottom: 6px;
+  }
+  .ludo-standard-board-wrapper {
+    max-width: 98vw;
+  }
+  .ludo-standard-board-frame {
+    padding: 5px;
+    border-radius: 12px;
+  }
+  .waiting-versus-arena {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .waiting-center-vs {
+    flex-direction: row;
+    justify-content: center;
+  }
+  .stake-preset-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mode-selection-row {
+    grid-template-columns: 1fr;
+  }
+  .dist-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .pure-gameplay-page {
+    padding: 16px 16px 32px;
+  }
+  .board-hero-area {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .board-hero-area {
+    max-width: 680px;
+  }
 }
 

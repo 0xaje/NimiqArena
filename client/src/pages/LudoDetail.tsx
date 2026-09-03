@@ -158,71 +158,12 @@ export default function LudoDetail() {
         gameSlug="ludo-league"
       />
 
-      {/* Wager Stake Selection Modal */}
-      {isStakeModalOpen && (
-        <div className="quickmatch-modal-overlay" onClick={() => setIsStakeModalOpen(false)}>
-          <div className="quickmatch-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: "440px" }}>
-            <div className="quickmatch-modal-header">
-              <div className="quickmatch-header-left">
-                <Coins className="radar-header-icon" size={20} />
-                <span style={{ fontFamily: "IBM Plex Mono, monospace", fontWeight: 600, fontSize: "13px" }}>
-                  SELECT WAGER STAKE
-                </span>
-              </div>
-              <button className="quickmatch-close-btn" onClick={() => setIsStakeModalOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="quickmatch-modal-body" style={{ textAlign: "center", padding: "24px" }}>
-              <h2 style={{ margin: "0 0 8px", fontSize: "22px" }}>Choose Your Entry Stake</h2>
-              <p style={{ color: "rgba(251, 248, 241, 0.7)", fontSize: "13px", margin: "0 0 20px" }}>
-                Both players deposit matching stakes into smart escrow. Winner takes the full pot!
-              </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px", width: "100%", marginBottom: "20px" }}>
-                {[10, 50, 100, 500].map(stake => (
-                  <button
-                    key={stake}
-                    type="button"
-                    onClick={() => setSelectedStake(stake)}
-                    style={{
-                      padding: "16px",
-                      background: selectedStake === stake ? "rgba(230, 93, 35, 0.2)" : "rgba(0, 0, 0, 0.25)",
-                      border: `2px solid ${selectedStake === stake ? "var(--orange)" : "rgba(251, 248, 241, 0.15)"}`,
-                      borderRadius: "8px",
-                      color: "var(--paper-bright)",
-                      cursor: "pointer",
-                      fontFamily: "IBM Plex Mono, monospace",
-                      textAlign: "center",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <div style={{ fontSize: "18px", fontWeight: "bold", color: selectedStake === stake ? "var(--orange)" : "inherit" }}>
-                      {stake} NIM
-                    </div>
-                    <div style={{ fontSize: "11px", color: "rgba(251, 248, 241, 0.6)", marginTop: "4px" }}>
-                      Pot: {stake * 2} NIM
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                className="primary-action"
-                onClick={handleStartWageredMatch}
-                disabled={createWagered.isPending}
-                style={{ width: "100%", justifyContent: "center", background: "var(--orange)", padding: "14px", fontSize: "14px" }}
-              >
-                <Coins size={16} /> {createWagered.isPending ? "Creating Wagered Table…" : `Create ${selectedStake} NIM Match`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <LudoEntryFlowModal
-        isOpen={isEntryFlowOpen}
-        onClose={() => setIsEntryFlowOpen(false)}
+        isOpen={isEntryFlowOpen || isStakeModalOpen}
+        onClose={() => {
+          setIsEntryFlowOpen(false);
+          setIsStakeModalOpen(false);
+        }}
       />
 
       <header className="detail-header">

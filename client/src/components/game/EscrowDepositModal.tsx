@@ -160,8 +160,8 @@ export function EscrowDepositModal({
               margin: "0 0 20px",
             }}
           >
-            Your stake is held securely in the Nimiq smart escrow contract. The
-            winner claims the total pot upon match completion.
+            Your stake is verified on Nimiq Testnet and held in table escrow. The
+            winner claims 90% of the total match pot upon completion.
           </p>
 
           <div
@@ -209,10 +209,10 @@ export function EscrowDepositModal({
               }}
             >
               <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
-                Potential Win Pot:
+                Winner Allocation (90%):
               </span>
               <strong style={{ color: "#2ecc71" }}>
-                {(stakeNim * 2).toFixed(1)} NIM
+                {(stakeNim * 2 * 0.9).toFixed(1)} NIM
               </strong>
             </div>
             <div
@@ -224,7 +224,7 @@ export function EscrowDepositModal({
               }}
             >
               <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
-                Security:
+                Protection:
               </span>
               <span
                 style={{
@@ -234,7 +234,7 @@ export function EscrowDepositModal({
                   color: "#2ecc71",
                 }}
               >
-                <ShieldCheck size={14} /> Trustless Escrow
+                <ShieldCheck size={14} /> Verified Match Deposit
               </span>
             </div>
           </div>

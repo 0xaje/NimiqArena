@@ -1000,7 +1000,7 @@ export default function MatchRoom() {
                   </span>
                   <p style={{ margin: "4px 0 0", fontSize: "12px", color: "rgba(251, 248, 241, 0.75)" }}>
                     {escrow.playerStatuses.find(p => p.seat === yourSeat)?.verified
-                      ? "✓ Your stake is locked in smart escrow. Waiting for opponent deposit…"
+                      ? "✓ Your stake is verified on-chain. Waiting for opponent deposit…"
                       : "Deposit your entry stake to lock the pot and activate the board."}
                   </p>
                 </div>
