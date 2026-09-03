@@ -45,18 +45,24 @@ export function selectBestBotMove(
     const from = piece.position;
     if (from >= LUDO_HOME_ENTRY) return; // Already finished in home goal
 
-    if (from === -1) {
-      // Piece in base: can only leave on 6
-      if (dice === 6) {
-        let score = 300;
-        const entryGlobalPos = getPieceGlobalStart(botPlayerId, pieceIndex, mode as any);
+    const isTwoDice = snapshot.diceCount === 2 && Boolean(snapshot.diceValues);
+    const [d1, d2] = snapshot.diceValues ?? [dice, 0];
 
-        // Check if opponent is sitting on bot's entry square
+    if (from === -1) {
+      const canExit = isTwoDice ? (d1 === 6 || d2 === 6) : dice === 6;
+      if (canExit) {
+        let score = 300;
+        const remainingDie = d1 === 6 ? d2 : d1;
+        const entryProgress = isTwoDice ? (remainingDie === 6 ? 0 : remainingDie) : 0;
+        const entryGlobalPos = getPieceGlobalStart(botPlayerId, pieceIndex, mode as any);
+        const effectiveGlobal = (entryGlobalPos + entryProgress) % LUDO_TRACK_LENGTH;
+
+        // Check if opponent is sitting on landing square
         const capturesOpponent = opponentPlayer?.pieces.some(
           (oppPiece, oppIdx) =>
             oppPiece.position >= 0 &&
             oppPiece.position < LUDO_TRACK_LENGTH &&
-            getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === entryGlobalPos
+            getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === effectiveGlobal
         );
         if (capturesOpponent) score += 500;
 
@@ -71,8 +77,20 @@ export function selectBestBotMove(
       return;
     }
 
-    const to = from + dice;
-    if (to > LUDO_HOME_ENTRY) return; // Overshoots home goal
+    let to = from + dice;
+    if (to > LUDO_HOME_ENTRY) {
+      if (isTwoDice) {
+        if (from + d1 <= LUDO_HOME_ENTRY) {
+          to = from + d1;
+        } else if (from + d2 <= LUDO_HOME_ENTRY) {
+          to = from + d2;
+        } else {
+          return; // Overshoots home goal
+        }
+      } else {
+        return; // Overshoots home goal
+      }
+    }
 
     let score = 50 + to;
     let reason = "Advance piece on track";

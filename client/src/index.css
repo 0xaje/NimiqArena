@@ -2458,6 +2458,134 @@ h1 em,
   50% { transform: translateY(-4px); }
 }
 
+/* Center Dice Arena on Ludo Board */
+.center-dice-arena {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.dual-dice-button {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dual-dice-button.active-roll-btn {
+  cursor: pointer;
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.6));
+}
+
+.dual-dice-button.active-roll-btn:hover {
+  transform: scale(1.08);
+}
+
+.dual-dice-button.active-roll-btn:active {
+  transform: scale(0.95);
+}
+
+.dual-dice-pair {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+/* Scaled sizes for center board vs sidebar */
+.dice-size-sm .ludo-dice-cube {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border-width: 1.5px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 -2px 0 #cbd5e1;
+}
+
+.dice-size-sm .dice-face {
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+}
+
+.dice-size-sm .pip {
+  width: 5.5px;
+  height: 5.5px;
+}
+
+.dice-size-sm .dice-empty-face {
+  font-size: 16px;
+}
+
+.dice-size-sm .dice-roll-hint {
+  font-size: 8px;
+  margin-top: -2px;
+}
+
+.dice-size-md .ludo-dice-cube {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+}
+
+.dice-size-md .dice-face {
+  width: 38px;
+  height: 38px;
+  padding: 3px;
+}
+
+.dice-size-md .pip {
+  width: 7px;
+  height: 7px;
+}
+
+/* Synchronized Tumbling Animations for Dual Dice */
+.ludo-dice-cube.is-rolling.tumble-left {
+  animation: diceTumbleLeft 0.35s ease-in-out infinite alternate;
+}
+
+.ludo-dice-cube.is-rolling.tumble-right {
+  animation: diceTumbleRight 0.35s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes diceTumbleLeft {
+  0% { transform: rotate(-14deg) scale(0.96); }
+  50% { transform: rotate(18deg) scale(1.08); }
+  100% { transform: rotate(-10deg) scale(1); }
+}
+
+@keyframes diceTumbleRight {
+  0% { transform: rotate(16deg) scale(1.06); }
+  50% { transform: rotate(-16deg) scale(0.95); }
+  100% { transform: rotate(10deg) scale(1.02); }
+}
+
+.dual-dice-badge {
+  margin-top: 3px;
+  padding: 1px 6px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 999px;
+  font: 800 8.5px "IBM Plex Mono", monospace;
+  color: #fbbf24;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
 /* Sidebar Controls */
 .room-controls-sidebar {
   display: flex;

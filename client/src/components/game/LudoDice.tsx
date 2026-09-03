@@ -1,25 +1,49 @@
 import React from "react";
 import { soundEngine } from "@/lib/audio";
 
-interface LudoDiceProps {
+export interface LudoDiceProps {
   value: number | null;
+  diceValues?: [number, number] | null;
   isRolling: boolean;
   canRoll: boolean;
   onRoll: () => void;
   playerSeat: number;
+  size?: "sm" | "md" | "lg";
 }
 
 export const LudoDice: React.FC<LudoDiceProps> = ({
   value,
+  diceValues,
   isRolling,
   canRoll,
   onRoll,
   playerSeat,
+  size = "md",
 }) => {
-  const handleRollClick = () => {
+  const handleRollClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canRoll || isRolling) return;
     soundEngine.playDiceRoll();
     onRoll();
   };
+
+  // Derive individual die values: [die1, die2]
+  const [val1, val2] = React.useMemo<[number | null, number | null]>(() => {
+    if (diceValues && diceValues.length === 2) {
+      return [diceValues[0], diceValues[1]];
+    }
+    if (value !== null && value > 0) {
+      if (value <= 6) {
+        // Single die roll: show primary on die 1, and duplicate/split on die 2
+        return [value, value];
+      }
+      const half1 = Math.ceil(value / 2);
+      const half2 = Math.floor(value / 2);
+      return [Math.min(6, half1), Math.min(6, half2)];
+    }
+    return [null, null];
+  }, [value, diceValues]);
+
   const renderPips = (val: number | null) => {
     if (!val) {
       return (
@@ -57,23 +81,50 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
   };
 
   return (
-    <div className={`ludo-dice-container ${canRoll ? "can-roll-pulse" : ""}`}>
+    <div
+      className={`ludo-dice-container dice-size-${size} ${
+        canRoll ? "can-roll-pulse" : ""
+      }`}
+    >
       <button
         type="button"
-        className={`ludo-dice-cube p${playerSeat}-dice ${isRolling ? "is-rolling" : ""} ${
+        className={`dual-dice-button p${playerSeat}-dice-btn ${
           canRoll ? "active-roll-btn" : ""
         }`}
         disabled={!canRoll || isRolling}
         onClick={handleRollClick}
-        title={canRoll ? "Click to roll the server dice" : "Waiting for turn"}
+        title={canRoll ? "Tap to roll the two dice" : "Waiting for turn"}
       >
-        {renderPips(value)}
+        <div className="dual-dice-pair">
+          <div
+            className={`ludo-dice-cube dice-one p${playerSeat}-dice ${
+              isRolling ? "is-rolling tumble-left" : ""
+            }`}
+          >
+            {renderPips(val1)}
+          </div>
+          <div
+            className={`ludo-dice-cube dice-two p${playerSeat}-dice ${
+              isRolling ? "is-rolling tumble-right" : ""
+            }`}
+          >
+            {renderPips(val2)}
+          </div>
+        </div>
       </button>
+
       {canRoll && !value && (
         <div className="dice-roll-hint">
-          <span>Click to Roll</span>
+          <span>TAP TO ROLL</span>
+        </div>
+      )}
+
+      {value !== null && val1 !== null && val2 !== null && (
+        <div className="dual-dice-badge">
+          <span>{val1 === val2 ? `Double ${val1}!` : `${val1} & ${val2}`}</span>
         </div>
       )}
     </div>
   );
 };
+

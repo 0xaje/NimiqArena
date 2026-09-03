@@ -3,6 +3,8 @@ import { Star, Trophy, ArrowRight, ArrowDown, ArrowLeft, ArrowUp } from "lucide-
 import { soundEngine } from "@/lib/audio";
 import { getPieceGlobalStart } from "@shared/game/ludo-engine";
 
+import { LudoDice } from "./LudoDice";
+
 interface Piece {
   position: number;
 }
@@ -11,13 +13,17 @@ interface Player {
   pieces: Piece[];
 }
 
-interface LudoBoard2DProps {
+export interface LudoBoard2DProps {
   players: [Player, Player] | Player[];
   currentPlayer: number;
   dice: number | null;
+  diceValues?: [number, number] | null;
   yourSeat: number;
   isYourTurn: boolean;
   onMovePiece: (pieceIndex: number) => void;
+  onRoll?: () => void;
+  canRoll?: boolean;
+  isRolling?: boolean;
   disabled?: boolean;
   isBotMatch?: boolean;
 }
@@ -180,9 +186,13 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   players,
   currentPlayer,
   dice,
+  diceValues,
   yourSeat,
   isYourTurn,
   onMovePiece,
+  onRoll,
+  canRoll,
+  isRolling,
   disabled = false,
   isBotMatch = true,
 }) => {
@@ -714,10 +724,17 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
             </div>
             <div className="center-tri tri-blue" />
 
-            {/* Center Golden Nimiq Medallion */}
-            <div className="center-medallion">
-              <NimiqHexLogo size={32} />
-              <span className="center-medallion-text">NIMIQ</span>
+            {/* Center Dual-Dice Arena (in the normal middle of the board) */}
+            <div className="center-dice-arena">
+              <LudoDice
+                value={dice}
+                diceValues={diceValues}
+                isRolling={Boolean(isRolling)}
+                canRoll={Boolean(canRoll)}
+                onRoll={onRoll ?? (() => {})}
+                playerSeat={currentPlayer}
+                size="sm"
+              />
             </div>
           </div>
         </div>

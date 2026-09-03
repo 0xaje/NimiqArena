@@ -62,7 +62,16 @@ export default function MatchRoom() {
     { id: matchId },
     {
       enabled: Boolean(matchId),
-      refetchInterval: isStreamConnected ? false : 3_000,
+      refetchInterval: query => {
+        const d = query.state.data;
+        const snap = d?.snapshot as any;
+        const isBotActive =
+          d?.status === "in_progress" &&
+          snap?.currentPlayer === 1 &&
+          snap?.winner === null &&
+          Boolean(d?.joinCode?.startsWith("BOT"));
+        return isBotActive ? 1_500 : isStreamConnected ? false : 3_000;
+      },
     }
   );
   const escrowQuery = trpc.match.escrowDetails.useQuery(
@@ -77,6 +86,9 @@ export default function MatchRoom() {
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
   const c4Command = trpc.match.connect4Command.useMutation({
+    onSuccess: () => utils.match.state.invalidate({ id: matchId }),
+  });
+  const triggerBotTurnMutation = trpc.match.triggerBotTurn.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
   const heartbeat = trpc.match.heartbeat.useMutation();
@@ -248,6 +260,26 @@ export default function MatchRoom() {
       }
     }
   }, [isBotTurn, snapshot?.lastRoll, isBotMatch, yourSeat]);
+
+  // Bot Turn Watchdog: If bot turn is active for > 2.8s without progress, kick server bot turn
+  useEffect(() => {
+    if (!isBotTurn || !matchId) return;
+
+    const watchdogTimer = window.setTimeout(async () => {
+      try {
+        await utils.match.state.invalidate({ id: matchId });
+        await stateQuery.refetch();
+        // If still bot turn, kick server bot turn mutation directly
+        await triggerBotTurnMutation.mutateAsync({ matchId });
+        await utils.match.state.invalidate({ id: matchId });
+        await stateQuery.refetch();
+      } catch {
+        // Watchdog failsafe catch
+      }
+    }, 2800);
+
+    return () => window.clearTimeout(watchdogTimer);
+  }, [isBotTurn, state?.stateVersion, matchId]);
 
   // Sound triggers on state mutations
   useEffect(() => {
@@ -827,11 +859,24 @@ export default function MatchRoom() {
                       players={(snapshot as any).players || []}
                       currentPlayer={(snapshot as any).currentPlayer ?? 0}
                       dice={(snapshot as any).dice ?? null}
+                      diceValues={
+                        (snapshot as any)?.diceValues ??
+                        (snapshot?.lastRoll as any)?.diceValues ??
+                        (snapshot?.dice ? [Math.ceil((snapshot.dice as number) / 2), Math.floor((snapshot.dice as number) / 2)] : null)
+                      }
                       yourSeat={yourSeat}
                       isYourTurn={isYourTurn}
                       onMovePiece={pieceIndex =>
                         sendCommand({ kind: "move", pieceIndex })
                       }
+                      onRoll={() => sendCommand({ kind: "roll" })}
+                      canRoll={
+                        isYourTurn &&
+                        snapshot?.dice === null &&
+                        snapshot?.winner === null &&
+                        !command.isPending
+                      }
+                      isRolling={command.isPending || isBotRolling}
                       disabled={command.isPending || isBotTurn}
                       isBotMatch={isBotMatch}
                     />
@@ -875,6 +920,11 @@ export default function MatchRoom() {
                         value={
                           snapshot?.dice ??
                           (snapshot?.lastRoll ? snapshot.lastRoll.value : null)
+                        }
+                        diceValues={
+                          (snapshot as any)?.diceValues ??
+                          (snapshot?.lastRoll as any)?.diceValues ??
+                          (snapshot?.dice ? [Math.ceil((snapshot.dice as number) / 2), Math.floor((snapshot.dice as number) / 2)] : null)
                         }
                         isRolling={command.isPending || isBotRolling}
                         canRoll={

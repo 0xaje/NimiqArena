@@ -667,73 +667,96 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
       break;
     }
 
-    // 1. Roll dice if not already rolled
-    let currentDice = snapshot.dice;
-    if (currentDice === null) {
-      const rollResult = await applyLudoMatchCommand({
-        matchId,
-        userId: botUser.id,
-        command: {
-          kind: "roll",
-          expectedVersion: currentMatch.stateVersion,
-          nonce: nanoid(24),
-        },
-      });
-      snapshot = rollResult.snapshot;
-      currentSnapshot = snapshot;
-      currentDice = snapshot.dice;
-    }
+    try {
+      // 1. Roll dice if not already rolled
+      let currentDice = snapshot.dice;
+      if (currentDice === null) {
+        const rollResult = await applyLudoMatchCommand({
+          matchId,
+          userId: botUser.id,
+          command: {
+            kind: "roll",
+            expectedVersion: currentMatch.stateVersion,
+            nonce: nanoid(24),
+          },
+        });
+        snapshot = rollResult.snapshot;
+        currentSnapshot = snapshot;
+        currentDice = snapshot.dice;
+      }
 
-    // If rolling forfeits turn (no legal moves possible) or game finished, break out
-    if (
-      currentDice === null ||
-      snapshot.currentPlayer !== botPlayer.seat ||
-      snapshot.winner !== null
-    ) {
-      break;
-    }
-
-    // Human-feeling pacing before move (skipped in automated tests for high-speed simulation)
-    if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
-      await new Promise(r => setTimeout(r, 400));
-    }
-
-    // 2. Choose best legal move for bot
-    const bestMove = selectBestBotMove(
-      snapshot,
-      botPlayer.seat as 0 | 1,
-      currentDice
-    );
-
-    if (bestMove) {
-      const moveResult = await applyLudoMatchCommand({
-        matchId,
-        userId: botUser.id,
-        command: {
-          kind: "move",
-          pieceIndex: bestMove.pieceIndex,
-          expectedVersion: snapshot.version,
-          nonce: nanoid(24),
-        },
-      });
-      snapshot = moveResult.snapshot;
-      currentSnapshot = snapshot;
-
-      // If bot earned a bonus turn (roll of 6 or capture), wait 450ms before next roll
+      // If rolling forfeits turn (no legal moves possible) or game finished, break out
       if (
-        snapshot.currentPlayer === botPlayer.seat &&
-        snapshot.winner === null
+        currentDice === null ||
+        snapshot.currentPlayer !== botPlayer.seat ||
+        snapshot.winner !== null
       ) {
-        if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
-          await new Promise(r => setTimeout(r, 450));
-        }
-        continue;
-      } else {
         break;
       }
-    } else {
-      // Fallback if no legal move was found
-      await passBotTurnToOpponent(matchId, snapshot, botPlayer.seat);
+
+      // Human-feeling pacing before move (skipped in automated tests for high-speed simulation)
+      if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+        await new Promise(r => setTimeout(r, 400));
+      }
+
+      // 2. Choose best legal move for bot
+      const bestMove = selectBestBotMove(
+        snapshot,
+        botPlayer.seat as 0 | 1,
+        currentDice
+      );
+
+      if (bestMove) {
+        const moveResult = await applyLudoMatchCommand({
+          matchId,
+          userId: botUser.id,
+          command: {
+            kind: "move",
+            pieceIndex: bestMove.pieceIndex,
+            expectedVersion: snapshot.version,
+            nonce: nanoid(24),
+          },
+        });
+        snapshot = moveResult.snapshot;
+        currentSnapshot = snapshot;
+
+        // If bot earned a bonus turn (roll of 6 or capture), wait 450ms before next roll
+        if (
+          snapshot.currentPlayer === botPlayer.seat &&
+          snapshot.winner === null
+        ) {
+          if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+            await new Promise(r => setTimeout(r, 450));
+          }
+          continue;
+        } else {
+          break;
+        }
+      } else {
+        // Fallback if no legal move was found
+        await passBotTurnToOpponent(matchId, snapshot, botPlayer.seat);
+        break;
+      }
+    } catch (stepErr) {
+      console.warn(
+        `[Bot] Transient error during bot step in match ${matchId}:`,
+        stepErr instanceof Error ? stepErr.message : stepErr
+      );
+      // Re-read latest match state from DB to see if state advanced or needs fail-safe pass
+      const refreshed = await getMatchById(matchId);
+      if (!refreshed || refreshed.status !== "in_progress") break;
+      const refSnapshot = JSON.parse(refreshed.stateJson) as LudoSnapshot;
+      currentSnapshot = refSnapshot;
+      if (
+        refSnapshot.currentPlayer !== botPlayer.seat ||
+        refSnapshot.winner !== null
+      ) {
+        break;
+      }
+      // If dice was rolled but move could not be applied, pass turn cleanly to unblock match
+      if (refSnapshot.dice !== null) {
+        await passBotTurnToOpponent(matchId, refSnapshot, botPlayer.seat);
+      }
       break;
     }
   }
