@@ -508,11 +508,18 @@ describe.skipIf(!runDatabaseIntegration)(
             });
             const afterRoll = rollRes.snapshot;
             if (afterRoll.currentPlayer === 0 && afterRoll.dice !== null) {
-              // Human has a legal move! Find a movable piece
               const p0 = afterRoll.players[0];
+              const [d1, d2] = afterRoll.diceValues ?? [afterRoll.dice ?? 0, 0];
+              const hasSix = afterRoll.diceValues
+                ? d1 === 6 || d2 === 6
+                : afterRoll.dice === 6;
               const movableIdx = p0.pieces.findIndex(p => {
-                if (p.position === -1) return afterRoll.dice === 6;
-                return p.position + afterRoll.dice! <= 57;
+                if (p.position === -1) return hasSix;
+                return (
+                  p.position + afterRoll.dice! <= 57 ||
+                  p.position + d1 <= 57 ||
+                  p.position + d2 <= 57
+                );
               });
               if (movableIdx >= 0) {
                 await applyLudoMatchCommand({

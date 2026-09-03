@@ -261,25 +261,25 @@ export default function MatchRoom() {
     }
   }, [isBotTurn, snapshot?.lastRoll, isBotMatch, yourSeat]);
 
-  // Bot Turn Watchdog: If bot turn is active for > 2.8s without progress, kick server bot turn
+  // Bot Turn Watchdog: Continuous recurring watchdog while it is the bot's turn
   useEffect(() => {
     if (!isBotTurn || !matchId) return;
 
-    const watchdogTimer = window.setTimeout(async () => {
+    const interval = window.setInterval(async () => {
       try {
         await utils.match.state.invalidate({ id: matchId });
         await stateQuery.refetch();
-        // If still bot turn, kick server bot turn mutation directly
+        // If bot turn persists, authoritatively trigger server bot turn mutation
         await triggerBotTurnMutation.mutateAsync({ matchId });
         await utils.match.state.invalidate({ id: matchId });
         await stateQuery.refetch();
       } catch {
         // Watchdog failsafe catch
       }
-    }, 2800);
+    }, 1800);
 
-    return () => window.clearTimeout(watchdogTimer);
-  }, [isBotTurn, state?.stateVersion, matchId]);
+    return () => window.clearInterval(interval);
+  }, [isBotTurn, matchId]);
 
   // Sound triggers on state mutations
   useEffect(() => {

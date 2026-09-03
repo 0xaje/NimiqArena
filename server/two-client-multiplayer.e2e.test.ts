@@ -211,7 +211,7 @@ describe.skipIf(!runDatabaseIntegration)(
       });
       expect(rollRes.snapshot.version).toBe(1);
       expect(rollRes.snapshot.lastRoll?.value).toBeGreaterThanOrEqual(1);
-      expect(rollRes.snapshot.lastRoll?.value).toBeLessThanOrEqual(6);
+      expect(rollRes.snapshot.lastRoll?.value).toBeLessThanOrEqual(12);
 
       // Wait for SSE broadcast
       await new Promise(r => setTimeout(r, 400));

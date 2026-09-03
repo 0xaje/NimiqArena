@@ -243,7 +243,7 @@ export async function createChallengeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id, input.mode ?? "2p_single");
+      : createLudoSnapshot(id, input.mode ?? "2p_single", 2);
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -379,7 +379,7 @@ export async function findOrCreateQuickMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id, "2p_single");
+      : createLudoSnapshot(id, "2p_single", 2);
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -529,7 +529,7 @@ export async function createSoloPracticeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id, "2p_double");
+      : createLudoSnapshot(id, "2p_double", 2);
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -696,7 +696,7 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
 
       // Human-feeling pacing before move (skipped in automated tests for high-speed simulation)
       if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 120));
       }
 
       // 2. Choose best legal move for bot
@@ -720,13 +720,13 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
         snapshot = moveResult.snapshot;
         currentSnapshot = snapshot;
 
-        // If bot earned a bonus turn (roll of 6 or capture), wait 450ms before next roll
+        // If bot earned a bonus turn (roll of 6 or capture), wait 150ms before next roll
         if (
           snapshot.currentPlayer === botPlayer.seat &&
           snapshot.winner === null
         ) {
           if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
-            await new Promise(r => setTimeout(r, 450));
+            await new Promise(r => setTimeout(r, 150));
           }
           continue;
         } else {
@@ -753,18 +753,31 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
       ) {
         break;
       }
-      // If dice was rolled but move could not be applied, pass turn cleanly to unblock match
-      if (refSnapshot.dice !== null) {
-        await passBotTurnToOpponent(matchId, refSnapshot, botPlayer.seat);
-      }
+      // UNCONDITIONAL FAIL-SAFE:
+      // If the match is still on the bot's turn after an error, pass the turn to the opponent!
+      // Never leave it stranded on currentPlayer === 1!
+      await passBotTurnToOpponent(matchId, refSnapshot, botPlayer.seat);
       break;
+    }
+  }
+
+  // End-of-loop guarantee: If match is still on bot's turn, pass it cleanly to opponent
+  if (
+    currentSnapshot &&
+    currentSnapshot.currentPlayer === botPlayer.seat &&
+    currentSnapshot.winner === null
+  ) {
+    await passBotTurnToOpponent(matchId, currentSnapshot, botPlayer.seat);
+    const finalized = await getMatchById(matchId);
+    if (finalized) {
+      currentSnapshot = JSON.parse(finalized.stateJson);
     }
   }
 
   return { ok: true as const, snapshot: currentSnapshot };
 }
 
-export function scheduleAutonomousBotStep(matchId: string, delayMs = 450) {
+export function scheduleAutonomousBotStep(matchId: string, delayMs = 150) {
   if (botMatchLocks.has(matchId)) return;
   const existing = botMatchTimers.get(matchId);
   if (existing) clearTimeout(existing);
@@ -802,7 +815,7 @@ export async function maybeScheduleBotTurn(
     const players = await getMatchPlayers(matchId);
     const nextPlayer = players.find(p => p.seat === nextPlayerSeat);
     if (nextPlayer && nextPlayer.userId === botUser.id) {
-      scheduleAutonomousBotStep(matchId, 450);
+      scheduleAutonomousBotStep(matchId, 150);
     }
   } catch (err) {
     console.error(`[Bot] Error in maybeScheduleBotTurn:`, err);
@@ -2133,7 +2146,7 @@ export async function createWageredChallengeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id, "2p_double");
+      : createLudoSnapshot(id, "2p_double", 2);
 
   // Initial root payment intent for the host's stake
   const hostIntentId = nanoid(20);

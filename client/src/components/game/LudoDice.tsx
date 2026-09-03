@@ -29,17 +29,27 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
 
   // Derive individual die values: [die1, die2]
   const [val1, val2] = React.useMemo<[number | null, number | null]>(() => {
-    if (diceValues && diceValues.length === 2) {
+    if (
+      diceValues &&
+      diceValues.length === 2 &&
+      diceValues[0] !== null &&
+      diceValues[1] !== null
+    ) {
       return [diceValues[0], diceValues[1]];
     }
     if (value !== null && value > 0) {
       if (value <= 6) {
-        // Single die roll: show primary on die 1, and duplicate/split on die 2
-        return [value, value];
+        // Natural distribution for single-roll fallback: e.g. 5 -> [3, 2], 3 -> [2, 1], 6 -> [4, 2]
+        if (value === 6) return [4, 2];
+        if (value === 5) return [3, 2];
+        if (value === 4) return [3, 1];
+        if (value === 3) return [2, 1];
+        if (value === 2) return [1, 1];
+        return [1, 0];
       }
-      const half1 = Math.ceil(value / 2);
-      const half2 = Math.floor(value / 2);
-      return [Math.min(6, half1), Math.min(6, half2)];
+      const d1 = Math.min(6, Math.max(1, Math.ceil(value / 2)));
+      const d2 = Math.min(6, Math.max(1, value - d1));
+      return [d1, d2];
     }
     return [null, null];
   }, [value, diceValues]);
