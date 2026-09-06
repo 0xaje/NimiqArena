@@ -173,7 +173,9 @@ export default function Home() {
 
   async function switchPlayer(name: string) {
     try {
-      const res = await guestLogin.mutateAsync({ name });
+      // Switching player means becoming someone else, not renaming yourself,
+      // so ask the server for a fresh identity rather than reusing this one.
+      const res = await guestLogin.mutateAsync({ name, newIdentity: true });
       if (res.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
       }

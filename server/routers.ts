@@ -93,14 +93,24 @@ export const appRouter = router({
         z
           .object({
             name: z.string().min(1).max(64).optional(),
-            openId: z.string().min(1).max(64).optional(),
+            newIdentity: z.boolean().optional(),
           })
           .optional()
       )
       .mutation(async ({ ctx, input }) => {
         const name = input?.name?.trim() || "Player 1";
-        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
-        const openId = input?.openId || `guest-${slug}`;
+        // The openId is the session subject, so it is always minted here and
+        // never accepted from the client: a caller-supplied value would let
+        // anyone sign in as any account by naming its openId, and a name-derived
+        // one is just as guessable. Callers who already hold a guest session
+        // keep it, so choosing a display name renames that identity instead of
+        // orphaning its rating and history. `newIdentity` opts out, for testing
+        // two players from one browser.
+        const existingGuest =
+          ctx.user && ctx.user.loginMethod === "guest" && !input?.newIdentity
+            ? ctx.user
+            : null;
+        const openId = existingGuest?.openId ?? `guest-${nanoid(24)}`;
         await upsertUser({
           openId,
           name,
