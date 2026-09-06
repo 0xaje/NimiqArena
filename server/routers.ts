@@ -660,11 +660,19 @@ export const appRouter = router({
   }),
   payment: router({
     createIntent: protectedProcedure
-      .input(z.object({ clientNonce: clientNonceSchema }))
+      .input(
+        z.object({
+          clientNonce: clientNonceSchema,
+          // Prices the intent for a seat in this match rather than at the
+          // flat entry fee.
+          matchId: matchIdSchema.optional(),
+        })
+      )
       .mutation(async ({ ctx, input }) => {
         const intent = await createPaymentIntent({
           userId: ctx.user.id,
           clientNonce: input.clientNonce,
+          matchId: input.matchId,
         });
         return {
           id: intent.id,

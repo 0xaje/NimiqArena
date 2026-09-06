@@ -574,6 +574,12 @@ export async function addBotToWaitingMatch(
   if (match.hostUserId !== requestingUserId) {
     throw new Error("Only the host can add a bot to this match.");
   }
+  // A bot cannot post a stake, so filling a wagered seat with one would let a
+  // host play for a pot only the opponent - or nobody - funded. It also starts
+  // the match, which would walk straight around the escrow gate.
+  if (isWageredMatch(match)) {
+    throw new Error("A wagered match cannot be played against a bot.");
+  }
 
   const botUser = await getOrCreateBotUser();
 
@@ -1129,10 +1135,20 @@ export async function joinMatchByCode(input: {
       seat: 1,
       status: "joined",
     });
-    await tx
-      .update(matches)
-      .set({ status: "in_progress" })
-      .where(eq(matches.id, match.id));
+    // A wagered match stays in the waiting room until both stakes are
+    // verified; claiming the second deposit starts it. Previously play began
+    // the moment someone joined, so a whole match could be played out and
+    // "settled" against a pot nobody had paid into.
+    const nextStatus = isWageredMatch(match)
+      ? ("waiting" as const)
+      : ("in_progress" as const);
+
+    if (nextStatus !== match.status) {
+      await tx
+        .update(matches)
+        .set({ status: nextStatus })
+        .where(eq(matches.id, match.id));
+    }
     const player = (
       await tx
         .select()
@@ -1147,7 +1163,10 @@ export async function joinMatchByCode(input: {
     )[0];
     if (!player) throw new Error("Player could not be joined.");
     notifyMatchUpdated(match.id);
-    return { match: { ...match, status: "in_progress" as const }, player };
+    return {
+      match: { ...match, status: nextStatus },
+      player,
+    };
   });
 }
 
@@ -1814,9 +1833,49 @@ export async function getPlayerStats(input: {
   };
 }
 
+/**
+ * What one seat in this match costs, in Luna.
+ *
+ * A wagered match carries a root intent whose value is the agreed stake; the
+ * flat arena entry fee applies to everything else. Both sides of a wager pay
+ * the same, so this is the single source of truth for pricing a seat and for
+ * checking, at claim time, that a deposit actually covers it.
+ */
+export async function requiredEntryLunaForMatch(
+  // The database handle or an open transaction, as settleMatchRating takes.
+  runner: any,
+  match: Match
+): Promise<number> {
+  if (!match.paymentIntentId) return ENV.nimiqArenaEntryValueLuna;
+
+  const rootIntent = (
+    await runner
+      .select()
+      .from(paymentIntents)
+      .where(eq(paymentIntents.id, match.paymentIntentId))
+      .limit(1)
+  )[0];
+
+  return rootIntent?.valueLuna ?? ENV.nimiqArenaEntryValueLuna;
+}
+
+/** A wagered match is one created with a stake attached. */
+export function isWageredMatch(match: Match): boolean {
+  return Boolean(match.paymentIntentId);
+}
+
+/** Intent states that can still become a payment, so are worth reusing. */
+const REUSABLE_INTENT_STATUSES = [
+  "created",
+  "confirmation_pending",
+  "submitted",
+];
+
 export async function createPaymentIntent(input: {
   userId: number;
   clientNonce: string;
+  /** Prices the intent for a specific seat instead of the flat entry fee. */
+  matchId?: string;
 }): Promise<PaymentIntent> {
   const db = await getDb();
   if (!db) throw new Error("Payment service is unavailable.");
@@ -1828,6 +1887,41 @@ export async function createPaymentIntent(input: {
     ENV.nimiqArenaEntryValueLuna <= 0
   ) {
     throw new Error("Arena entry amount is not configured.");
+  }
+
+  // Pricing a seat: charge the stake this match was created with, not the flat
+  // entry fee. Without this a player could enter a 10,000 NIM wager for 1 NIM.
+  let valueLuna = ENV.nimiqArenaEntryValueLuna;
+  if (input.matchId) {
+    const match = await getMatchById(input.matchId);
+    if (!match) throw new Error("Match not found.");
+
+    const seat = await getMatchPlayer(input.matchId, input.userId);
+    if (!seat) throw new Error("You are not a participant in this match.");
+
+    valueLuna = await requiredEntryLunaForMatch(db, match);
+
+    // The host's stake intent is created with the match; reuse it rather than
+    // stranding it and charging them through a second one.
+    if (seat.paymentIntentId) {
+      const seatIntent = (
+        await db
+          .select()
+          .from(paymentIntents)
+          .where(eq(paymentIntents.id, seat.paymentIntentId))
+          .limit(1)
+      )[0];
+
+      if (
+        seatIntent &&
+        seatIntent.userId === input.userId &&
+        seatIntent.valueLuna >= valueLuna &&
+        seatIntent.expiresAt.getTime() > Date.now() &&
+        REUSABLE_INTENT_STATUSES.includes(seatIntent.status)
+      ) {
+        return seatIntent;
+      }
+    }
   }
 
   const existing = await db
@@ -1849,7 +1943,7 @@ export async function createPaymentIntent(input: {
     id,
     userId: input.userId,
     recipient: ENV.nimiqPaymentRecipient,
-    valueLuna: ENV.nimiqArenaEntryValueLuna,
+    valueLuna,
     clientNonce: input.clientNonce,
     status: "created",
     expiresAt,
@@ -2166,6 +2260,27 @@ export async function claimVerifiedPaymentForMatch(input: {
   if (!db) throw new Error("Match payment service is unavailable.");
 
   return db.transaction(async tx => {
+    const match = (
+      await tx.select().from(matches).where(eq(matches.id, input.matchId)).limit(1)
+    )[0];
+    if (!match) throw new Error("Match not found.");
+
+    // The update below silently affected no rows when the caller held no seat,
+    // and still reported success.
+    const seat = (
+      await tx
+        .select()
+        .from(matchPlayers)
+        .where(
+          and(
+            eq(matchPlayers.matchId, input.matchId),
+            eq(matchPlayers.userId, input.userId)
+          )
+        )
+        .limit(1)
+    )[0];
+    if (!seat) throw new Error("You are not a participant in this match.");
+
     const intent = (
       await tx
         .select()
@@ -2183,6 +2298,15 @@ export async function claimVerifiedPaymentForMatch(input: {
     if (intent.status !== "verified") {
       throw new Error(
         `Payment is not verified (current status: ${intent.status}). Cannot enter paid match.`
+      );
+    }
+
+    // A verified intent proves a payment happened, not that it covers this
+    // seat. Without this, a flat-fee entry intent buys into any stake.
+    const requiredLuna = await requiredEntryLunaForMatch(tx, match);
+    if (intent.valueLuna < requiredLuna) {
+      throw new Error(
+        `Deposit of ${intent.valueLuna} Luna does not cover the ${requiredLuna} Luna entry for this match.`
       );
     }
 
@@ -2208,10 +2332,56 @@ export async function claimVerifiedPaymentForMatch(input: {
         )
       );
 
+    // With both stakes in hand the wagered match can start. Joining no longer
+    // does this, so play waits on escrow rather than on trust.
+    let escrowFunded = false;
+    if (isWageredMatch(match)) {
+      const seats = await tx
+        .select()
+        .from(matchPlayers)
+        .where(eq(matchPlayers.matchId, input.matchId));
+
+      const funded = await Promise.all(
+        seats.map(async current => {
+          const seatIntentId =
+            current.userId === input.userId
+              ? input.paymentIntentId
+              : current.paymentIntentId;
+          if (!seatIntentId) return false;
+
+          const seatIntent = (
+            await tx
+              .select()
+              .from(paymentIntents)
+              .where(eq(paymentIntents.id, seatIntentId))
+              .limit(1)
+          )[0];
+
+          return Boolean(
+            seatIntent &&
+              seatIntent.status === "verified" &&
+              seatIntent.valueLuna >= requiredLuna
+          );
+        })
+      );
+
+      escrowFunded = seats.length === 2 && funded.every(Boolean);
+
+      if (escrowFunded && match.status === "waiting") {
+        await tx
+          .update(matches)
+          .set({ status: "in_progress" })
+          .where(
+            and(eq(matches.id, input.matchId), eq(matches.status, "waiting"))
+          );
+      }
+    }
+
     return {
       success: true,
       matchId: input.matchId,
       paymentIntentId: input.paymentIntentId,
+      escrowFunded,
     };
   });
 }

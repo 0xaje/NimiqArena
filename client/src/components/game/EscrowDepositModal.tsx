@@ -44,7 +44,11 @@ export function EscrowDepositModal({
 
   if (!isOpen) return null;
 
+  // Display only. stakeNim comes from the match's root intent via
+  // escrowDetails, so this matches what the server will price the seat at;
+  // the amount actually charged is whatever createIntent returns.
   const lunaValue = Math.floor(stakeNim * 100_000);
+
 
   const handleStartDeposit = async () => {
     try {
@@ -55,6 +59,9 @@ export function EscrowDepositModal({
       const nonce = createPaymentNonce();
       const intentRes = await createIntent.mutateAsync({
         clientNonce: nonce,
+        // Server prices the seat from the match's stake; the modal pays
+        // whatever it returns rather than assuming the flat entry fee.
+        matchId,
       });
       const intent = intentRes;
 
