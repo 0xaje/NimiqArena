@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   int,
@@ -264,6 +265,17 @@ export const paymentIntents = mysqlTable(
     networkId: int("networkId"),
     failureCode: varchar("failureCode", { length: 64 }),
     verifiedAt: timestamp("verifiedAt"),
+    /**
+     * The hash, but only while this intent is verified. Unverified intents
+     * hold NULL, and MySQL permits many NULLs in a unique index, so the index
+     * below enforces "at most one verified intent per transaction" without
+     * blocking a payer from recording a hash a failed intent also holds.
+     */
+    verifiedTransactionHash: varchar("verifiedTransactionHash", { length: 128 })
+      .generatedAlwaysAs(
+        sql`(case when \`status\` = 'verified' then \`transactionHash\` else null end)`,
+        { mode: "stored" }
+      ),
     expiresAt: timestamp("expiresAt").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -276,6 +288,11 @@ export const paymentIntents = mysqlTable(
     ),
     txHashIdx: index("payment_intents_tx_hash_idx").on(
       table.transactionHash
+    ),
+    // One on-chain transaction settles at most one intent, enforced by the
+    // database rather than by a check that another request can race.
+    verifiedTxHashIdx: uniqueIndex("payment_intents_verified_tx_hash_idx").on(
+      table.verifiedTransactionHash
     ),
   })
 );

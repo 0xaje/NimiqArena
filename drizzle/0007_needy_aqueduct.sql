@@ -1,0 +1,2 @@
+ALTER TABLE `payment_intents` ADD `verifiedTransactionHash` varchar(128) GENERATED ALWAYS AS ((case when `status` = 'verified' then `transactionHash` else null end)) STORED;--> statement-breakpoint
+ALTER TABLE `payment_intents` ADD CONSTRAINT `payment_intents_verified_tx_hash_idx` UNIQUE(`verifiedTransactionHash`);

@@ -1995,6 +1995,21 @@ export async function updatePaymentIntent(
 }
 
 /**
+ * True when an error is MySQL's duplicate-key rejection.
+ *
+ * Drizzle wraps driver errors, so the original code and errno live somewhere
+ * down the cause chain rather than on the error itself.
+ */
+export function isDuplicateKeyError(error: unknown): boolean {
+  let current: any = error;
+  for (let depth = 0; current && depth < 5; depth++) {
+    if (current.code === "ER_DUP_ENTRY" || current.errno === 1062) return true;
+    current = current.cause;
+  }
+  return false;
+}
+
+/**
  * Authoritatively verifies a payment intent against the Nimiq blockchain.
  * Updates state machine, checks duplicate consumption, and records an audit log.
  */
@@ -2117,15 +2132,106 @@ export async function verifyPaymentIntent(input: {
 
   if (verifyResult.success && verifyResult.transaction) {
     const tx = verifyResult.transaction;
-    await updatePaymentIntent(intent.id, input.userId, {
-      status: "verified",
-      senderAddress: tx.from,
-      blockNumber: tx.blockNumber,
-      confirmations: tx.confirmations,
-      networkId: tx.networkId,
-      verifiedAt: new Date(),
-      failureCode: null,
-    });
+
+    // The pre-check above ran before the chain call, so another request could
+    // have verified this same hash while we were waiting on the network. The
+    // check and the write therefore happen together: the locking read
+    // serialises concurrent verifications of one hash, and the unique index on
+    // verifiedTransactionHash is the backstop if one slips past anyway.
+    let claimedByOtherIntent: string | null = null;
+    try {
+      await db.transaction(async trx => {
+        const rival = (
+          await trx
+            .select()
+            .from(paymentIntents)
+            .where(
+              and(
+                eq(paymentIntents.transactionHash, txHash),
+                eq(paymentIntents.status, "verified")
+              )
+            )
+            .limit(1)
+            .for("update")
+        )[0];
+
+        if (rival && rival.id !== intent.id) {
+          claimedByOtherIntent = rival.id;
+          return;
+        }
+
+        await trx
+          .update(paymentIntents)
+          .set({
+            status: "verified",
+            senderAddress: tx.from,
+            blockNumber: tx.blockNumber,
+            confirmations: tx.confirmations,
+            networkId: tx.networkId,
+            verifiedAt: new Date(),
+            failureCode: null,
+          })
+          .where(
+            and(
+              eq(paymentIntents.id, intent.id),
+              eq(paymentIntents.userId, input.userId)
+            )
+          );
+      });
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+      const rival = (
+        await db
+          .select()
+          .from(paymentIntents)
+          .where(
+            and(
+              eq(paymentIntents.transactionHash, txHash),
+              eq(paymentIntents.status, "verified")
+            )
+          )
+          .limit(1)
+      )[0];
+      claimedByOtherIntent = rival?.id ?? "another intent";
+    }
+
+    if (claimedByOtherIntent) {
+      await updatePaymentIntent(intent.id, input.userId, {
+        status: "duplicate",
+        failureCode: "duplicate",
+      });
+      const updatedDuplicate = (await getPaymentIntentForUser(
+        intent.id,
+        input.userId
+      ))!;
+      const [dupAudit] = await db
+        .insert(paymentVerifications)
+        .values({
+          paymentIntentId: intent.id,
+          transactionHash: txHash,
+          status: "duplicate",
+          failureReason: "duplicate",
+          rawResponseJson: JSON.stringify({
+            duplicateOfIntentId: claimedByOtherIntent,
+          }),
+        })
+        .$returningId();
+      const dupVerification = (
+        await db
+          .select()
+          .from(paymentVerifications)
+          .where(eq(paymentVerifications.id, dupAudit.id))
+          .limit(1)
+      )[0];
+      return {
+        success: false,
+        intent: updatedDuplicate,
+        verification: dupVerification,
+        failureReason: "duplicate",
+        errorMessage: `Duplicate transaction hash already claimed by intent ${claimedByOtherIntent}`,
+      };
+    }
+
     const updated = (await getPaymentIntentForUser(intent.id, input.userId))!;
 
     const [audit] = await db
