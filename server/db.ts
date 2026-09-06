@@ -1,4 +1,9 @@
 import { randomInt } from "node:crypto";
+import {
+  ABANDONMENT_GRACE_MS,
+  MATCH_PLAY_WINDOW_MS,
+  PLAYER_HEARTBEAT_TIMEOUT_MS,
+} from "@shared/const";
 import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
@@ -352,9 +357,11 @@ export async function findOrCreateQuickMatch(input: {
           status: "joined",
         });
 
+        // The ticket's expiry was a queue timeout; play gets its own window.
+        const playExpiresAt = matchPlayWindowExpiry();
         await tx
           .update(matches)
-          .set({ status: "in_progress" })
+          .set({ status: "in_progress", expiresAt: playExpiresAt })
           .where(eq(matches.id, candidate.id));
 
         notifyMatchUpdated(candidate.id);
@@ -362,7 +369,7 @@ export async function findOrCreateQuickMatch(input: {
           matchId: candidate.id,
           status: "in_progress" as const,
           seat: 1,
-          expiresAt: candidate.expiresAt,
+          expiresAt: playExpiresAt,
         };
       });
 
@@ -525,7 +532,8 @@ export async function createSoloPracticeMatch(input: {
 
   const id = nanoid(20);
   const joinCode = `BOT${nanoid(7).replace(/[-_]/g, "A").toUpperCase()}`;
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour for practice
+  // Starts in progress, so it gets the play window rather than a lobby clock.
+  const expiresAt = matchPlayWindowExpiry();
   const engineVersion = game.kind === "connect4" ? "connect4-v1" : "ludo-v1";
   const snapshot =
     game.kind === "connect4"
@@ -613,6 +621,7 @@ export async function addBotToWaitingMatch(
       .set({
         status: "in_progress",
         joinCode: newJoinCode,
+        expiresAt: matchPlayWindowExpiry(),
       })
       .where(eq(matches.id, matchId));
   });
@@ -947,8 +956,10 @@ export async function getMatchPlayer(matchId: string, userId: number) {
   return result[0];
 }
 
-const PLAYER_HEARTBEAT_TIMEOUT_MS = 45_000;
-const ABANDONMENT_GRACE_MS = 10 * 60_000;
+/** Clock a match gets once play begins. See matchPlayWindowExpiry. */
+export function matchPlayWindowExpiry(from = new Date()): Date {
+  return new Date(from.getTime() + MATCH_PLAY_WINDOW_MS);
+}
 
 export async function heartbeatMatchPlayer(matchId: string, userId: number) {
   const db = await getDb();
@@ -964,6 +975,24 @@ export async function heartbeatMatchPlayer(matchId: string, userId: number) {
     throw new Error("You are not a participant in this match.");
   notifyMatchUpdated(matchId);
   return { ok: true as const, lastSeenAt: now };
+}
+
+/**
+ * Records that a player is still present, without waking every subscriber.
+ *
+ * heartbeatMatchPlayer notifies the match, which is right for an explicit beat
+ * but would loop if called from inside the stream's own tick. Presence is the
+ * only thing being updated here, and nobody needs to be told about it.
+ */
+export async function touchMatchPlayerPresence(matchId: string, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(matchPlayers)
+    .set({ status: "joined", lastSeenAt: new Date() })
+    .where(
+      and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, userId))
+    );
 }
 
 export async function disconnectMatchPlayer(matchId: string, userId: number) {
@@ -989,6 +1018,14 @@ export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
       await tx.select().from(matches).where(eq(matches.id, matchId)).limit(1)
     )[0];
     if (!match) return undefined;
+    // Two different clocks share this field. While a match is waiting it
+    // holds a lobby timeout; the moment play starts it is reset to the much
+    // longer play window, so a game is never ended by the deadline of the
+    // invite it grew out of. It used to be, roughly 13 minutes after a
+    // quick-match ticket was created, mid-game and under both players.
+    //
+    // What remains here is a backstop for a match that stalls forever with
+    // nobody disconnecting, which the abandonment rules below cannot catch.
     if (
       match.expiresAt.getTime() <= now.getTime() &&
       !["finished", "cancelled", "expired"].includes(match.status)
@@ -1146,7 +1183,11 @@ export async function joinMatchByCode(input: {
     if (nextStatus !== match.status) {
       await tx
         .update(matches)
-        .set({ status: nextStatus })
+        .set(
+          nextStatus === "in_progress"
+            ? { status: nextStatus, expiresAt: matchPlayWindowExpiry() }
+            : { status: nextStatus }
+        )
         .where(eq(matches.id, match.id));
     }
     const player = (
@@ -2479,7 +2520,7 @@ export async function claimVerifiedPaymentForMatch(input: {
       if (escrowFunded && match.status === "waiting") {
         await tx
           .update(matches)
-          .set({ status: "in_progress" })
+          .set({ status: "in_progress", expiresAt: matchPlayWindowExpiry() })
           .where(
             and(eq(matches.id, input.matchId), eq(matches.status, "waiting"))
           );

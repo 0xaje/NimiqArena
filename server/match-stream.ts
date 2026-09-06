@@ -1,6 +1,12 @@
 import { EventEmitter } from "node:events";
 import type { Express } from "express";
-import { getMatchPlayer, getMatchPlayers, refreshMatchLifecycle } from "./db";
+import {
+  getMatchPlayer,
+  getMatchPlayers,
+  refreshMatchLifecycle,
+  touchMatchPlayerPresence,
+} from "./db";
+import { PLAYER_HEARTBEAT_INTERVAL_MS } from "@shared/const";
 import { createContext } from "./_core/context";
 
 const matchEventsEmitter = new EventEmitter();
@@ -81,6 +87,10 @@ export function registerMatchStream(app: Express) {
             players: players.map(item => ({
               seat: item.seat,
               status: item.status,
+              // The client decides when to warn about an absent opponent, and
+              // was reading this from the polled query only - so a stream
+              // update left it undefined and the two disagreed.
+              lastSeenAt: item.lastSeenAt,
             })),
             yourSeat: player.seat,
           })}\n\n`
@@ -123,6 +133,17 @@ export function registerMatchStream(app: Express) {
       void sendState().catch(() => undefined);
     }, 3_000);
 
+    // An open stream is proof the player is there, and it survives the browser
+    // throttling background timers - which was marking players absent purely
+    // for having tabbed away. The client's own beat still drives presence when
+    // the stream is unavailable.
+    const presenceSync = setInterval(() => {
+      if (closed) return;
+      void touchMatchPlayerPresence(matchId, context.user!.id).catch(
+        () => undefined
+      );
+    }, PLAYER_HEARTBEAT_INTERVAL_MS);
+
     const pingInterval = setInterval(() => {
       if (!closed) {
         try {
@@ -136,6 +157,7 @@ export function registerMatchStream(app: Express) {
     req.on("close", () => {
       closed = true;
       clearInterval(periodicSync);
+      clearInterval(presenceSync);
       clearInterval(pingInterval);
       matchEventsEmitter.off(`match:${matchId}`, onMatchUpdate);
       matchEventsEmitter.off(`match:${matchId}:emote`, onEmote);

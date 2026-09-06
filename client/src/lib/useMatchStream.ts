@@ -1,4 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import { reconnectDelayMs } from "./reconnect-policy";
+
+/**
+ * After this many consecutive failures the stream stops retrying and the match
+ * runs on polling alone.
+ *
+ * EventSource cannot send an Authorization header, so in browsers where the
+ * session cookie is blocked - Safari ITP, iOS WebViews, in-app browsers, the
+ * exact cases the Bearer fallback exists for - this endpoint always 401s.
+ * Retrying it forever burned a request every 2s against the rate limit and
+ * never recovered. MatchRoom already polls when the stream is down.
+ */
+const MAX_STREAM_RECONNECT_ATTEMPTS = 6;
 
 export interface EmoteEvent {
   id: string;
@@ -52,6 +65,7 @@ export function useMatchStream({
     let isSubscribed = true;
     let eventSource: EventSource | null = null;
     let reconnectTimeout: number | null = null;
+    let attempt = 0;
 
     function connect() {
       if (!isSubscribed) return;
@@ -63,6 +77,7 @@ export function useMatchStream({
 
         eventSource.onopen = () => {
           if (isSubscribed) {
+            attempt = 0;
             setIsConnected(true);
           }
         };
@@ -109,13 +124,23 @@ export function useMatchStream({
           if (!isSubscribed) return;
           setIsConnected(false);
           eventSource?.close();
-          // Attempt reconnection after 2 seconds
-          reconnectTimeout = window.setTimeout(connect, 2000);
+          scheduleReconnect();
         };
       } catch {
         setIsConnected(false);
-        reconnectTimeout = window.setTimeout(connect, 3000);
+        scheduleReconnect();
       }
+    }
+
+    function scheduleReconnect() {
+      if (!isSubscribed) return;
+      if (attempt >= MAX_STREAM_RECONNECT_ATTEMPTS) return;
+
+      // Backs off instead of hammering: reconnect-policy already implemented
+      // this and nothing used it.
+      const delay = reconnectDelayMs(attempt);
+      attempt += 1;
+      reconnectTimeout = window.setTimeout(connect, delay);
     }
 
     connect();

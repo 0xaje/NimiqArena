@@ -26,6 +26,19 @@ import { formatNim } from "@shared/game/pot-distribution";
 import { EmoteWheel } from "@/components/game/EmoteWheel";
 import { EmoteOverlay } from "@/components/game/EmoteOverlay";
 import { useMatchStream } from "@/lib/useMatchStream";
+import {
+  ABANDONMENT_GRACE_MS,
+  OPPONENT_PRESENCE_WARNING_MS,
+  PLAYER_HEARTBEAT_INTERVAL_MS,
+} from "@shared/const";
+
+/** The grace window runs to minutes, so "600s" would read as a stopwatch bug. */
+function formatGrace(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 export default function MatchRoom() {
   const [, params] = useRoute("/matches/:id");
@@ -138,12 +151,13 @@ export default function MatchRoom() {
         { id: matchId },
         {
           onSettled: () => {
-            if (!closed) timer = window.setTimeout(tick, 15_000);
+            if (!closed)
+              timer = window.setTimeout(tick, PLAYER_HEARTBEAT_INTERVAL_MS);
           },
         }
       );
     };
-    timer = window.setTimeout(tick, 15_000);
+    timer = window.setTimeout(tick, PLAYER_HEARTBEAT_INTERVAL_MS);
     return () => {
       closed = true;
       if (timer !== null) window.clearTimeout(timer);
@@ -174,7 +188,9 @@ export default function MatchRoom() {
   );
 
   const [turnSecondsLeft, setTurnSecondsLeft] = useState(30);
-  const [disconnectGraceSeconds, setDisconnectGraceSeconds] = useState(60);
+  const [disconnectGraceSeconds, setDisconnectGraceSeconds] = useState(
+    Math.floor(ABANDONMENT_GRACE_MS / 1000)
+  );
 
   const opponent = state?.players.find(p => p.seat !== yourSeat);
   const isOpponentDisconnected = Boolean(
@@ -183,7 +199,8 @@ export default function MatchRoom() {
       opponent &&
       (opponent.status === "disconnected" ||
         (opponent.lastSeenAt &&
-          Date.now() - new Date(opponent.lastSeenAt).getTime() > 14000))
+          Date.now() - new Date(opponent.lastSeenAt).getTime() >
+            OPPONENT_PRESENCE_WARNING_MS))
   );
 
   // Turn Countdown Timer (30s per turn)
@@ -211,7 +228,7 @@ export default function MatchRoom() {
   // Disconnect Grace Countdown
   useEffect(() => {
     if (!isOpponentDisconnected) {
-      setDisconnectGraceSeconds(60);
+      setDisconnectGraceSeconds(Math.floor(ABANDONMENT_GRACE_MS / 1000));
       return;
     }
     const interval = window.setInterval(() => {
@@ -963,7 +980,7 @@ export default function MatchRoom() {
                   <span>⚠️ Opponent connection unstable (Reconnecting...)</span>
                 </div>
                 <span style={{ color: "#e74c3c", fontWeight: 700 }}>
-                  Grace period: {disconnectGraceSeconds}s
+                  Grace period: {formatGrace(disconnectGraceSeconds)}
                 </span>
               </div>
             )}
