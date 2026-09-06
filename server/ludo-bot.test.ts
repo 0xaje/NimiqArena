@@ -3,6 +3,7 @@ import { selectBestBotMove } from "../shared/game/ludo-bot";
 import { createLudoSnapshot } from "../shared/game/ludo-engine";
 
 const dbMocks = vi.hoisted(() => ({
+  getMatchPlayer: vi.fn(),
   createSoloPracticeMatch: vi.fn(),
   executeBotTurn: vi.fn(),
 }));
@@ -14,6 +15,22 @@ vi.mock("./db", async () => {
     ...dbMocks,
   };
 });
+
+/** The router now checks match participation, so every seated caller needs one. */
+function seatedPlayer(userId: number, matchId = "match-under-test") {
+  const now = new Date();
+  return {
+    id: 1,
+    matchId,
+    userId,
+    seat: 0 as const,
+    status: "joined" as const,
+    paymentIntentId: null,
+    lastSeenAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -119,6 +136,7 @@ describe("Ludo AI Bot Heuristic Engine", () => {
 describe("Solo Practice Match Router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMocks.getMatchPlayer.mockResolvedValue(seatedPlayer(9901));
   });
 
   it("creates a solo match with bot in progress", async () => {

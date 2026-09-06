@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
+  getMatchPlayer: vi.fn(),
   findOrCreateQuickMatch: vi.fn(),
   cancelWaitingMatch: vi.fn(),
   getMatchQueueStatus: vi.fn(),
@@ -13,6 +14,22 @@ vi.mock("./db", async () => {
     ...dbMocks,
   };
 });
+
+/** The router now checks match participation, so every seated caller needs one. */
+function seatedPlayer(userId: number, matchId = "match-under-test") {
+  const now = new Date();
+  return {
+    id: 1,
+    matchId,
+    userId,
+    seat: 0 as const,
+    status: "joined" as const,
+    paymentIntentId: null,
+    lastSeenAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -39,6 +56,7 @@ function createContext(userId = 8801): TrpcContext {
 describe("Public Quick Matchmaking Router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMocks.getMatchPlayer.mockResolvedValue(seatedPlayer(8801));
   });
 
   it("findOrCreateQuickMatch returns waiting status for new ticket", async () => {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
+  getMatchPlayer: vi.fn(),
   createWageredChallengeMatch: vi.fn(),
   getMatchEscrowDetails: vi.fn(),
   claimVerifiedPaymentForMatch: vi.fn(),
@@ -14,6 +15,22 @@ vi.mock("./db", async () => {
     ...dbMocks,
   };
 });
+
+/** The router now checks match participation, so every seated caller needs one. */
+function seatedPlayer(userId: number, matchId = "match-under-test") {
+  const now = new Date();
+  return {
+    id: 1,
+    matchId,
+    userId,
+    seat: 0 as const,
+    status: "joined" as const,
+    paymentIntentId: null,
+    lastSeenAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -40,6 +57,7 @@ function createContext(userId = 7701): TrpcContext {
 describe("Wagered NIM Matches & Escrow Router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMocks.getMatchPlayer.mockResolvedValue(seatedPlayer(7701));
   });
 
   it("createWageredMatch creates a match with stake and payment intent", async () => {
@@ -162,5 +180,68 @@ describe("Wagered NIM Matches & Escrow Router", () => {
     });
     expect(res.netPayoutNim).toBe(90);
     expect(res.payoutTxHash).toBe("0xpayouttx123456");
+  });
+
+  describe("match scoping", () => {
+    it("refuses escrow and payout reads from outside the match", async () => {
+      // A session is not authorisation: escrow exposes the stake, both user
+      // ids and payment state, so an outsider holding a match id gets nothing.
+      dbMocks.getMatchPlayer.mockResolvedValue(undefined);
+      const caller = appRouter.createCaller(createContext(9999));
+
+      await expect(
+        caller.match.escrowDetails({ matchId: "match-wager-12345" })
+      ).rejects.toThrow(/not a participant/i);
+      await expect(
+        caller.match.settlePayout({
+          matchId: "match-wager-12345",
+          winnerUserId: 7701,
+        })
+      ).rejects.toThrow(/not a participant/i);
+
+      expect(dbMocks.getMatchEscrowDetails).not.toHaveBeenCalled();
+      expect(dbMocks.settleMatchWinnerPayout).not.toHaveBeenCalled();
+    });
+
+    it("shows a player their own transaction hash and nobody else's", async () => {
+      dbMocks.getMatchPlayer.mockResolvedValue(seatedPlayer(7701));
+      dbMocks.getMatchEscrowDetails.mockResolvedValue({
+        matchId: "match-wager-12345",
+        isWagered: true,
+        stakeNim: 50,
+        totalPotNim: 100,
+        escrowState: "locked_in_escrow",
+        allVerified: true,
+        treasuryAddress: "NQ0700000000000000000000000000000000",
+        playerStatuses: [
+          {
+            userId: 7701,
+            seat: 0,
+            paymentIntentId: "intent-a",
+            status: "verified",
+            verified: true,
+            txHash: "mine",
+          },
+          {
+            userId: 7702,
+            seat: 1,
+            paymentIntentId: "intent-b",
+            status: "verified",
+            verified: true,
+            txHash: "theirs",
+          },
+        ],
+      });
+
+      const caller = appRouter.createCaller(createContext(7701));
+      const res = await caller.match.escrowDetails({
+        matchId: "match-wager-12345",
+      });
+
+      expect(res.playerStatuses.find(p => p.userId === 7701)?.txHash).toBe("mine");
+      expect(res.playerStatuses.find(p => p.userId === 7702)?.txHash).toBeNull();
+      // Everything else about the opponent's deposit stays visible.
+      expect(res.playerStatuses.find(p => p.userId === 7702)?.verified).toBe(true);
+    });
   });
 });

@@ -73,6 +73,22 @@ const connect4CommandSchema = z.object({
   nonce: clientNonceSchema,
 });
 
+/**
+ * Every match read and write is scoped to its participants. Match ids are
+ * guessable enough that an unguarded endpoint leaks stakes, opponent user ids
+ * and payment state to anyone holding a session.
+ */
+async function requireMatchParticipant(matchId: string, userId: number) {
+  const player = await getMatchPlayer(matchId, userId);
+  if (!player) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You are not a participant in this match.",
+    });
+  }
+  return player;
+}
+
 async function requireIntent(id: string, userId: number) {
   const intent = await getPaymentIntentForUser(id, userId);
   if (!intent) {
@@ -264,6 +280,7 @@ export const appRouter = router({
     queueStatus: protectedProcedure
       .input(z.object({ matchId: matchIdSchema }))
       .query(async ({ ctx, input }) => {
+        await requireMatchParticipant(input.matchId, ctx.user.id);
         try {
           return await getMatchQueueStatus({
             userId: ctx.user.id,
@@ -328,6 +345,9 @@ export const appRouter = router({
     triggerBotTurn: protectedProcedure
       .input(z.object({ matchId: matchIdSchema }))
       .mutation(async ({ ctx, input }) => {
+        // executeBotTurn drives the match and ignores the userId it is
+        // handed, so the caller must be sitting in it.
+        await requireMatchParticipant(input.matchId, ctx.user.id);
         try {
           return await executeBotTurn({
             matchId: input.matchId,
@@ -378,9 +398,20 @@ export const appRouter = router({
       }),
     escrowDetails: protectedProcedure
       .input(z.object({ matchId: matchIdSchema }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireMatchParticipant(input.matchId, ctx.user.id);
         try {
-          return await getMatchEscrowDetails(input.matchId);
+          const escrow = await getMatchEscrowDetails(input.matchId);
+          return {
+            ...escrow,
+            // A transaction hash identifies a payer's on-chain account, so
+            // each player only ever sees their own.
+            playerStatuses: escrow.playerStatuses.map(player =>
+              player.userId === ctx.user.id
+                ? player
+                : { ...player, txHash: null }
+            ),
+          };
         } catch (error) {
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -422,7 +453,8 @@ export const appRouter = router({
           winnerUserId: z.number().int().positive(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireMatchParticipant(input.matchId, ctx.user.id);
         try {
           return await settleMatchWinnerPayout({
             matchId: input.matchId,
@@ -473,12 +505,7 @@ export const appRouter = router({
             code: "NOT_FOUND",
             message: "Match not found.",
           });
-        const player = await getMatchPlayer(input.id, ctx.user.id);
-        if (!player)
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "You are not a participant in this match.",
-          });
+        const player = await requireMatchParticipant(input.id, ctx.user.id);
         return {
           id: match.id,
           joinCode: match.joinCode,
@@ -499,12 +526,7 @@ export const appRouter = router({
             code: "NOT_FOUND",
             message: "Match not found.",
           });
-        const player = await getMatchPlayer(input.id, ctx.user.id);
-        if (!player)
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "You are not a participant in this match.",
-          });
+        const player = await requireMatchParticipant(input.id, ctx.user.id);
         const players = await getMatchPlayers(input.id);
         return {
           id: match.id,
