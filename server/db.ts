@@ -2108,7 +2108,10 @@ export async function verifyPaymentIntent(input: {
     // The payer writes the intent id into the transaction, so a transfer can
     // only settle the intent it was actually made for.
     expectedData: intent.id,
-    rpcUrl: input.rpcUrl,
+    // Verify against the network this deployment is configured for, rather
+    // than defaulting to testnet regardless of configuration.
+    expectedNetworkId: ENV.nimiqNetworkId,
+    rpcUrl: input.rpcUrl ?? ENV.nimiqRpcUrl,
     minConfirmations: 1,
   });
 

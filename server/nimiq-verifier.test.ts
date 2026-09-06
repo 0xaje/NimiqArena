@@ -4,6 +4,11 @@ import {
   isValidNimiqTxHash,
   verifyNimiqPayment,
   decodeNimiqTransactionData,
+  defaultFallbackRpcUrls,
+  DEFAULT_NIMIQ_MAINNET_RPC,
+  DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS,
+  NIMIQ_MAINNET_NETWORK_ID,
+  NIMIQ_TESTNET_NETWORK_ID,
   NimiqRpcTransaction,
 } from './nimiq-verifier';
 
@@ -280,5 +285,60 @@ describe('intent binding', () => {
     });
 
     expect(res.success).toBe(true);
+  });
+});
+
+describe('network routing', () => {
+  const hash = '3cd3908a903461dab66cd71910d35c66564ca59983eeeb138dbd0bd93e647b3a';
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keeps fallback endpoints on the network being verified', () => {
+    expect(defaultFallbackRpcUrls(NIMIQ_TESTNET_NETWORK_ID)).toEqual(
+      DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS,
+    );
+    // A mainnet verification must never fall back to a testnet node.
+    expect(
+      defaultFallbackRpcUrls(NIMIQ_MAINNET_NETWORK_ID).some(url =>
+        /testnet/i.test(url),
+      ),
+    ).toBe(false);
+  });
+
+  it('defaults the endpoint to the mainnet node when verifying mainnet', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ jsonrpc: '2.0', result: { data: null } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await verifyNimiqPayment({
+      transactionHash: hash,
+      expectedRecipient: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
+      expectedValueLuna: 1,
+      expectedNetworkId: NIMIQ_MAINNET_NETWORK_ID,
+    });
+
+    const calledUrls = fetchMock.mock.calls.map(call => String(call[0]));
+    expect(calledUrls[0]).toBe(DEFAULT_NIMIQ_MAINNET_RPC);
+    expect(calledUrls.some(url => /testnet/i.test(url))).toBe(false);
+  });
+
+  it('honours an explicitly configured endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ jsonrpc: '2.0', result: { data: null } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await verifyNimiqPayment({
+      transactionHash: hash,
+      expectedRecipient: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
+      expectedValueLuna: 1,
+      expectedNetworkId: NIMIQ_MAINNET_NETWORK_ID,
+      rpcUrl: 'https://rpc.example.internal',
+    });
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe('https://rpc.example.internal');
   });
 });

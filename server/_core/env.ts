@@ -22,6 +22,61 @@ function resolveCookieSecret(): string {
   return secret || defaultDevSecret;
 }
 
+const NIMIQ_TESTNET_ID = 5;
+const NIMIQ_MAINNET_ID = 42;
+
+/**
+ * Resolves the Nimiq network, refusing configurations that would verify
+ * payments against the wrong chain.
+ */
+function resolveNimiqNetwork(): { networkId: number; rpcUrl: string } {
+  const networkId = Number(process.env.NIMIQ_NETWORK_ID ?? NIMIQ_TESTNET_ID);
+  if (networkId !== NIMIQ_TESTNET_ID && networkId !== NIMIQ_MAINNET_ID) {
+    throw new Error(
+      `FATAL: NIMIQ_NETWORK_ID must be ${NIMIQ_TESTNET_ID} (testnet) or ${NIMIQ_MAINNET_ID} (mainnet); received "${process.env.NIMIQ_NETWORK_ID}".`
+    );
+  }
+
+  const rpcUrl =
+    process.env.NIMIQ_RPC_URL ||
+    (networkId === NIMIQ_MAINNET_ID
+      ? "https://rpc.nimiqwatch.com"
+      : "https://rpc.testnet.nimiqwatch.com");
+
+  if (networkId === NIMIQ_MAINNET_ID && /testnet/i.test(rpcUrl)) {
+    throw new Error(
+      `FATAL: NIMIQ_NETWORK_ID is set to mainnet but NIMIQ_RPC_URL points at a testnet node (${rpcUrl}). Payments would be verified against the wrong chain.`
+    );
+  }
+
+  return { networkId, rpcUrl };
+}
+
+const nimiqNetwork = resolveNimiqNetwork();
+
+/**
+ * How many reverse proxies sit in front of this process.
+ *
+ * Express only believes `X-Forwarded-For` when this says so, and rate limiting
+ * keys on the result. Trusting the header without a proxy in front lets any
+ * caller forge their own identity; not trusting it behind one lumps every user
+ * onto the proxy's address. Neither is guessable from inside the process, so
+ * the deployment has to say. Default is 0: trust nothing.
+ */
+function resolveTrustProxy(): number | false {
+  const raw = process.env.TRUST_PROXY?.trim();
+  if (!raw || raw === "false" || raw === "0") return false;
+  if (raw === "true") return 1;
+
+  const hops = Number(raw);
+  if (!Number.isInteger(hops) || hops < 0) {
+    throw new Error(
+      `FATAL: TRUST_PROXY must be a non-negative integer count of proxy hops, "true", or "false"; received "${raw}".`
+    );
+  }
+  return hops === 0 ? false : hops;
+}
+
 export const ENV = {
   appId: process.env.VITE_APP_ID || "nimiq-arena-app",
   cookieSecret: resolveCookieSecret(),
@@ -35,8 +90,8 @@ export const ENV = {
   nimiqArenaEntryValueLuna: Number(
     process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA ?? 0
   ),
-  nimiqNetworkId: Number(process.env.NIMIQ_NETWORK_ID ?? 5),
-  nimiqRpcUrl:
-    process.env.NIMIQ_RPC_URL || "https://rpc.testnet.nimiqwatch.com",
+  nimiqNetworkId: nimiqNetwork.networkId,
+  nimiqRpcUrl: nimiqNetwork.rpcUrl,
+  trustProxy: resolveTrustProxy(),
 };
 

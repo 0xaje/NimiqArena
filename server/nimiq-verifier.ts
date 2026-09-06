@@ -61,12 +61,28 @@ export interface NimiqVerificationResult {
   rawResponse?: unknown;
 }
 
+export const NIMIQ_TESTNET_NETWORK_ID = 5;
+export const NIMIQ_MAINNET_NETWORK_ID = 42;
+
 export const DEFAULT_NIMIQ_TESTNET_RPC = 'https://rpc.testnet.nimiqwatch.com';
 export const DEFAULT_NIMIQ_MAINNET_RPC = 'https://rpc.nimiqwatch.com';
 export const DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS = [
   'https://rpc.testnet.nimiqwatch.com',
   'https://testnet.nimiq.network:8443',
 ];
+export const DEFAULT_NIMIQ_MAINNET_FALLBACK_RPCS = [
+  'https://rpc.nimiqwatch.com',
+];
+
+/**
+ * Fallback endpoints for a network. Falling back across networks would query a
+ * chain the transaction cannot be on, so each network keeps its own list.
+ */
+export function defaultFallbackRpcUrls(networkId: number): string[] {
+  return networkId === NIMIQ_MAINNET_NETWORK_ID
+    ? DEFAULT_NIMIQ_MAINNET_FALLBACK_RPCS
+    : DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS;
+}
 
 /**
  * Normalizes a Nimiq IBAN address (e.g., "NQ81 C01N BASE..." -> "NQ81C01NBASE...")
@@ -115,6 +131,7 @@ export async function getNimiqTransaction(
   hash: string,
   rpcUrl: string = DEFAULT_NIMIQ_TESTNET_RPC,
   timeoutMs: number = 10000,
+  fallbackRpcUrls: string[] = DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS,
 ): Promise<{ transaction: NimiqRpcTransaction | null; error?: string; raw?: unknown }> {
   const cleanHash = hash.trim();
   if (!isValidNimiqTxHash(cleanHash)) {
@@ -122,7 +139,7 @@ export async function getNimiqTransaction(
   }
 
   // Build candidate RPC endpoints (requested primary + known fallbacks)
-  const candidateUrls = [rpcUrl, ...DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS.filter(u => u !== rpcUrl)];
+  const candidateUrls = [rpcUrl, ...fallbackRpcUrls.filter(u => u !== rpcUrl)];
 
   let lastError = 'RPC request failed';
   for (const currentUrl of candidateUrls) {
@@ -185,14 +202,21 @@ export async function verifyNimiqPayment(
     transactionHash,
     expectedRecipient,
     expectedValueLuna,
-    expectedNetworkId = 5, // Default to Testnet (5)
+    expectedNetworkId = NIMIQ_TESTNET_NETWORK_ID,
     expectedData,
     minConfirmations = 1,
-    rpcUrl = DEFAULT_NIMIQ_TESTNET_RPC,
+    rpcUrl = expectedNetworkId === NIMIQ_MAINNET_NETWORK_ID
+      ? DEFAULT_NIMIQ_MAINNET_RPC
+      : DEFAULT_NIMIQ_TESTNET_RPC,
     timeoutMs = 10000,
   } = options;
 
-  const { transaction, error, raw } = await getNimiqTransaction(transactionHash, rpcUrl, timeoutMs);
+  const { transaction, error, raw } = await getNimiqTransaction(
+    transactionHash,
+    rpcUrl,
+    timeoutMs,
+    defaultFallbackRpcUrls(expectedNetworkId),
+  );
 
   if (!transaction) {
     return {
