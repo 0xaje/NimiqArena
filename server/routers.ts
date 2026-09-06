@@ -39,7 +39,28 @@ import { nanoid } from "nanoid";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import {
+  protectedProcedure,
+  publicProcedure,
+  rateLimit,
+  router,
+} from "./_core/trpc";
+
+/** Minting sessions: enough for normal play and player switching, not for bulk account creation. */
+const guestLoginLimit = rateLimit({
+  bucket: "auth.guestLogin",
+  windowMs: 60 * 1000,
+  maxRequests: 10,
+  message: "Too many sign-in attempts.",
+});
+
+/** Anything that creates or settles a payment. */
+const paymentLimit = rateLimit({
+  bucket: "payment",
+  windowMs: 60 * 1000,
+  maxRequests: 20,
+  message: "Too many payment requests.",
+});
 
 const clientNonceSchema = z
   .string()
@@ -105,6 +126,7 @@ export const appRouter = router({
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     guestLogin: publicProcedure
+      .use(guestLoginLimit)
       .input(
         z
           .object({
@@ -364,6 +386,7 @@ export const appRouter = router({
         }
       }),
     createWageredMatch: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({
           gameSlug: z.string().min(1).max(64),
@@ -423,6 +446,7 @@ export const appRouter = router({
         }
       }),
     claimPayment: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({
           matchId: matchIdSchema,
@@ -447,6 +471,7 @@ export const appRouter = router({
         }
       }),
     settlePayout: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({
           matchId: matchIdSchema,
@@ -682,6 +707,7 @@ export const appRouter = router({
   }),
   payment: router({
     createIntent: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({
           clientNonce: clientNonceSchema,
@@ -717,6 +743,7 @@ export const appRouter = router({
         return result;
       }),
     markConfirmationPending: protectedProcedure
+      .use(paymentLimit)
       .input(z.object({ id: intentIdSchema }))
       .mutation(async ({ ctx, input }) => {
         const intent = await requireIntent(input.id, ctx.user.id);
@@ -732,6 +759,7 @@ export const appRouter = router({
         return { id: updated?.id, status: updated?.status };
       }),
     failIntent: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({
           id: intentIdSchema,
@@ -762,6 +790,7 @@ export const appRouter = router({
         };
       }),
     submitTransaction: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({ id: intentIdSchema, transactionHash: transactionHashSchema })
       )
@@ -787,6 +816,7 @@ export const appRouter = router({
         };
       }),
     verify: protectedProcedure
+      .use(paymentLimit)
       .input(z.object({ id: intentIdSchema }))
       .mutation(async ({ ctx, input }) => {
         try {
@@ -806,6 +836,7 @@ export const appRouter = router({
         }
       }),
     claimForMatch: protectedProcedure
+      .use(paymentLimit)
       .input(
         z.object({
           matchId: matchIdSchema,

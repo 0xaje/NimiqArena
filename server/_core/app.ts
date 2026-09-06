@@ -7,9 +7,14 @@ import { createContext } from "./context";
 import { registerMatchStream } from "../match-stream";
 import { registerMatchCleanup } from "../match-cleanup";
 import { apiRateLimiter } from "./rateLimiter";
+import { ENV } from "./env";
 
 export function createExpressApp(): Express {
   const app = express();
+  // Decides whether X-Forwarded-For is believed, which in turn decides what
+  // rate limiting and cookie security see as the client. Defaults to trusting
+  // nothing; deployments behind a proxy must set TRUST_PROXY.
+  app.set("trust proxy", ENV.trustProxy);
   // Configure body parser with larger size limit
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
