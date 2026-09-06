@@ -190,10 +190,18 @@ export async function sendNimiqPayment(options: {
   const mode = getWalletConnectionMode();
 
   if (mode === "mini-app" && _miniAppProvider) {
-    const res = await _miniAppProvider.sendBasicTransaction({
-      recipient: options.recipient,
-      value: options.valueLuna,
-    });
+    // The server only accepts a transfer that carries its intent reference, so
+    // the data-bearing call is used whenever there is one to attach.
+    const res = options.data
+      ? await _miniAppProvider.sendBasicTransactionWithData({
+          recipient: options.recipient,
+          value: options.valueLuna,
+          data: options.data,
+        })
+      : await _miniAppProvider.sendBasicTransaction({
+          recipient: options.recipient,
+          value: options.valueLuna,
+        });
     if (typeof res === "string") return res;
     if (res && typeof res === "object" && "error" in res) {
       throw new Error((res as any).error?.message || "Transaction was rejected in Nimiq Pay.");

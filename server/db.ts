@@ -2011,6 +2011,9 @@ export async function verifyPaymentIntent(input: {
     transactionHash: txHash,
     expectedRecipient: intent.recipient,
     expectedValueLuna: intent.valueLuna,
+    // The payer writes the intent id into the transaction, so a transfer can
+    // only settle the intent it was actually made for.
+    expectedData: intent.id,
     rpcUrl: input.rpcUrl,
     minConfirmations: 1,
   });
@@ -2066,7 +2069,9 @@ export async function verifyPaymentIntent(input: {
       ? "underpaid"
       : verifyResult.failureReason === "wrong_recipient"
       ? "wrong_recipient"
-      : verifyResult.failureReason === "invalid"
+      : verifyResult.failureReason === "invalid" ||
+        // A transfer that names another intent is not a payment for this one.
+        verifyResult.failureReason === "data_mismatch"
       ? "invalid"
       : "verification_failed";
 

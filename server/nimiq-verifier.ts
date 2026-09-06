@@ -32,6 +32,12 @@ export interface NimiqVerificationOptions {
   expectedRecipient: string;
   expectedValueLuna: number;
   expectedNetworkId?: number; // Default: 5 for testnet
+  /**
+   * Value the payer must have written into the transaction's recipient data.
+   * Nimiq transfers carry no reference to what they were for, so without this
+   * any transfer to the treasury settles any intent that names its hash.
+   */
+  expectedData?: string;
   minConfirmations?: number; // Default: 1
   rpcUrl?: string;
   timeoutMs?: number;
@@ -43,6 +49,7 @@ export type NimiqVerificationFailureReason =
   | 'wrong_recipient'
   | 'execution_failed'
   | 'network_mismatch'
+  | 'data_mismatch'
   | 'unconfirmed'
   | 'verification_failed';
 
@@ -73,6 +80,32 @@ export function normalizeNimiqAddress(address: string): string {
  */
 export function isValidNimiqTxHash(hash: string): boolean {
   return /^[0-9a-fA-F]{64}$/.test(hash.trim());
+}
+
+/**
+ * Reads the recipient data a payer attached to a transaction.
+ *
+ * Albatross returns it hex-encoded, under `recipientData` on current nodes and
+ * `data` on older ones. Returns null when the transaction carries none.
+ */
+export function decodeNimiqTransactionData(
+  transaction: Pick<NimiqRpcTransaction, 'recipientData'> & { data?: string },
+): string | null {
+  const raw = transaction.recipientData ?? transaction.data ?? null;
+  if (!raw) return null;
+
+  const hex = raw.trim();
+  if (hex.length === 0) return null;
+  if (!/^([0-9a-fA-F]{2})+$/.test(hex)) return null;
+
+  try {
+    const bytes = Uint8Array.from(
+      hex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)),
+    );
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim();
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -153,6 +186,7 @@ export async function verifyNimiqPayment(
     expectedRecipient,
     expectedValueLuna,
     expectedNetworkId = 5, // Default to Testnet (5)
+    expectedData,
     minConfirmations = 1,
     rpcUrl = DEFAULT_NIMIQ_TESTNET_RPC,
     timeoutMs = 10000,
@@ -209,7 +243,21 @@ export async function verifyNimiqPayment(
     };
   }
 
-  // 4. Check payment amount in Luna
+  // 4. Check the payer bound this transfer to this intent
+  if (expectedData) {
+    const actualData = decodeNimiqTransactionData(transaction);
+    if (actualData !== expectedData) {
+      return {
+        success: false,
+        failureReason: 'data_mismatch',
+        errorMessage: `Transaction is not bound to this payment intent: expected reference ${expectedData}, found ${actualData ?? 'none'}`,
+        transaction,
+        rawResponse: raw,
+      };
+    }
+  }
+
+  // 5. Check payment amount in Luna
   if (transaction.value < expectedValueLuna) {
     return {
       success: false,
@@ -220,7 +268,7 @@ export async function verifyNimiqPayment(
     };
   }
 
-  // 5. Check block confirmation depth
+  // 6. Check block confirmation depth
   if (minConfirmations > 0 && (transaction.confirmations ?? 0) < minConfirmations) {
     return {
       success: false,

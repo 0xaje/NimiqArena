@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import mysql from "mysql2/promise";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
@@ -34,6 +34,43 @@ const shouldRunDb = Boolean(process.env.RUN_DB_INTEGRATION_TESTS);
 const REAL_TESTNET_TX_HASH =
   "3cd3908a903461dab66cd71910d35c66564ca59983eeeb138dbd0bd93e647b3a";
 const REAL_TESTNET_RPC = "https://rpc.testnet.nimiqwatch.com";
+
+/**
+ * A chain response for a transfer that carries `intentId` as its recipient
+ * data, matching what the wallet now attaches. The live on-chain transaction
+ * used elsewhere in this file predates any local intent and so can never be
+ * bound to one; the state-machine tests need a payment that can actually
+ * settle.
+ */
+function stubBoundTransaction(intentId: string, valueLuna: number) {
+  const recipientData = Buffer.from(intentId, "utf8").toString("hex");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        jsonrpc: "2.0",
+        result: {
+          data: {
+            hash: REAL_TESTNET_TX_HASH,
+            blockNumber: 4_120_000,
+            timestamp: Date.now(),
+            confirmations: 30,
+            from: "NQ11 SOME SEND ER00 0000 0000 0000 0000 0000",
+            to: normalizeNimiqAddress(
+              process.env.NIMIQ_PAYMENT_RECIPIENT as string
+            ),
+            value: valueLuna,
+            fee: 0,
+            networkId: 5,
+            executionResult: true,
+            recipientData,
+          },
+        },
+      }),
+    })
+  );
+}
 
 describe("Real Nimiq PoS Blockchain Live RPC Verification", () => {
   it("queries the live public Nimiq PoS Testnet JSON-RPC endpoint for a real transaction", async () => {
@@ -374,7 +411,37 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
     if (pool) await pool.end();
   });
 
-  it("creates a payment intent and authoritatively verifies against real on-chain transaction", async () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses a real on-chain transfer that is not bound to the intent", async () => {
+    // Against the live chain: this transaction exists, pays the right address
+    // and confirms - and is still not a payment for this intent, because it
+    // carries no reference to it. Anyone can read a hash off a public
+    // explorer, so an unbound transfer proves nothing about who is claiming.
+    const intent = await createPaymentIntent({
+      userId: hostUserId,
+      clientNonce: `pv-nonce-unbound-${Date.now()}`,
+    });
+
+    await updatePaymentIntent(intent.id, hostUserId, {
+      status: "submitted",
+      transactionHash: REAL_TESTNET_TX_HASH,
+    });
+
+    const verification = await verifyPaymentIntent({
+      id: intent.id,
+      userId: hostUserId,
+      rpcUrl: REAL_TESTNET_RPC,
+    });
+
+    expect(verification.success).toBe(false);
+    expect(verification.failureReason).toBe("data_mismatch");
+    expect(verification.intent.status).toBe("invalid");
+  });
+
+  it("creates a payment intent and authoritatively verifies a bound transaction", async () => {
     const nonce = `pv-nonce-real-${Date.now()}`;
     const intent = await createPaymentIntent({
       userId: hostUserId,
@@ -390,6 +457,8 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
       status: "submitted",
       transactionHash: REAL_TESTNET_TX_HASH,
     });
+
+    stubBoundTransaction(intent.id, intent.valueLuna);
 
     // Authoritatively verify
     const verification = await verifyPaymentIntent({
@@ -422,7 +491,9 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
       clientNonce: nonce2,
     });
 
-    // Submit the SAME transaction hash that was already verified for hostUserId
+    // Submit the SAME transaction hash that was already verified for
+    // hostUserId. Duplicate detection runs before the chain is consulted, so
+    // this is refused as a replay rather than as an unbound transfer.
     await updatePaymentIntent(intent2.id, joinerUserId, {
       status: "submitted",
       transactionHash: REAL_TESTNET_TX_HASH,

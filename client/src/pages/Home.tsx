@@ -263,6 +263,8 @@ export default function Home() {
       const txHash = await sendNimiqPayment({
         recipient: intent.recipient,
         valueLuna: intent.valueLuna,
+        // Binds the transfer to this intent; the server rejects it otherwise.
+        data: intent.id,
       });
       await submitTransaction.mutateAsync({
         id: intent.id,

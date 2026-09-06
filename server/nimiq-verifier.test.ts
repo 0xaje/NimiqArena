@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   normalizeNimiqAddress,
   isValidNimiqTxHash,
   verifyNimiqPayment,
+  decodeNimiqTransactionData,
   NimiqRpcTransaction,
 } from './nimiq-verifier';
 
@@ -170,5 +171,114 @@ describe('verifyNimiqPayment pure logic', () => {
     expect(res.success).toBe(false);
     expect(res.failureReason).toBe('unconfirmed');
     vi.unstubAllGlobals();
+  });
+});
+
+describe('intent binding', () => {
+  const hash = '3cd3908a903461dab66cd71910d35c66564ca59983eeeb138dbd0bd93e647b3a';
+  const recipient = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
+
+  function stubTransaction(overrides: Record<string, unknown>) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jsonrpc: '2.0',
+          result: {
+            data: {
+              hash,
+              blockNumber: 100,
+              timestamp: Date.now(),
+              confirmations: 12,
+              from: 'NQ11 SOME SEND ER00 0000 0000 0000 0000 0000',
+              to: 'NQ0700000000000000000000000000000000',
+              value: 100000,
+              fee: 0,
+              networkId: 5,
+              executionResult: true,
+              ...overrides,
+            },
+          },
+        }),
+      }),
+    );
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('decodes hex recipient data', () => {
+    // "intent-abc" in hex
+    expect(
+      decodeNimiqTransactionData({ recipientData: '696e74656e742d616263' }),
+    ).toBe('intent-abc');
+    expect(decodeNimiqTransactionData({ recipientData: undefined })).toBeNull();
+    expect(decodeNimiqTransactionData({ recipientData: '' })).toBeNull();
+    expect(decodeNimiqTransactionData({ recipientData: 'nothex' })).toBeNull();
+  });
+
+  it('reads the legacy data field when recipientData is absent', () => {
+    expect(
+      decodeNimiqTransactionData({
+        recipientData: undefined,
+        data: '696e74656e742d616263',
+      }),
+    ).toBe('intent-abc');
+  });
+
+  it('accepts a transfer carrying the expected intent reference', async () => {
+    stubTransaction({ recipientData: '696e74656e742d616263' });
+
+    const res = await verifyNimiqPayment({
+      transactionHash: hash,
+      expectedRecipient: recipient,
+      expectedValueLuna: 100000,
+      expectedData: 'intent-abc',
+    });
+
+    expect(res.success).toBe(true);
+  });
+
+  it('refuses a transfer that names a different intent', async () => {
+    // The payer's own transaction, replayed against someone else's intent.
+    stubTransaction({ recipientData: '696e74656e742d616263' });
+
+    const res = await verifyNimiqPayment({
+      transactionHash: hash,
+      expectedRecipient: recipient,
+      expectedValueLuna: 100000,
+      expectedData: 'intent-xyz',
+    });
+
+    expect(res.success).toBe(false);
+    expect(res.failureReason).toBe('data_mismatch');
+  });
+
+  it('refuses an unbound transfer to the treasury', async () => {
+    // Anyone can watch the treasury address and copy a hash off the chain;
+    // without a reference there is nothing tying it to the claimant.
+    stubTransaction({ recipientData: undefined });
+
+    const res = await verifyNimiqPayment({
+      transactionHash: hash,
+      expectedRecipient: recipient,
+      expectedValueLuna: 100000,
+      expectedData: 'intent-abc',
+    });
+
+    expect(res.success).toBe(false);
+    expect(res.failureReason).toBe('data_mismatch');
+  });
+
+  it('still verifies when no binding is required', async () => {
+    stubTransaction({ recipientData: undefined });
+
+    const res = await verifyNimiqPayment({
+      transactionHash: hash,
+      expectedRecipient: recipient,
+      expectedValueLuna: 100000,
+    });
+
+    expect(res.success).toBe(true);
   });
 });

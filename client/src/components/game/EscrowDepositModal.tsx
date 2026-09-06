@@ -65,6 +65,8 @@ export function EscrowDepositModal({
       const realTxHash = await sendNimiqPayment({
         recipient: intent.recipient,
         valueLuna: intent.valueLuna,
+        // Binds the transfer to this intent; the server rejects it otherwise.
+        data: intent.id,
       });
 
       setTxHash(realTxHash);
