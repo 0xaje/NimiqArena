@@ -134,6 +134,7 @@ describe("Web3 Identity, Referral System & EVM Linking", () => {
 
       dbMocks.linkUserEvmAddress.mockResolvedValue({
         success: true,
+        ok: true,
         evmAddress: "0x1234567890123456789012345678901234567890",
       });
 

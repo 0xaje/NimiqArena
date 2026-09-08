@@ -352,7 +352,7 @@ export async function linkUserEvmAddress(userId: number, evmAddress: string) {
     .update(users)
     .set({ evmAddress: normalized, updatedAt: new Date() })
     .where(eq(users.id, userId));
-  return { ok: true, evmAddress: normalized };
+  return { success: true, ok: true, evmAddress: normalized };
 }
 
 export async function getGameBySlug(slug: string): Promise<Game | undefined> {
