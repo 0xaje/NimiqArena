@@ -1,6 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { createPaymentNonce, type PaymentPhase } from "@/lib/payment-state";
 import {
   initializeNimiqMiniApp,
   getNimiqProvider,
@@ -9,10 +8,12 @@ import {
 } from "@/lib/nimiq-miniapp";
 import {
   ArrowUpRight,
+  ChevronDown,
   ChevronRight,
   CircleHelp,
   Coins,
   Gamepad2,
+  Gift,
   Menu,
   Radio,
   Search,
@@ -34,7 +35,6 @@ import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
-import { ReferralCard } from "@/components/referral/ReferralCard";
 import {
   restoreSavedWallet,
   getWalletConnectionMode,
@@ -73,8 +73,6 @@ function providerError(value: unknown) {
 
 const LUDO_SLUG_INPUT = { slug: "ludo-league" } as const;
 const CONNECT4_SLUG_INPUT = { slug: "connect-four" } as const;
-const LEADERBOARD_INPUT = { gameSlug: "ludo-league" } as const;
-const STATS_INPUT = { gameSlug: "ludo-league" } as const;
 
 export default function Home() {
   const utils = trpc.useUtils();
@@ -143,27 +141,30 @@ export default function Home() {
       : "Web Browser: Connect via Official Nimiq Hub.";
   });
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [isGameLibraryOpen, setIsGameLibraryOpen] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
-  const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
-  const [clientNonce, setClientNonce] = useState(createPaymentNonce);
-  const createIntent = trpc.payment.createIntent.useMutation();
-  const markConfirmationPending =
-    trpc.payment.markConfirmationPending.useMutation();
-  const failIntent = trpc.payment.failIntent.useMutation();
-  const submitTransaction = trpc.payment.submitTransaction.useMutation();
-  const verifyPayment = trpc.payment.verify.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
 
-  const seasonQuery = trpc.season.getActive.useQuery();
-  const leaderboardQuery = trpc.leaderboard.getTop.useQuery(LEADERBOARD_INPUT);
-  const statsQuery = trpc.auth.stats.useQuery(STATS_INPUT, {
-    enabled: Boolean(user),
-  });
+  // Auto-onboarding for newly connected wallets: prompt identity registration if no custom nickname set
+  useEffect(() => {
+    if (address && user) {
+      const isTemporary =
+        !user.name ||
+        user.name.startsWith("Player 1") ||
+        user.name.startsWith("guest-") ||
+        user.name.startsWith("0x") ||
+        user.name.startsWith("NQ") ||
+        !(user as any).avatar;
+      if (isTemporary && !isIdentityModalOpen) {
+        setIsIdentityModalOpen(true);
+      }
+    }
+  }, [address, user]);
 
   async function handleStartSoloPractice() {
     try {
@@ -192,15 +193,11 @@ export default function Home() {
 
   async function switchPlayer(name: string) {
     try {
-      // Switching player means becoming someone else, not renaming yourself,
-      // so ask the server for a fresh identity rather than reusing this one.
       const res = await guestLogin.mutateAsync({ name, newIdentity: true });
       if (res.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
       }
       await utils.auth.me.invalidate();
-      await utils.auth.stats.invalidate();
-      await utils.leaderboard.getTop.invalidate();
       toast.success(`Signed in as ${name}`);
     } catch (e) {
       toast.error("Failed to switch player");
@@ -257,98 +254,6 @@ export default function Home() {
     setIsWalletModalOpen(true);
   }
 
-  async function payEntry() {
-    if (
-      paymentPhase === "creating" ||
-      paymentPhase === "confirming" ||
-      paymentPhase === "submitted" ||
-      paymentPhase === "verifying"
-    )
-      return;
-    if (!address) {
-      setIsWalletModalOpen(true);
-      toast("Connect your Nimiq wallet first", {
-        description: "Select Nimiq Hub or enter your address.",
-      });
-      return;
-    }
-    let intent: { id: string; recipient: string; valueLuna: number } | null =
-      null;
-    try {
-      setPaymentPhase("creating");
-      intent = await createIntent.mutateAsync({ clientNonce });
-      await markConfirmationPending.mutateAsync({ id: intent.id });
-      setPaymentPhase("confirming");
-      const txHash = await sendNimiqPayment({
-        recipient: intent.recipient,
-        valueLuna: intent.valueLuna,
-        // Binds the transfer to this intent; the server rejects it otherwise.
-        data: intent.id,
-      });
-      await submitTransaction.mutateAsync({
-        id: intent.id,
-        transactionHash: txHash,
-      });
-      setPaymentPhase("verifying");
-      toast("Transaction submitted", {
-        description:
-          "Authoritative server verifier is checking the Nimiq blockchain...",
-      });
-
-      const verifyResult = await verifyPayment.mutateAsync({ id: intent.id });
-      if (verifyResult.success) {
-        setPaymentPhase("verified");
-        toast.success("Payment Verified On-Chain!", {
-          description: `Transaction confirmed on Nimiq network. Block ${verifyResult.intent.blockNumber ?? "latest"}.`,
-        });
-      } else {
-        setPaymentPhase(verifyResult.intent.status as PaymentPhase);
-        toast.error(`Verification Rejected: ${verifyResult.intent.status}`, {
-          description:
-            verifyResult.errorMessage || "Server rejected transaction.",
-        });
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "The Nimiq payment request was not completed.";
-      const isExpired = /expired/i.test(message);
-      const code = /denied|reject|cancel/i.test(message)
-        ? "permission_denied"
-        : /invalid|malformed/i.test(message)
-          ? "invalid_transaction"
-          : "provider_error";
-      if (intent) {
-        try {
-          await failIntent.mutateAsync({ id: intent.id, code });
-        } catch {
-          /* preserve original provider failure */
-        }
-      }
-      setPaymentPhase(
-        isExpired
-          ? "expired"
-          : code === "permission_denied"
-            ? "rejected"
-            : "failed"
-      );
-      setClientNonce(createPaymentNonce());
-      toast(
-        isExpired
-          ? "Payment intent expired"
-          : code === "permission_denied"
-            ? "Payment was rejected"
-            : "Payment was not completed",
-        {
-          description: isExpired
-            ? "A fresh intent will be created on your next attempt."
-            : message,
-        }
-      );
-    }
-  }
-
   function unavailable(feature: string) {
     toast(`${feature} is not implemented yet`, {
       description:
@@ -380,6 +285,8 @@ export default function Home() {
         isOpen={isIdentityModalOpen}
         onClose={() => setIsIdentityModalOpen(false)}
         currentName={user?.name}
+        currentAvatar={(user as any)?.avatar}
+        walletAddress={address || (user as any)?.walletAddress}
       />
       <WalletConnectModal
         isOpen={isWalletModalOpen}
@@ -442,52 +349,100 @@ export default function Home() {
             Discover <span>01</span>
           </a>
           <div className="side-nav-group">
-            <a
-              className="side-nav-link"
-              href="#games"
-              onClick={() => setMobileMenu(false)}
+            <button
+              type="button"
+              className={`side-nav-link ${isGameLibraryOpen ? "active" : ""}`}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 12px",
+                color: isGameLibraryOpen ? "#ffffff" : "var(--silver)",
+                fontFamily: "inherit",
+              }}
+              onClick={() => setIsGameLibraryOpen(!isGameLibraryOpen)}
             >
-              Game Library <span>02</span>
-            </a>
-            <div className="side-nav-sublinks" style={{ paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "4px", marginTop: "2px", marginBottom: "6px" }}>
-              <Link
-                className="side-nav-sublink"
-                href="/games/ludo-league"
-                onClick={() => setMobileMenu(false)}
-                style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderRadius: "6px" }}
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                Game Library {isGameLibraryOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+              <span>02</span>
+            </button>
+            {isGameLibraryOpen && (
+              <div
+                className="side-nav-sublinks"
+                style={{
+                  paddingLeft: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                  marginTop: "2px",
+                  marginBottom: "6px",
+                }}
               >
-                🎲 Ludo League <span style={{ fontSize: "10px", color: "#EC9918", fontWeight: 700 }}>LIVE</span>
-              </Link>
-              <Link
-                className="side-nav-sublink"
-                href="/games/connect-four"
-                onClick={() => setMobileMenu(false)}
-                style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderRadius: "6px" }}
-              >
-                🔴 Connect NIM <span style={{ fontSize: "10px", color: "#00f0ff", fontWeight: 700 }}>LIVE</span>
-              </Link>
-            </div>
+                <Link
+                  className="side-nav-sublink"
+                  href="/games/ludo-league"
+                  onClick={() => setMobileMenu(false)}
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 8px",
+                    borderRadius: "6px",
+                    background: "rgba(255, 255, 255, 0.03)",
+                  }}
+                >
+                  🎲 Ludo League <span style={{ fontSize: "10px", color: "#EC9918", fontWeight: 700 }}>LIVE</span>
+                </Link>
+                <Link
+                  className="side-nav-sublink"
+                  href="/games/connect-four"
+                  onClick={() => setMobileMenu(false)}
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 8px",
+                    borderRadius: "6px",
+                    background: "rgba(255, 255, 255, 0.03)",
+                  }}
+                >
+                  🔴 Connect NIM <span style={{ fontSize: "10px", color: "#00f0ff", fontWeight: 700 }}>LIVE</span>
+                </Link>
+              </div>
+            )}
           </div>
-          <Link
-            className="side-nav-link"
-            href="/join"
-            onClick={() => setMobileMenu(false)}
-          >
-            Play with Friends <span>03</span>
-          </Link>
           <Link
             className="side-nav-link"
             href="/leaderboard"
             onClick={() => setMobileMenu(false)}
           >
-            Leaderboard <span>04</span>
+            Leaderboard <span>03</span>
+          </Link>
+          <Link
+            className="side-nav-link"
+            href="/earn"
+            onClick={() => setMobileMenu(false)}
+          >
+            Earn & Rewards <span>04</span>
           </Link>
           <Link
             className="side-nav-link"
             href="/profile"
             onClick={() => setMobileMenu(false)}
           >
-            Player Profile & Rewards <span>05</span>
+            Player Profile <span>05</span>
           </Link>
         </nav>
         <div className="sidebar-bottom">
@@ -735,11 +690,6 @@ export default function Home() {
                         window.location.href = "/games/ludo-league";
                       } else if (game.title.includes("Connect")) {
                         window.location.href = "/games/connect-four";
-                      } else {
-                        toast.success("Community Vote Registered! ♟️", {
-                          description:
-                            "You voted for Chess as Game 003. Voting closes at the end of Season 1!",
-                        });
                       }
                     }}
                     aria-label={`Open ${game.title}`}
@@ -947,12 +897,65 @@ export default function Home() {
                 Enter Room <ArrowUpRight size={15} />
               </Link>
             </div>
-          </div>
-        </section>
 
-        {/* Referral & Points Engine Section */}
-        <section className="section-block" id="referrals" style={{ marginTop: "36px" }}>
-          <ReferralCard />
+            {/* Earn & Referral Rewards Card */}
+            <div
+              style={{
+                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    background: "rgba(168, 85, 247, 0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#c084fc",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <Gift size={22} />
+                </div>
+                <span className="card-label" style={{ color: "#c084fc" }}>ARENA REWARDS</span>
+                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
+                  Earn & Referrals
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
+                  Claim your +1,000 pts welcome bonus, invite friends for +500 pts each, and earn 5% commissions on all match pots.
+                </p>
+              </div>
+              <Link
+                href="/earn"
+                style={{
+                  marginTop: "20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  background: "rgba(168, 85, 247, 0.15)",
+                  border: "1px solid rgba(168, 85, 247, 0.3)",
+                  color: "#c084fc",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                Claim & Invite <ArrowUpRight size={15} />
+              </Link>
+            </div>
+          </div>
         </section>
 
         <section className="arena-rails" style={{ marginTop: "36px" }}>
@@ -999,334 +1002,6 @@ export default function Home() {
                 <Terminal size={14} /> Inspect Host
               </button>
             </div>
-          </div>
-        </section>
-
-        <section className="status-strip" id="status">
-          <div className="section-marker">
-            <span className="marker-number">03</span>
-            <span>TRUTH PANEL</span>
-          </div>
-          <div className="status-card">
-            <div className="status-icon">
-              <Radio size={18} />
-            </div>
-            <div>
-              <span className="card-label">NIMIQ PAY</span>
-              <h2>
-                {providerState === "ready"
-                  ? "Provider is ready"
-                  : "Wallet host not connected"}
-              </h2>
-              <p>{providerMessage}</p>
-              <button
-                className="rail-link"
-                onClick={() => setIsDevModalOpen(true)}
-                style={{ marginTop: 8 }}
-              >
-                <Terminal size={14} /> Inspect Mini App SDK
-              </button>
-            </div>
-            <span
-              className={`state-chip ${providerState === "ready" ? "good" : "muted"}`}
-            >
-              {providerLabel}
-            </span>
-          </div>
-          <div className="status-card payment-card">
-            <div className="status-icon orange-icon">
-              <Coins size={18} />
-            </div>
-            <div>
-              <span className="card-label">NIM ENTRY</span>
-              <h2>
-                {paymentPhase === "submitted"
-                  ? "Awaiting verification"
-                  : paymentPhase === "confirming"
-                    ? "Confirm in Nimiq Pay"
-                    : paymentPhase === "rejected"
-                      ? "Payment rejected"
-                      : paymentPhase === "failed"
-                        ? "Payment failed"
-                        : paymentPhase === "expired"
-                          ? "Intent expired"
-                          : "Pay the entry"}
-              </h2>
-              <p>
-                {paymentPhase === "submitted"
-                  ? "Hash received. Arena has not credited anything until the server verifies it."
-                  : "The amount and recipient come from a server-created intent."}
-              </p>
-              <button
-                className="pay-entry-button"
-                onClick={payEntry}
-                disabled={
-                  paymentPhase === "creating" ||
-                  paymentPhase === "confirming" ||
-                  paymentPhase === "submitted"
-                }
-              >
-                {paymentPhase === "creating"
-                  ? "Creating intent…"
-                  : paymentPhase === "confirming"
-                    ? "Waiting for approval…"
-                    : paymentPhase === "submitted"
-                      ? "Verification pending"
-                      : "Pay with Nimiq Pay"}
-              </button>
-            </div>
-            <span
-              className={`state-chip ${paymentPhase === "submitted" ? "good" : "muted"}`}
-            >
-              {paymentPhase === "submitted"
-                ? "SUBMITTED"
-                : paymentPhase === "confirming"
-                  ? "CONFIRMING"
-                  : paymentPhase === "expired"
-                    ? "EXPIRED"
-                    : "NOT SETTLED"}
-            </span>
-          </div>
-          <div className="status-card">
-            <div className="status-icon">
-              <Trophy size={18} />
-            </div>
-            <div>
-              <span className="card-label">MULTIPLAYER</span>
-              <h2>No rooms open</h2>
-              <p>
-                Real matchmaking and online players are not connected in this
-                build.
-              </p>
-            </div>
-            <span className="state-chip muted">NOT LIVE</span>
-          </div>
-        </section>
-
-        {/* Real Leaderboard Section */}
-        <section className="leaderboard-section" id="leaderboard">
-          <div className="leaderboard-header">
-            <div className="stamp-row">
-              <span className="stamp orange">
-                {seasonQuery.data?.name ?? "SEASON 01"}
-              </span>
-              <span className="stamp">
-                {seasonQuery.data?.status?.toUpperCase() ?? "ACTIVE"}
-              </span>
-            </div>
-            <p className="eyebrow">AUTHORITATIVE RANKINGS</p>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "12px" }}>
-              <h2>Leaderboard</h2>
-              <Link href="/leaderboard" style={{ fontFamily: "IBM Plex Mono", fontSize: "11px", color: "var(--orange)", fontWeight: 600 }}>
-                Open Full Standings Page →
-              </Link>
-            </div>
-            <p className="section-note">
-              Rankings are calculated directly from verified database match
-              results using server-authoritative Elo rating. No simulated or
-              fake users.
-            </p>
-          </div>
-
-          <div className="leaderboard-card">
-            {leaderboardQuery.isLoading ? (
-              <div className="empty-state-box">
-                <p>Loading authoritative leaderboard records…</p>
-              </div>
-            ) : leaderboardQuery.data && leaderboardQuery.data.length > 0 ? (
-              <div className="leaderboard-table-container">
-                <table className="arena-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Player</th>
-                      <th>Rating</th>
-                      <th>Record</th>
-                      <th>Win Rate</th>
-                      <th>Streak</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboardQuery.data.map((entry: any) => (
-                      <tr key={entry.userId}>
-                        <td>
-                          <span
-                            className={`rank-badge ${entry.rank <= 3 ? `top-${entry.rank}` : ""}`}
-                          >
-                            #{entry.rank}
-                          </span>
-                        </td>
-                        <td>
-                          <strong>{entry.userName}</strong>
-                        </td>
-                        <td>
-                          <span className="rating-pill">{entry.rating}</span>
-                        </td>
-                        <td>
-                          {entry.wins}W - {entry.losses}L
-                        </td>
-                        <td>{entry.winRate}%</td>
-                        <td>
-                          {entry.currentStreak > 0 ? (
-                            <span>🔥 {entry.currentStreak}</span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state-box">
-                <Trophy size={28} />
-                <p>
-                  No competitive matches completed in this season yet.
-                  <br />
-                  Play a challenge match in <strong>Ludo League</strong> to
-                  appear on the leaderboard!
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Real Player Profile & Rating History Section */}
-        <section className="profile-section" id="profile">
-          <div className="profile-header">
-            <span className="stamp orange">COMPETITIVE RECORD</span>
-            <p className="eyebrow">YOUR ARENA PROFILE</p>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "12px" }}>
-              <h2>{user ? user.name || "Player Profile" : "Player Profile"}</h2>
-              <Link href="/profile" style={{ fontFamily: "IBM Plex Mono", fontSize: "11px", color: "var(--orange)", fontWeight: 600 }}>
-                Open Full Profile Page →
-              </Link>
-            </div>
-            <p className="section-note">
-              Real-time competitive metrics, win streaks, and persisted rating
-              transaction history.
-            </p>
-          </div>
-
-          <div className="profile-card">
-            {user ? (
-              <>
-                <div className="stat-card-grid">
-                  <div className="stat-card">
-                    <span className="stat-label">Elo Rating</span>
-                    <span className="stat-value">
-                      {statsQuery.data?.rating ?? 1000}
-                    </span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Season Rank</span>
-                    <span className="stat-value">
-                      {statsQuery.data?.rank ? `#${statsQuery.data.rank}` : "—"}
-                    </span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Win / Loss</span>
-                    <span className="stat-value">
-                      {statsQuery.data?.wins ?? 0}W /{" "}
-                      {statsQuery.data?.losses ?? 0}L
-                    </span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Win Rate</span>
-                    <span className="stat-value">
-                      {statsQuery.data?.winRate ?? 0}%
-                    </span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Current Streak</span>
-                    <span className="stat-value">
-                      🔥 {statsQuery.data?.currentStreak ?? 0}
-                    </span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Matches Played</span>
-                    <span className="stat-value">
-                      {statsQuery.data?.matchesPlayed ?? 0}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="history-section">
-                  <span className="card-label">RATING HISTORY</span>
-                  {statsQuery.data?.history &&
-                  statsQuery.data.history.length > 0 ? (
-                    <div className="leaderboard-table-container">
-                      <table className="arena-table">
-                        <thead>
-                          <tr>
-                            <th>Outcome</th>
-                            <th>Opponent</th>
-                            <th>Change</th>
-                            <th>New Rating</th>
-                            <th>Match ID</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {statsQuery.data.history.map((item: any) => (
-                            <tr key={item.id}>
-                              <td>
-                                <strong>
-                                  {item.outcome.replace("_", " ").toUpperCase()}
-                                </strong>
-                              </td>
-                              <td>{item.opponentName}</td>
-                              <td>
-                                <span
-                                  className={
-                                    item.ratingChange >= 0
-                                      ? "delta-pos"
-                                      : "delta-neg"
-                                  }
-                                >
-                                  {item.ratingChange >= 0
-                                    ? `+${item.ratingChange}`
-                                    : item.ratingChange}
-                                </span>
-                              </td>
-                              <td>
-                                <span className="rating-pill">
-                                  {item.newRating}
-                                </span>
-                              </td>
-                              <td>
-                                <small>{item.matchId}</small>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="empty-state-box">
-                      <p>
-                        No rating changes recorded yet. Play a match to build
-                        your history!
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="empty-state-box">
-                <p>
-                  Sign in to view your real competitive profile and history.
-                </p>
-                <div style={{ marginTop: "14px" }}>
-                  <button
-                    className="primary-action"
-                    onClick={() => switchPlayer("Player 1 (Host)")}
-                  >
-                    Sign in as Player 1
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </section>
 

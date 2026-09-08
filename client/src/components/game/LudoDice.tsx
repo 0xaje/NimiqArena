@@ -192,65 +192,67 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
         </div>
       )}
 
-      {canRoll && !value && (
-        <div className="dice-roll-hint">
-          <span>TAP TO ROLL</span>
-        </div>
-      )}
+      <div className="ludo-dice-floating-panel">
+        {canRoll && !value && (
+          <div className="dice-roll-hint">
+            <span>TAP TO ROLL</span>
+          </div>
+        )}
 
-      {/* Die Choice Pills: Let user pick whether to count die 1 or die 2 first */}
-      {!canRoll && value !== null && val1 !== null && val2 !== null && (
-        <div className="dice-choice-pills">
-          {d1Available && d2Available && val1 !== val2 ? (
-            <>
-              <button
-                type="button"
-                className={`dice-choice-pill ${selectedDie === val1 ? "active-choice" : ""}`}
-                onClick={e => {
-                  e.stopPropagation();
-                  onSelectDie?.(selectedDie === val1 ? null : val1);
-                }}
-              >
-                {selectedDie === val1 ? `✓ Using ${val1} First` : `Count ${val1} First`}
-              </button>
-              <button
-                type="button"
-                className={`dice-choice-pill ${selectedDie === val2 ? "active-choice" : ""}`}
-                onClick={e => {
-                  e.stopPropagation();
-                  onSelectDie?.(selectedDie === val2 ? null : val2);
-                }}
-              >
-                {selectedDie === val2 ? `✓ Using ${val2} First` : `Count ${val2} First`}
-              </button>
-            </>
-          ) : remainingDice && remainingDice.length === 1 ? (
-            <span className="dice-choice-single">
-              👉 Next die: <strong>{remainingDice[0]}</strong>
-            </span>
-          ) : val1 === val2 && d1Available && d2Available ? (
-            <span className="dice-choice-single">
-              🌟 Double {val1}: Play both {val1}s (Bonus Roll Awaits!)
-            </span>
-          ) : null}
-        </div>
-      )}
+        {/* Die Choice Pills: Let user pick whether to count die 1 or die 2 first */}
+        {!canRoll && value !== null && val1 !== null && val2 !== null && (
+          <div className="dice-choice-pills">
+            {d1Available && d2Available && val1 !== val2 ? (
+              <>
+                <button
+                  type="button"
+                  className={`dice-choice-pill ${selectedDie === val1 ? "active-choice" : ""}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    onSelectDie?.(selectedDie === val1 ? null : val1);
+                  }}
+                >
+                  {selectedDie === val1 ? `✓ Use ${val1} First` : `Count ${val1}`}
+                </button>
+                <button
+                  type="button"
+                  className={`dice-choice-pill ${selectedDie === val2 ? "active-choice" : ""}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    onSelectDie?.(selectedDie === val2 ? null : val2);
+                  }}
+                >
+                  {selectedDie === val2 ? `✓ Use ${val2} First` : `Count ${val2}`}
+                </button>
+              </>
+            ) : remainingDice && remainingDice.length === 1 ? (
+              <span className="dice-choice-single">
+                Next: <strong>{remainingDice[0]}</strong>
+              </span>
+            ) : val1 === val2 && d1Available && d2Available ? (
+              <span className="dice-choice-single">
+                Double {val1}!
+              </span>
+            ) : null}
+          </div>
+        )}
 
-      {value !== null && val1 !== null && val2 !== null && (
-        <div className="dual-dice-badge">
-          <span>
-            {remainingDice && remainingDice.length === 1 ? (
-              `1 move remaining: [${remainingDice[0]}]`
-            ) : val1 === 6 && val2 === 6 ? (
-              "🌟 Double 6! Take out 2 pawns!"
-            ) : val1 === val2 ? (
-              `Double ${val1} (Bonus Turn)`
-            ) : (
-              `${val1} & ${val2}`
-            )}
-          </span>
-        </div>
-      )}
+        {value !== null && val1 !== null && val2 !== null && (
+          <div className="dual-dice-badge">
+            <span>
+              {remainingDice && remainingDice.length === 1 ? (
+                `Move: [${remainingDice[0]}]`
+              ) : val1 === 6 && val2 === 6 ? (
+                "Double 6! Take 2!"
+              ) : val1 === val2 ? (
+                `Double ${val1} (Bonus)`
+              ) : (
+                `${val1} & ${val2}`
+              )}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

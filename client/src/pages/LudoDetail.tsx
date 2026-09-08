@@ -19,6 +19,7 @@ import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
 import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
+import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
 
 export default function LudoDetail() {
   const [, navigate] = useLocation();
@@ -33,6 +34,7 @@ export default function LudoDetail() {
     id: string;
     joinCode: string;
   } | null>(null);
+  const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const [isEntryFlowOpen, setIsEntryFlowOpen] = useState(false);
@@ -160,6 +162,12 @@ export default function LudoDetail() {
         onClose={() => setIsQuickMatchOpen(false)}
         gameSlug="ludo-league"
       />
+      <PlayWithFriendModal
+        isOpen={isPlayWithFriendOpen}
+        onClose={() => setIsPlayWithFriendOpen(false)}
+        gameSlug="ludo-league"
+        gameTitle="Ludo League"
+      />
 
       <LudoEntryFlowModal
         isOpen={isEntryFlowOpen || isStakeModalOpen}
@@ -212,6 +220,23 @@ export default function LudoDetail() {
               </button>
               <button
                 className="secondary-chip"
+                onClick={() => setIsPlayWithFriendOpen(true)}
+                disabled={!game || game.status !== "active"}
+                style={{
+                  padding: "12px 18px",
+                  background: "rgba(34, 197, 94, 0.15)",
+                  borderColor: "rgba(34, 197, 94, 0.35)",
+                  color: "#4ade80",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Users size={16} /> Play with Friend
+              </button>
+              <button
+                className="secondary-chip"
                 onClick={handleStartSoloPractice}
                 disabled={createSolo.isPending || !game || game.status !== "active"}
                 style={{ padding: "12px 18px" }}
@@ -242,9 +267,6 @@ export default function LudoDetail() {
               >
                 🏆 8-Player Cup
               </button>
-              <Link className="text-action" href="/join" style={{ padding: "12px 16px" }}>
-                <Coins size={16} /> Enter Match Code
-              </Link>
             </div>
             <div className="trust-line">
               <ShieldCheck size={15} />

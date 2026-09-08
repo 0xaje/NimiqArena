@@ -16,6 +16,7 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
+import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
 
 export default function Connect4Detail() {
   const [, navigate] = useLocation();
@@ -30,6 +31,7 @@ export default function Connect4Detail() {
     id: string;
     joinCode: string;
   } | null>(null);
+  const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const [selectedStake, setSelectedStake] = useState(50);
@@ -154,6 +156,12 @@ export default function Connect4Detail() {
         isOpen={isQuickMatchOpen}
         onClose={() => setIsQuickMatchOpen(false)}
         gameSlug="connect-four"
+      />
+      <PlayWithFriendModal
+        isOpen={isPlayWithFriendOpen}
+        onClose={() => setIsPlayWithFriendOpen(false)}
+        gameSlug="connect-four"
+        gameTitle="Connect NIM"
       />
 
       {/* Wager Stake Selection Modal */}
@@ -339,22 +347,21 @@ export default function Connect4Detail() {
               </button>
               <button
                 className="secondary-chip"
-                onClick={createMatch}
-                disabled={
-                  createChallenge.isPending ||
-                  !game ||
-                  game.status !== "active"
-                }
-                style={{ padding: "12px 16px" }}
+                onClick={() => setIsPlayWithFriendOpen(true)}
+                disabled={!game || game.status !== "active"}
+                style={{
+                  padding: "12px 18px",
+                  background: "rgba(34, 197, 94, 0.15)",
+                  borderColor: "rgba(34, 197, 94, 0.35)",
+                  color: "#4ade80",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
               >
-                <Users size={16} />{" "}
-                {createChallenge.isPending
-                  ? "Creating match…"
-                  : "Challenge a friend"}
+                <Users size={16} /> Play with Friend
               </button>
-              <Link className="text-action" href="/join">
-                <Gamepad2 size={16} /> Join by code
-              </Link>
             </div>
             <div className="trust-line">
               <ShieldCheck size={15} />
