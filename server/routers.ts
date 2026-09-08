@@ -23,6 +23,7 @@ import {
   getMatchQueueStatus,
   getPlayerStats,
   getUserByOpenId,
+  getUserByNimiqAddress,
   heartbeatMatchPlayer,
   disconnectMatchPlayer,
   getPaymentIntentForUser,
@@ -34,6 +35,7 @@ import {
   upsertUser,
   verifyPaymentIntent,
 } from "./db";
+import { normalizeNimiqAddress } from "./nimiq-verifier";
 import { broadcastEmote, broadcastQuickChat } from "./match-stream";
 import { nanoid } from "nanoid";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -84,7 +86,7 @@ const ludoCommandSchema = z.discriminatedUnion("kind", [
     expectedVersion: z.number().int().nonnegative(),
     nonce: clientNonceSchema,
     pieceIndex: z.number().int().min(0).max(7),
-    dieValue: z.number().int().min(1).max(6).optional(),
+    dieValue: z.number().int().min(1).max(12).optional(),
   }),
 ]);
 
@@ -173,6 +175,82 @@ export const appRouter = router({
           );
         }
         return { success: true, user, token };
+      }),
+    requestChallenge: publicProcedure.query(async () => {
+      const nonce = nanoid(32);
+      const timestamp = Date.now();
+      const challenge = `Sign into Nimiq Arena\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
+      return { challenge, nonce, timestamp };
+    }),
+    loginWithNimiq: publicProcedure
+      .use(guestLoginLimit)
+      .input(
+        z.object({
+          address: z.string().min(10).max(64),
+          challenge: z.string().min(10).max(256),
+          name: z.string().min(1).max(64).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const normalizedAddress = normalizeNimiqAddress(input.address);
+        if (!/^NQ\d{2}[A-Z0-9]{32}$/.test(normalizedAddress)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid Nimiq address format.",
+          });
+        }
+
+        let user = await getUserByNimiqAddress(normalizedAddress);
+        let openId: string;
+        let displayName: string;
+
+        if (user) {
+          openId = user.openId;
+          displayName =
+            input.name?.trim() ||
+            user.name ||
+            `Nimiq (${normalizedAddress.slice(0, 4)}...${normalizedAddress.slice(-4)})`;
+          await upsertUser({
+            openId,
+            name: displayName,
+            address: normalizedAddress,
+            loginMethod: "nimiq_hub",
+            lastSignedIn: new Date(),
+          });
+        } else {
+          const existingGuest =
+            ctx.user && ctx.user.loginMethod === "guest" ? ctx.user : null;
+          openId =
+            existingGuest?.openId ??
+            `nimiq-${normalizedAddress.slice(0, 12)}-${nanoid(12)}`;
+          displayName =
+            input.name?.trim() ||
+            existingGuest?.name ||
+            `Nimiq (${normalizedAddress.slice(0, 4)}...${normalizedAddress.slice(-4)})`;
+
+          await upsertUser({
+            openId,
+            name: displayName,
+            address: normalizedAddress,
+            loginMethod: "nimiq_hub",
+            lastSignedIn: new Date(),
+          });
+          user = await getUserByOpenId(openId);
+        }
+
+        const token = await sdk.createSessionToken(openId, { name: displayName });
+        const cookieOpts = getSessionCookieOptions(ctx.req);
+        if (typeof (ctx.res as any).cookie === "function") {
+          (ctx.res as any).cookie(COOKIE_NAME, token, cookieOpts);
+        } else {
+          ctx.res.setHeader(
+            "Set-Cookie",
+            `${COOKIE_NAME}=${token}; ${cookieOpts}`
+          );
+        }
+
+        const freshUser = await getUserByOpenId(openId);
+        return { success: true, user: freshUser, token };
       }),
     logout: publicProcedure.mutation(async ({ ctx }) => {
       const cookieOpts = getSessionCookieOptions(ctx.req);

@@ -131,14 +131,19 @@ export function VictoryPayoutBanner({
             <div className="truth-status-line">
               <CheckCircle2 size={16} className="icon-emerald" />
               <span>
-                Status: <strong>Ledger Entitlement Recorded</strong>
+                Status:{" "}
+                <strong>
+                  {settlement?.settlementStatus === "settled_on_chain"
+                    ? "Disbursed On-Chain"
+                    : "Ledger Entitlement Recorded"}
+                </strong>
               </span>
             </div>
             <p className="truth-notice-text">
               {settlement?.notice ||
-                "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Automated on-chain disbursement worker is pending production signer deployment."}
+                "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger."}
             </p>
-            {settlement?.explorerUrl && settlement?.payoutTxHash && (
+            {settlement?.explorerUrl && (
               <a
                 href={settlement.explorerUrl}
                 target="_blank"

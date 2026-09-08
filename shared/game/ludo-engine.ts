@@ -2,7 +2,7 @@ export const LUDO_PLAYER_COUNT = 2;
 export const LUDO_PIECES_PER_PLAYER = 4;
 export const LUDO_TRACK_LENGTH = 52;
 export const LUDO_HOME_ENTRY = 57;
-export const LUDO_SAFE_SQUARES = new Set([0, 13, 26, 39]);
+export const LUDO_SAFE_SQUARES = new Set<number>([]);
 
 export type LudoMode = "2p_double" | "4p" | "2p_single";
 
@@ -359,9 +359,27 @@ export function applyCommand(
     return reject("ILLEGAL_MOVE", "A finished piece cannot move again.");
   }
 
+  // Check if player has other pieces that can legally move with remaining dice
+  const otherPiecesCanMove = playerPieces.some((p, idx) => {
+    if (idx === command.pieceIndex) return false;
+    if (p.position >= 0 && p.position < LUDO_HOME_ENTRY) return true;
+    if (p.position === -1 && remaining.includes(6)) return true;
+    return false;
+  });
+
+  const isMultiDice = remaining.length === 2;
+  const combinedDice = remaining.reduce((a, b) => a + b, 0);
+  const canMoveCombined = isMultiDice && from >= 0 && (from + combinedDice <= LUDO_HOME_ENTRY);
+
+  // If player has only this single piece on the track, no other piece can move with the dice,
+  // and the single piece can take the combined sum, it must move the combined total:
+  const mustUseCombined = isMultiDice && !otherPiecesCanMove && canMoveCombined;
+
   // Determine die to use
   let dieToUse: number;
-  if (command.dieValue !== undefined) {
+  if (mustUseCombined) {
+    dieToUse = combinedDice;
+  } else if (command.dieValue !== undefined) {
     if (!remaining.includes(command.dieValue)) {
       return reject("INVALID_DICE", "The specified die value is not available in remaining dice.");
     }
@@ -413,27 +431,33 @@ export function applyCommand(
         if (opponentIndex >= 0) {
           opponent.pieces[opponentIndex].position = -1;
           capturedPiece = { playerId: opponent.id, pieceIndex: opponentIndex };
+          // Instant capture-to-center: capturing piece scores immediately into center circle!
+          nextPiece.position = LUDO_HOME_ENTRY;
           break;
         }
       }
     }
   }
 
-  // Splice used die from next.remainingDice
+  // Splice used die or dice from next.remainingDice
   if (!next.remainingDice || next.remainingDice.length === 0) {
     next.remainingDice = remaining;
   }
-  const dieIdx = next.remainingDice.indexOf(dieToUse);
-  if (dieIdx !== -1) {
-    next.remainingDice.splice(dieIdx, 1);
+  if (mustUseCombined) {
+    next.remainingDice = [];
+  } else {
+    const dieIdx = next.remainingDice.indexOf(dieToUse);
+    if (dieIdx !== -1) {
+      next.remainingDice.splice(dieIdx, 1);
+    }
   }
   next.dice = next.remainingDice.length > 0 ? next.remainingDice.reduce((a, b) => a + b, 0) : null;
 
   next.version += 1;
   next.usedNonces.push(command.nonce);
 
-  // Win check: 4 pieces in home goal (or all pieces if fewer than 4)
-  const requiredWins = Math.min(4, next.players[command.playerId].pieces.length);
+  // Win check: all pieces in home goal
+  const requiredWins = next.players[command.playerId].pieces.length;
   const homeCount = next.players[command.playerId].pieces.filter(
     p => p.position === LUDO_HOME_ENTRY
   ).length;
@@ -462,7 +486,7 @@ export function applyCommand(
           playerId: command.playerId,
           pieceIndex: command.pieceIndex,
           from,
-          to,
+          to: capturedPiece ? LUDO_HOME_ENTRY : to,
           dieUsed: dieToUse,
           remainingDice: [...next.remainingDice],
           ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),
@@ -501,7 +525,7 @@ export function applyCommand(
       playerId: command.playerId,
       pieceIndex: command.pieceIndex,
       from,
-      to,
+      to: capturedPiece ? LUDO_HOME_ENTRY : to,
       dieUsed: dieToUse,
       remainingDice: [],
       ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),

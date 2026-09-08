@@ -63,14 +63,14 @@ export function selectBestBotMove(
               oppPiece.position < LUDO_TRACK_LENGTH &&
               getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === entryGlobalPos
           );
-          if (capturesOpponent) score += 500;
+          if (capturesOpponent) score += 1200;
 
           validChoices.push({
             pieceIndex,
             dieValue: 6,
             score,
             reason: capturesOpponent
-              ? "Exit base with immediate capture"
+              ? "Exit base with immediate capture & goal"
               : "Deploy piece from base",
           });
         }
@@ -128,8 +128,8 @@ export function selectBestBotMove(
           );
 
           if (willCapture) {
-            score += 600;
-            reason = "Capture opponent piece";
+            score += 1500;
+            reason = "Capture opponent piece & score instant home goal";
           } else {
             // Risk avoidance: landing 1-6 steps in front of an opponent
             const landsInDanger = opponentPlayer?.pieces.some((oppPiece, oppIdx) => {

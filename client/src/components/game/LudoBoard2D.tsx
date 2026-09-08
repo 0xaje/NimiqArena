@@ -293,6 +293,25 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
       return;
     }
 
+    // Check if player has other pieces that can legally move with remaining dice
+    const myPieces = players[yourSeat]?.pieces || [];
+    const otherPiecesCanMove = myPieces.some((p, idx) => {
+      if (idx === pieceIndex) return false;
+      if (p.position >= 0 && p.position < 57) return true;
+      if (p.position === -1 && dicePool.includes(6)) return true;
+      return false;
+    });
+
+    const isMultiDice = dicePool.length === 2;
+    const combinedDice = dicePool.reduce((a, b) => a + b, 0);
+    const canMoveCombined = isMultiDice && piece.position >= 0 && (piece.position + combinedDice <= 57);
+    const mustUseCombined = isMultiDice && !otherPiecesCanMove && canMoveCombined;
+
+    if (mustUseCombined) {
+      onMovePiece(pieceIndex, combinedDice);
+      return;
+    }
+
     // On track: filter valid dice from pool
     const validDice = dicePool.filter(d => piece.position + d <= 57);
     if (validDice.length === 0) return;
@@ -380,7 +399,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
   // Count finished pieces
   const p0Finished = players[0]?.pieces.filter(p => p.position === 57).length ?? 0;
   const p1Finished = players[1]?.pieces.filter(p => p.position === 57).length ?? 0;
-  const targetGoal = hasEightPieces ? 4 : 4;
+  const targetGoal = hasEightPieces ? 8 : 4;
 
   // Helper to render pawn button with step counter if actively animating
   const renderPawn = (

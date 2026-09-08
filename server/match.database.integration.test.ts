@@ -79,7 +79,7 @@ describe.skipIf(!runDatabaseIntegration)(
         expect(fetched?.hostUserId).toBe(user1.id);
         const snapshot = JSON.parse(fetched!.stateJson);
         expect(snapshot.version).toBe(0);
-        expect(snapshot.players[0].pieces).toHaveLength(4);
+        expect(snapshot.players[0].pieces).toHaveLength(8);
       } finally {
         await cleanup(matchId ? [matchId] : []);
       }

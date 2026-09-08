@@ -45,6 +45,7 @@ function createContext(userId = 7701): TrpcContext {
       email: "wager@example.com",
       loginMethod: "test",
       role: "user",
+      address: null,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: now,

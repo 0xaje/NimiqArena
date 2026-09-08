@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Wallet,
@@ -10,6 +10,8 @@ import {
   LogOut,
   Loader2,
   ShieldCheck,
+  RotateCw,
+  Sparkles,
 } from "lucide-react";
 import {
   connectViaNimiqHub,
@@ -17,8 +19,11 @@ import {
   disconnectNimiqWallet,
   formatNimiqAddress,
   isRunningInNimiqPay,
+  fetchNimiqBalance,
   NIMIQ_MAINNET_HUB_URL,
   NIMIQ_TESTNET_HUB_URL,
+  NIMIQ_MAINNET_RPC_URL,
+  NIMIQ_TESTNET_RPC_URL,
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
 import { toast } from "sonner";
@@ -41,7 +46,29 @@ export function WalletConnectModal({
   onDisconnected,
 }: WalletConnectModalProps) {
   const [isConnectingHub, setIsConnectingHub] = useState(false);
-  const [useTestnet, setUseTestnet] = useState(false);
+  const [useTestnet, setUseTestnet] = useState(true);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+
+  const refreshBalance = async () => {
+    if (!connectedAddress) return;
+    setIsLoadingBalance(true);
+    try {
+      const rpc = useTestnet ? NIMIQ_TESTNET_RPC_URL : NIMIQ_MAINNET_RPC_URL;
+      const bal = await fetchNimiqBalance(connectedAddress, rpc);
+      setBalance(bal);
+    } catch {
+      // transient network catch
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
+
+  useEffect(() => {
+    if (connectedAddress && isOpen) {
+      void refreshBalance();
+    }
+  }, [connectedAddress, useTestnet, isOpen]);
 
   if (!isOpen) return null;
 
@@ -233,6 +260,95 @@ export function WalletConnectModal({
                 {formatNimiqAddress(connectedAddress)}
               </div>
 
+              {/* Live Balance Row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: "#0d1117",
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(236, 153, 24, 0.25)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Sparkles size={14} style={{ color: "#EC9918" }} />
+                  <span style={{ fontSize: "12px", color: "#8b949e", fontWeight: 600 }}>
+                    {useTestnet ? "Testnet Balance" : "Mainnet Balance"}:
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span
+                    style={{
+                      fontFamily: "IBM Plex Mono, monospace",
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: "#EC9918",
+                    }}
+                  >
+                    {isLoadingBalance ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : balance !== null ? (
+                      `${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} NIM`
+                    ) : (
+                      "0.00 NIM"
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={refreshBalance}
+                    disabled={isLoadingBalance}
+                    title="Refresh Balance"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#8b949e",
+                      cursor: "pointer",
+                      padding: "2px",
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    <RotateCw size={12} className={isLoadingBalance ? "animate-spin" : ""} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Faucet Callout if on Testnet */}
+              {useTestnet && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    backgroundColor: "rgba(31, 111, 235, 0.1)",
+                    border: "1px solid rgba(56, 139, 253, 0.25)",
+                    fontSize: "11px",
+                    color: "#58a6ff",
+                  }}
+                >
+                  <span>Need free Testnet NIM for wagers?</span>
+                  <a
+                    href="https://testnet.nimiq.watch/#faucet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#EC9918",
+                      fontWeight: 700,
+                      textDecoration: "underline",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                  >
+                    Get Free NIM <ExternalLink size={10} />
+                  </a>
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                 <button
                   type="button"
@@ -259,7 +375,11 @@ export function WalletConnectModal({
                   <Copy size={14} /> Copy
                 </button>
                 <a
-                  href={`https://nimiqwatch.com/#${cleanAddress}`}
+                  href={
+                    useTestnet
+                      ? `https://testnet.nimiqwatch.com/#${cleanAddress}`
+                      : `https://nimiqwatch.com/#${cleanAddress}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

@@ -43,14 +43,14 @@ describe("ludo engine", () => {
   });
 
   it("rolls through the server-owned random source", () => {
-    const result = roll(createLudoSnapshot("match-1"), "roll-1", 6);
+    const result = roll(createLudoSnapshot("match-1", "2p_single", 1), "roll-1", 6);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.snapshot.dice).toBe(6);
   });
 
   it("passes turn when rolling without legal moves, and enables move on a six", () => {
     // Player 0 rolls a 5 with all pieces in base (no legal moves)
-    const first = roll(createLudoSnapshot("match-1"), "roll-1", 5);
+    const first = roll(createLudoSnapshot("match-1", "2p_single", 1), "roll-1", 5);
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     expect(first.snapshot.dice).toBe(null);
@@ -104,8 +104,8 @@ describe("ludo engine", () => {
     ).toMatchObject({ ok: false, code: "STALE_VERSION" });
   });
 
-  it("captures an opponent on a non-safe track square", () => {
-    const snapshot = createLudoSnapshot("match-1");
+  it("captures an opponent on a non-safe track square and instantly scores to center", () => {
+    const snapshot = createLudoSnapshot("match-1", "2p_single", 1);
     snapshot.dice = 1;
     snapshot.players[0].pieces[0].position = 4;
     snapshot.players[1].pieces[0].position = 31;
@@ -113,15 +113,50 @@ describe("ludo engine", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.snapshot.players[1].pieces[0].position).toBe(-1);
+      expect(result.snapshot.players[0].pieces[0].position).toBe(57);
       expect(result.event).toMatchObject({
         type: "moved",
+        to: 57,
         capturedPiece: { playerId: 1, pieceIndex: 0 },
       });
     }
   });
 
+  it("captures an opponent piece even on the starting square (no safe squares)", () => {
+    const snapshot = createLudoSnapshot("match-start-cap", "2p_single", 1);
+    snapshot.dice = 2;
+    // Player 0 piece 0 is at progress 0 (global 0, the Red start square)
+    snapshot.players[0].pieces[0].position = 0;
+    // Player 1 piece 0 is at progress 24 (global (26 + 24) % 52 = 50)
+    // Moving 2 steps -> global (50 + 2) % 52 = 0 -> lands on Player 0's start square!
+    snapshot.players[1].pieces[0].position = 24;
+    snapshot.currentPlayer = 1;
+
+    const result = applyCommand(
+      snapshot,
+      {
+        kind: "move",
+        matchId: snapshot.matchId,
+        playerId: 1,
+        expectedVersion: 0,
+        nonce: "cap-start-sq",
+        pieceIndex: 0,
+        dieValue: 2,
+      },
+      () => 1
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Player 0's piece was captured on its start square and sent back to base!
+      expect(result.snapshot.players[0].pieces[0].position).toBe(-1);
+      // Player 1's capturing piece instantly scored to center (57)!
+      expect(result.snapshot.players[1].pieces[0].position).toBe(57);
+    }
+  });
+
   it("returns a winner when all pieces reach home", () => {
-    const snapshot = createLudoSnapshot("match-1");
+    const snapshot = createLudoSnapshot("match-1", "2p_single", 1);
     snapshot.dice = 1;
     snapshot.players[0].pieces = snapshot.players[0].pieces.map(
       (piece: LudoPiece, index: number) => ({ position: index === 0 ? 56 : 57 })
@@ -228,7 +263,8 @@ describe("ludo engine", () => {
 
     it("awards bonus turn on doubles (e.g. [4, 4]) when moving on track", () => {
       const snapshot = createLudoSnapshot("match-dual-3", "2p_single", 2);
-      snapshot.players[0].pieces[0].position = 10; // Already on track
+      snapshot.players[0].pieces[0].position = 10; // First piece on track
+      snapshot.players[0].pieces[1].position = 0;  // Second piece on track (allows splitting dice)
 
       const rollRes = applyCommand(
         snapshot,
@@ -287,6 +323,122 @@ describe("ludo engine", () => {
       expect(moveRes2.snapshot.remainingDice).toEqual([]);
       // Extra turn awarded for doubles [4, 4]!
       expect(moveRes2.snapshot.currentPlayer).toBe(0);
+    });
+
+    it("requires sole piece to move combined dice total (5+3=8), jumping past opponent at distance 5", () => {
+      const snapshot = createLudoSnapshot("match-dual-sole", "2p_single", 2);
+      snapshot.players[0].pieces[0].position = 0; // Sole piece on track
+      // Opponent at global track 5 (which is position 31 for Player 1: (26 + 31) % 52 = 5)
+      snapshot.players[1].pieces[0].position = 31;
+
+      let rollIdx = 0;
+      const dice = [5, 3];
+      const rollRes = applyCommand(
+        snapshot,
+        {
+          kind: "roll",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: 0,
+          nonce: "roll-5-3",
+        },
+        () => dice[rollIdx++]
+      );
+
+      expect(rollRes.ok).toBe(true);
+      if (!rollRes.ok) return;
+      expect(rollRes.snapshot.diceValues).toEqual([5, 3]);
+
+      // Move sole piece: must take combined 5+3=8
+      const moveRes = applyCommand(
+        rollRes.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: rollRes.snapshot.version,
+          nonce: "move-combined",
+          pieceIndex: 0,
+        },
+        () => 1
+      );
+
+      expect(moveRes.ok).toBe(true);
+      if (!moveRes.ok) return;
+      // Lands at 8 (past the opponent at 5)
+      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(8);
+      // Opponent was NOT captured (still at 31)
+      expect(moveRes.snapshot.players[1].pieces[0].position).toBe(31);
+      // Both dice consumed
+      expect(moveRes.snapshot.remainingDice).toEqual([]);
+    });
+
+    it("allows splitting dice [5, 3] when another piece is outside, capturing opponent at distance 5 and scoring to center", () => {
+      const snapshot = createLudoSnapshot("match-dual-split", "2p_single", 2);
+      snapshot.players[0].pieces[0].position = 0; // Piece 0
+      snapshot.players[0].pieces[1].position = 20; // Piece 1 also outside!
+      snapshot.players[1].pieces[0].position = 31; // Opponent at global track 5
+
+      let rollIdx = 0;
+      const dice = [5, 3];
+      const rollRes = applyCommand(
+        snapshot,
+        {
+          kind: "roll",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: 0,
+          nonce: "roll-5-3-split",
+        },
+        () => dice[rollIdx++]
+      );
+
+      expect(rollRes.ok).toBe(true);
+      if (!rollRes.ok) return;
+
+      // Move Piece 0 using die 5: lands on opponent at 5!
+      const moveRes1 = applyCommand(
+        rollRes.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: rollRes.snapshot.version,
+          nonce: "move-split-capture",
+          pieceIndex: 0,
+          dieValue: 5,
+        },
+        () => 1
+      );
+
+      expect(moveRes1.ok).toBe(true);
+      if (!moveRes1.ok) return;
+      // Opponent knocked back to base -1
+      expect(moveRes1.snapshot.players[1].pieces[0].position).toBe(-1);
+      // Capturing Piece 0 instantly scores to center (57)!
+      expect(moveRes1.snapshot.players[0].pieces[0].position).toBe(57);
+      // Remaining die 3 is available for Piece 1
+      expect(moveRes1.snapshot.remainingDice).toEqual([3]);
+
+      // Move Piece 1 using remaining die 3 (20 -> 23)
+      const moveRes2 = applyCommand(
+        moveRes1.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: moveRes1.snapshot.version,
+          nonce: "move-split-piece1",
+          pieceIndex: 1,
+          dieValue: 3,
+        },
+        () => 1
+      );
+
+      expect(moveRes2.ok).toBe(true);
+      if (!moveRes2.ok) return;
+      expect(moveRes2.snapshot.players[0].pieces[1].position).toBe(23);
+      expect(moveRes2.snapshot.remainingDice).toEqual([]);
     });
   });
 });

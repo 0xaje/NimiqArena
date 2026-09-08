@@ -12,6 +12,7 @@ function createContext(): TrpcContext {
       email: "game@example.com",
       loginMethod: "test",
       role: "user",
+      address: null,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: now,
@@ -53,6 +54,22 @@ describe("game and match router validation", () => {
           expectedVersion: 0,
           nonce: "short",
           pieceIndex: 0,
+        },
+      })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("rejects dieValue > 12 while allowing combined dual-dice values up to 12", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(
+      caller.match.command({
+        id: "match-id-with-valid-length",
+        command: {
+          kind: "move",
+          expectedVersion: 0,
+          nonce: "valid-nonce-32-chars-long-abc12345",
+          pieceIndex: 0,
+          dieValue: 13, // > 12 should reject
         },
       })
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });

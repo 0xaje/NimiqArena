@@ -12,6 +12,7 @@ function createContext(): TrpcContext {
       email: "payment@example.com",
       loginMethod: "test",
       role: "user",
+      address: null,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: now,

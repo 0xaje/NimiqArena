@@ -25,6 +25,7 @@ function guestUser(id: number) {
     email: null,
     loginMethod: "guest",
     role: "user" as const,
+    address: null,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,

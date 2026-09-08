@@ -23,6 +23,7 @@ function createAuthContext(): {
     name: "Sample User",
     loginMethod: "manus",
     role: "user",
+    address: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),

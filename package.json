@@ -9,7 +9,9 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "vitest run --exclude 'server/**/*.stress.test.ts'",
+    "test:all": "vitest run",
+    "test:stress": "vitest run server/human-vs-bot.stress.test.ts",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

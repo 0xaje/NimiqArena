@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: nimiq-arena
+    runtime: node
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NIMIQ_NETWORK_ID
+        value: "5"
+      - key: NIMIQ_RPC_URL
+        value: "https://rpc.testnet.nimiqwatch.com"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: NIMIQ_PAYMENT_RECIPIENT
+        sync: false
+      - key: NIMIQ_PAYOUT_PRIVATE_KEY
+        sync: false
+      - key: ENABLE_AUTOMATED_PAYOUTS
+        value: "true"

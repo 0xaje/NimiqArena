@@ -10,9 +10,16 @@ import {
   X,
   Copy,
   ExternalLink,
+  Wallet,
+  Sparkles,
 } from "lucide-react";
 import { createPaymentNonce } from "@/lib/payment-state";
-import { sendNimiqPayment } from "@/lib/nimiq-wallet";
+import {
+  sendNimiqPayment,
+  getActiveWalletAddress,
+  fetchNimiqBalance,
+  formatNimiqAddress,
+} from "@/lib/nimiq-wallet";
 
 interface EscrowDepositModalProps {
   isOpen: boolean;
@@ -35,6 +42,20 @@ export function EscrowDepositModal({
   >("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState("");
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+
+  const activeWallet = getActiveWalletAddress();
+
+  React.useEffect(() => {
+    if (isOpen && activeWallet) {
+      setIsLoadingBalance(true);
+      fetchNimiqBalance(activeWallet)
+        .then(bal => setUserBalance(bal))
+        .catch(() => {})
+        .finally(() => setIsLoadingBalance(false));
+    }
+  }, [isOpen, activeWallet]);
 
   const createIntent = trpc.payment.createIntent.useMutation();
   const markPending = trpc.payment.markConfirmationPending.useMutation();
@@ -186,6 +207,39 @@ export function EscrowDepositModal({
               fontSize: "12px",
             }}
           >
+            {/* Wallet Balance Check */}
+            {activeWallet && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderBottom: "1px solid rgba(251, 248, 241, 0.1)",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
+                  Your Testnet Balance:
+                </span>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    color:
+                      userBalance !== null && userBalance >= stakeNim
+                        ? "#2ecc71"
+                        : "#f85149",
+                  }}
+                >
+                  {isLoadingBalance
+                    ? "Checking..."
+                    : userBalance !== null
+                      ? `${userBalance.toFixed(2)} NIM`
+                      : "0.00 NIM"}
+                </span>
+              </div>
+            )}
+
             <div
               style={{
                 display: "flex",
@@ -247,6 +301,40 @@ export function EscrowDepositModal({
               </span>
             </div>
           </div>
+
+          {userBalance !== null && userBalance < stakeNim && (
+            <div
+              style={{
+                backgroundColor: "rgba(231, 76, 60, 0.12)",
+                border: "1px solid rgba(231, 76, 60, 0.35)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#ff7b72",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span>Balance ({userBalance.toFixed(2)} NIM) is below {stakeNim} NIM stake</span>
+              <a
+                href="https://testnet.nimiq.watch/#faucet"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "#EC9918",
+                  fontWeight: 700,
+                  textDecoration: "underline",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                Get Free NIM <ExternalLink size={11} />
+              </a>
+            </div>
+          )}
 
           {step === "idle" && (
             <button

@@ -158,7 +158,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "email", "loginMethod", "address"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -216,6 +216,23 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserByNimiqAddress(address: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const normalized = normalizeNimiqAddress(address);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.address, normalized))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getGameBySlug(slug: string): Promise<Game | undefined> {
   const db = await getDb();
   if (!db) throw new Error("Game service is unavailable. Database connection is required.");
@@ -249,7 +266,7 @@ export async function createChallengeMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id, input.mode ?? "2p_single", 2);
+      : createLudoSnapshot(id, input.mode ?? "2p_double", 2);
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -387,7 +404,7 @@ export async function findOrCreateQuickMatch(input: {
   const snapshot =
     game.kind === "connect4"
       ? createConnect4Snapshot(id)
-      : createLudoSnapshot(id, "2p_single", 2);
+      : createLudoSnapshot(id, "2p_double", 2);
 
   await db.transaction(async tx => {
     await tx.insert(matches).values({
@@ -914,8 +931,13 @@ export async function executeBotTurn(input: {
     botMatchTimers.delete(input.matchId);
   }
 
+  let lockWaitRetries = 20;
+  while (botMatchLocks.has(input.matchId) && lockWaitRetries > 0) {
+    lockWaitRetries--;
+    await new Promise(r => setTimeout(r, 50));
+  }
+
   if (botMatchLocks.has(input.matchId)) {
-    await new Promise(r => setTimeout(r, 200));
     const latest = await getMatchById(input.matchId);
     return {
       ok: true as const,
@@ -1117,8 +1139,23 @@ export async function sweepMatchLifecycle(now = new Date()) {
   let changed = 0;
   for (const row of active) {
     const result = await refreshMatchLifecycle(row.id, now);
-    if (result?.status === "expired" || result?.status === "cancelled")
+    if (result?.status === "expired" || result?.status === "cancelled") {
       changed += 1;
+    } else if (result?.status === "in_progress" && result.joinCode?.startsWith("BOT")) {
+      // Process Crash Recovery: Resurrect stranded bot turn if inactive for > 4s
+      try {
+        const snap = JSON.parse(result.stateJson);
+        if (snap?.currentPlayer === 1 && snap?.winner === null && !botMatchLocks.has(result.id)) {
+          const inactiveMs = now.getTime() - result.updatedAt.getTime();
+          if (inactiveMs > 4000) {
+            void executeBotTurn({ matchId: result.id });
+            changed += 1;
+          }
+        }
+      } catch {
+        // Safe ignore
+      }
+    }
   }
   return { changed };
 }
@@ -1557,6 +1594,11 @@ export async function applyLudoMatchCommand(input: {
       void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
     } else {
       clearBotMatchTimerAndLock(input.matchId);
+      if (result.status === "finished") {
+        void import("./payout-worker")
+          .then(m => m.processMatchPayout(input.matchId))
+          .catch(err => console.warn("[PayoutWorker] Ludo auto payout trigger:", err));
+      }
     }
   }
   return result;
@@ -1700,6 +1742,11 @@ export async function applyConnect4MatchCommand(input: {
       void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
     } else {
       clearBotMatchTimerAndLock(input.matchId);
+      if (result.status === "finished") {
+        void import("./payout-worker")
+          .then(m => m.processMatchPayout(input.matchId))
+          .catch(err => console.warn("[PayoutWorker] Connect4 auto payout trigger:", err));
+      }
     }
   }
   return result;
@@ -2732,6 +2779,19 @@ export async function settleMatchWinnerPayout(input: {
   const netPayoutNim = dist.winnerNim; // 90% Winner
   const isTestnet = ENV.nimiqNetworkId === 5;
 
+  let payoutResult: {
+    status?: string;
+    payoutTxHash?: string;
+    explorerUrl?: string;
+    errorMessage?: string;
+  } | null = null;
+  try {
+    const { processMatchPayout } = await import("./payout-worker");
+    payoutResult = await processMatchPayout(input.matchId);
+  } catch (err) {
+    console.warn("[PayoutWorker] settleMatchWinnerPayout execution notice:", err);
+  }
+
   return {
     success: true,
     matchId: input.matchId,
@@ -2746,13 +2806,16 @@ export async function settleMatchWinnerPayout(input: {
       ecosystemNim: dist.ecosystemNim,
       charityNim: dist.charityNim,
     },
-    settlementStatus: "ledger_entitlement_confirmed",
-    payoutTxHash: null,
+    settlementStatus: payoutResult?.status || "ledger_entitlement_confirmed",
+    payoutTxHash: payoutResult?.payoutTxHash || null,
     settledAt: new Date().toISOString(),
     network: isTestnet ? "testnet" : "mainnet",
-    explorerUrl: null,
+    explorerUrl: payoutResult?.explorerUrl || null,
     notice:
-      "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Platform allocation: 5% Builder, 3% Ecosystem, 2% Charity. Automated on-chain disbursement worker is pending production signer deployment.",
+      payoutResult?.errorMessage ||
+      (payoutResult?.status === "settled_on_chain"
+        ? `Disbursed ${netPayoutNim} NIM directly on-chain to winner's Nimiq wallet.`
+        : "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Platform allocation: 5% Builder, 3% Ecosystem, 2% Charity. Automated on-chain disbursement worker is active."),
   };
 }
 

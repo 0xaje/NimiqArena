@@ -38,6 +38,7 @@ import {
   getLiveTestnetStatus,
   isRunningInNimiqPay,
   sendNimiqPayment,
+  fetchNimiqBalance,
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
 
@@ -116,6 +117,18 @@ export default function Home() {
   const [address, setAddress] = useState<string | null>(() =>
     restoreSavedWallet()
   );
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!address) {
+      setWalletBalance(null);
+      return;
+    }
+    fetchNimiqBalance(address)
+      .then(bal => setWalletBalance(bal))
+      .catch(() => {});
+  }, [address]);
+
   const [language, setLanguage] = useState(() =>
     getHostLanguage() || (typeof navigator !== "undefined" ? navigator.language?.split("-")[0] : "en") || "en"
   );
@@ -139,6 +152,8 @@ export default function Home() {
   const submitTransaction = trpc.payment.submitTransaction.useMutation();
   const verifyPayment = trpc.payment.verify.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
+  const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
+  const logoutMutation = trpc.auth.logout.useMutation();
 
   const seasonQuery = trpc.season.getActive.useQuery();
   const leaderboardQuery = trpc.leaderboard.getTop.useQuery(LEADERBOARD_INPUT);
@@ -362,13 +377,36 @@ export default function Home() {
         onClose={() => setIsWalletModalOpen(false)}
         connectedAddress={address}
         connectionMode={connectionMode}
-        onConnected={(addr, mode) => {
+        onConnected={async (addr, mode) => {
           setAddress(addr);
           setConnectionMode(mode);
+          fetchNimiqBalance(addr).then(bal => setWalletBalance(bal)).catch(() => {});
+          try {
+            const challengeRes = await utils.client.auth.requestChallenge.query();
+            await loginWithNimiq.mutateAsync({
+              address: addr,
+              challenge: challengeRes.challenge,
+            });
+            void utils.auth.me.invalidate();
+            toast.success("Signed in with Nimiq Wallet", {
+              description: `Session bound to ${addr.slice(0, 8)}...`,
+            });
+          } catch (e) {
+            console.warn("[Auth] Failed to sync session with wallet:", e);
+          }
         }}
-        onDisconnected={() => {
+        onDisconnected={async () => {
           setAddress(null);
           setConnectionMode("none");
+          try {
+            await logoutMutation.mutateAsync();
+            void utils.auth.me.invalidate();
+            toast.info("Wallet Disconnected", {
+              description: "Returned to guest session.",
+            });
+          } catch (e) {
+            console.warn("[Auth] Logout error:", e);
+          }
         }}
       />
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
@@ -518,7 +556,18 @@ export default function Home() {
             </button>
             <button className="wallet-button" onClick={connectWallet}>
               <WalletCards size={16} />{" "}
-              {address ? formatAddress(address) : "Connect wallet"}
+              {address ? (
+                <>
+                  {walletBalance !== null ? (
+                    <span style={{ color: "#EC9918", fontWeight: 700, marginRight: "4px" }}>
+                      {walletBalance.toFixed(1)} NIM ·
+                    </span>
+                  ) : null}
+                  {formatAddress(address)}
+                </>
+              ) : (
+                "Connect wallet"
+              )}
             </button>
           </div>
         </header>

@@ -31,6 +31,11 @@ export interface ConnectedWalletState {
 export const NIMIQ_TESTNET_HUB_URL = "https://hub.nimiq-testnet.com";
 export const NIMIQ_MAINNET_HUB_URL = "https://hub.nimiq.com";
 export const NIMIQ_TESTNET_RPC_URL = "https://rpc.testnet.nimiqwatch.com";
+export const NIMIQ_MAINNET_RPC_URL = "https://rpc.nimiqwatch.com";
+export const DEFAULT_NIMIQ_HUB_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_NIMIQ_NETWORK === "mainnet")
+    ? NIMIQ_MAINNET_HUB_URL
+    : NIMIQ_TESTNET_HUB_URL;
 
 let _miniAppProvider: NimiqProvider | null = null;
 let _hubApi: HubApi | null = null;
@@ -64,9 +69,9 @@ export function isRunningInNimiqPay(): boolean {
 
 /**
  * Initializes the HubApi instance lazily for web browser connections.
- * Defaults to official Mainnet Nimiq Hub (https://hub.nimiq.com).
+ * Defaults to official Testnet Nimiq Hub (https://hub.nimiq-testnet.com).
  */
-export function getHubApi(endpoint = NIMIQ_MAINNET_HUB_URL): HubApi {
+export function getHubApi(endpoint = DEFAULT_NIMIQ_HUB_URL): HubApi {
   if (!_hubApi || (_hubApi as any)._endpoint !== endpoint) {
     _hubApi = new HubApi(endpoint);
   }
@@ -117,7 +122,7 @@ export async function connectViaMiniApp(): Promise<string> {
  * Opens a secure popup to the official Nimiq Hub, allowing the user to select an
  * existing Nimiq account or create/generate a brand-new Nimiq account.
  */
-export async function connectViaNimiqHub(endpoint = NIMIQ_MAINNET_HUB_URL): Promise<{ address: string; label: string }> {
+export async function connectViaNimiqHub(endpoint = DEFAULT_NIMIQ_HUB_URL): Promise<{ address: string; label: string }> {
   const hub = getHubApi(endpoint);
   const res = await hub.chooseAddress({
     appName: "Nimiq Arena",
@@ -186,6 +191,7 @@ export async function sendNimiqPayment(options: {
   recipient: string;
   valueLuna: number;
   data?: string;
+  endpoint?: string;
 }): Promise<string> {
   const mode = getWalletConnectionMode();
 
@@ -209,8 +215,8 @@ export async function sendNimiqPayment(options: {
     throw new Error("Transaction failed.");
   }
 
-  // Web Browser: use Nimiq Hub Checkout
-  const hub = getHubApi();
+  // Web Browser: use Nimiq Hub Checkout (defaults to Testnet Hub)
+  const hub = getHubApi(options.endpoint || DEFAULT_NIMIQ_HUB_URL);
   const checkoutRes = await hub.checkout({
     appName: "Nimiq Arena",
     recipient: options.recipient,
@@ -224,6 +230,37 @@ export async function sendNimiqPayment(options: {
   }
 
   throw new Error("Checkout did not return a transaction hash.");
+}
+
+/**
+ * Fetches the live balance in NIM for an address from Nimiq Testnet/Mainnet RPC.
+ */
+export async function fetchNimiqBalance(
+  address: string,
+  rpcUrl = NIMIQ_TESTNET_RPC_URL
+): Promise<number> {
+  if (!address || !isValidNimiqAddress(address)) return 0;
+  const clean = address.replace(/\s+/g, "").toUpperCase();
+  try {
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "getAccountByAddress",
+        params: [clean],
+        id: 1,
+      }),
+    });
+    if (!res.ok) return 0;
+    const json = await res.json();
+    const balanceLuna =
+      json?.result?.data?.balance ?? json?.result?.balance ?? 0;
+    return Number(balanceLuna) / 100_000;
+  } catch (err) {
+    console.warn("[NimiqWallet] Failed to fetch balance:", err);
+    return 0;
+  }
 }
 
 /**
