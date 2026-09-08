@@ -28,6 +28,28 @@ function createContext(user: TrpcContext["user"] = null): TrpcContext {
   };
 }
 
+function createMockUser(overrides: Partial<TrpcContext["user"]> = {}) {
+  const now = new Date();
+  return {
+    id: 101,
+    openId: "user-101",
+    name: null,
+    email: null,
+    loginMethod: "nimiq_hub",
+    role: "user" as const,
+    address: "NQ0700000000000000000000000000000000",
+    points: 1000,
+    referralCode: null,
+    referredByUserId: null,
+    referralEarningsNim: 0,
+    evmAddress: null,
+    createdAt: now,
+    updatedAt: now,
+    lastSignedIn: now,
+    ...overrides,
+  };
+}
+
 describe("Web3 Identity, Referral System & EVM Linking", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,18 +81,7 @@ describe("Web3 Identity, Referral System & EVM Linking", () => {
     });
 
     it("registers username and returns updated user", async () => {
-      const mockUser = {
-        id: 101,
-        openId: "user-101",
-        name: null,
-        email: null,
-        loginMethod: "nimiq_hub",
-        role: "user" as const,
-        address: "NQ0700000000000000000000000000000000",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastSignedIn: new Date(),
-      };
+      const mockUser = createMockUser();
 
       const updatedUser = {
         ...mockUser,
@@ -97,18 +108,7 @@ describe("Web3 Identity, Referral System & EVM Linking", () => {
 
   describe("auth.getReferralStats", () => {
     it("returns referral stats for authenticated user", async () => {
-      const mockUser = {
-        id: 101,
-        openId: "user-101",
-        name: "Jack",
-        email: null,
-        loginMethod: "nimiq_hub",
-        role: "user" as const,
-        address: "NQ0700000000000000000000000000000000",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastSignedIn: new Date(),
-      };
+      const mockUser = createMockUser({ name: "Jack" });
 
       dbMocks.getUserReferralStats.mockResolvedValue({
         referralCode: "JACK",
@@ -130,18 +130,7 @@ describe("Web3 Identity, Referral System & EVM Linking", () => {
 
   describe("auth.linkEvmAddress", () => {
     it("links EVM address to user profile", async () => {
-      const mockUser = {
-        id: 101,
-        openId: "user-101",
-        name: "Jack",
-        email: null,
-        loginMethod: "nimiq_hub",
-        role: "user" as const,
-        address: "NQ0700000000000000000000000000000000",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastSignedIn: new Date(),
-      };
+      const mockUser = createMockUser({ name: "Jack" });
 
       dbMocks.linkUserEvmAddress.mockResolvedValue({
         success: true,
