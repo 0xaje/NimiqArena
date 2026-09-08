@@ -256,6 +256,7 @@ export async function checkUsernameAvailable(
 export async function registerUserIdentity(input: {
   userId: number;
   name: string;
+  avatar?: string;
   referralCodeUsed?: string;
   address?: string;
 }) {
@@ -304,6 +305,7 @@ export async function registerUserIdentity(input: {
     .update(users)
     .set({
       name: cleanName,
+      avatar: input.avatar !== undefined ? input.avatar : currentUser.avatar,
       referralCode: myReferralCode || `user${input.userId}`,
       referredByUserId,
       address: input.address
@@ -316,6 +318,45 @@ export async function registerUserIdentity(input: {
   return (
     await db.select().from(users).where(eq(users.id, input.userId)).limit(1)
   )[0];
+}
+
+export async function claimWelcomeReward(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const user = (
+    await db.select().from(users).where(eq(users.id, userId)).limit(1)
+  )[0];
+  if (!user) throw new Error("User not found");
+  if (user.welcomeClaimed) {
+    return {
+      success: true,
+      alreadyClaimed: true,
+      points: user.points,
+      welcomeClaimed: true,
+      message: "Welcome gift has already been claimed.",
+    };
+  }
+
+  await db
+    .update(users)
+    .set({
+      points: sql`${users.points} + 1000`,
+      welcomeClaimed: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+
+  const updated = (
+    await db.select().from(users).where(eq(users.id, userId)).limit(1)
+  )[0];
+
+  return {
+    success: true,
+    alreadyClaimed: false,
+    points: updated.points,
+    welcomeClaimed: true,
+    message: "1,000 Welcome Arena Points added to your balance!",
+  };
 }
 
 export async function getUserReferralStats(userId: number) {

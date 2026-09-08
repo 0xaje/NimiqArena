@@ -26,6 +26,8 @@ export const users = mysqlTable(
     referredByUserId: int("referredByUserId"),
     referralEarningsNim: int("referralEarningsNim").default(0).notNull(),
     evmAddress: varchar("evmAddress", { length: 64 }),
+    avatar: varchar("avatar", { length: 255 }),
+    welcomeClaimed: boolean("welcomeClaimed").default(false).notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
     lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

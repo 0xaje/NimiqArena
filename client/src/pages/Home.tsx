@@ -441,40 +441,53 @@ export default function Home() {
           >
             Discover <span>01</span>
           </a>
-          <a
-            className="side-nav-link"
-            href="#games"
-            onClick={() => setMobileMenu(false)}
-          >
-            Game library <span>03</span>
-          </a>
-          <Link
-            className="side-nav-link"
-            href="/games/ludo-league"
-            onClick={() => setMobileMenu(false)}
-          >
-            Ludo League <span>PLAY</span>
-          </Link>
+          <div className="side-nav-group">
+            <a
+              className="side-nav-link"
+              href="#games"
+              onClick={() => setMobileMenu(false)}
+            >
+              Game Library <span>02</span>
+            </a>
+            <div className="side-nav-sublinks" style={{ paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "4px", marginTop: "2px", marginBottom: "6px" }}>
+              <Link
+                className="side-nav-sublink"
+                href="/games/ludo-league"
+                onClick={() => setMobileMenu(false)}
+                style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderRadius: "6px" }}
+              >
+                🎲 Ludo League <span style={{ fontSize: "10px", color: "#EC9918", fontWeight: 700 }}>LIVE</span>
+              </Link>
+              <Link
+                className="side-nav-sublink"
+                href="/games/connect-four"
+                onClick={() => setMobileMenu(false)}
+                style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderRadius: "6px" }}
+              >
+                🔴 Connect NIM <span style={{ fontSize: "10px", color: "#00f0ff", fontWeight: 700 }}>LIVE</span>
+              </Link>
+            </div>
+          </div>
           <Link
             className="side-nav-link"
             href="/join"
             onClick={() => setMobileMenu(false)}
           >
-            Join a friend <span>JOIN</span>
+            Play with Friends <span>03</span>
           </Link>
           <Link
             className="side-nav-link"
             href="/leaderboard"
             onClick={() => setMobileMenu(false)}
           >
-            Leaderboard <span>TOP</span>
+            Leaderboard <span>04</span>
           </Link>
           <Link
             className="side-nav-link"
             href="/profile"
             onClick={() => setMobileMenu(false)}
           >
-            Player Profile <span>STATS</span>
+            Player Profile & Rewards <span>05</span>
           </Link>
         </nav>
         <div className="sidebar-bottom">
@@ -534,23 +547,24 @@ export default function Home() {
             </span>
           </div>
           <div className="top-actions">
-            <button
-              className="search-button"
-              onClick={() => setIsIdentityModalOpen(true)}
-              title="Arena Web3 Identity & Custom Handle"
-              style={{
-                borderColor: "rgba(245, 158, 11, 0.4)",
-                color: "#f59e0b",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <Sparkles size={14} />
-              {user?.name && !user.name.startsWith("Player 1") && !user.name.startsWith("guest-")
-                ? user.name
-                : "Claim Identity (+1,000 Pts)"}
-            </button>
+            {user?.name && !user.name.startsWith("Player 1") && !user.name.startsWith("guest-") && (
+              <Link
+                href="/profile"
+                className="search-button"
+                title="View Player Profile & Rewards"
+                style={{
+                  borderColor: "rgba(245, 158, 11, 0.4)",
+                  color: "#f59e0b",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  textDecoration: "none",
+                }}
+              >
+                <Sparkles size={14} />
+                @{user.name}
+              </Link>
+            )}
             <button
               className="search-button"
               onClick={() => setIsFaucetOpen(true)}

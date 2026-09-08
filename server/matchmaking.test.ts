@@ -50,6 +50,8 @@ function createContext(userId = 8801): TrpcContext {
       referredByUserId: null,
       referralEarningsNim: 0,
       evmAddress: null,
+      avatar: null,
+      welcomeClaimed: false,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: now,

@@ -14,6 +14,8 @@ async function main() {
     sql`ALTER TABLE \`users\` ADD COLUMN \`referredByUserId\` int NULL`,
     sql`ALTER TABLE \`users\` ADD COLUMN \`referralEarningsNim\` int NOT NULL DEFAULT 0`,
     sql`ALTER TABLE \`users\` ADD COLUMN \`evmAddress\` varchar(64) NULL`,
+    sql`ALTER TABLE \`users\` ADD COLUMN \`avatar\` varchar(255) NULL`,
+    sql`ALTER TABLE \`users\` ADD COLUMN \`welcomeClaimed\` boolean NOT NULL DEFAULT false`,
     sql`CREATE INDEX \`users_referral_code_idx\` ON \`users\` (\`referralCode\`)`
   ];
 

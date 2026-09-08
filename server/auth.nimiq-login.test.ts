@@ -30,6 +30,8 @@ function userRow(openId: string, address: string | null = null, loginMethod = "n
     referredByUserId: null,
     referralEarningsNim: 0,
     evmAddress: null,
+    avatar: null,
+    welcomeClaimed: false,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,

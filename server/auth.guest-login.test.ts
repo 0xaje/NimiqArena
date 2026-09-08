@@ -29,6 +29,8 @@ function userRow(openId: string, loginMethod: string | null = "guest") {
     referredByUserId: null,
     referralEarningsNim: 0,
     evmAddress: null,
+    avatar: null,
+    welcomeClaimed: false,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,

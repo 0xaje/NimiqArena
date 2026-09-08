@@ -1,4 +1,14 @@
-import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Gamepad2,
+  KeyRound,
+  PlusCircle,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -9,8 +19,17 @@ export default function JoinMatch() {
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
-  const [joinCode, setJoinCode] = useState("");
+  const createChallenge = trpc.match.createChallenge.useMutation();
   const join = trpc.match.joinByCode.useMutation();
+
+  const [activeTab, setActiveTab] = useState<"create" | "join">("create");
+  const [selectedGame, setSelectedGame] = useState<"ludo-league" | "connect-four">("ludo-league");
+  const [joinCode, setJoinCode] = useState("");
+  const [createdMatch, setCreatedMatch] = useState<{
+    id: string;
+    joinCode: string;
+  } | null>(null);
+
   const user = authQuery.data;
 
   // Auto-fill from URL query param if present (?code=ABC123XYZ)
@@ -21,6 +40,7 @@ export default function JoinMatch() {
       if (codeFromUrl) {
         const clean = codeFromUrl.replace(/[^a-z0-9]/gi, "").slice(0, 12).toUpperCase();
         setJoinCode(clean);
+        setActiveTab("join");
         toast.info("Invite code detected from link", { description: `Code: ${clean}` });
       }
     } catch {
@@ -28,19 +48,50 @@ export default function JoinMatch() {
     }
   }, []);
 
-  async function submit(event: React.FormEvent) {
+  async function ensureSession() {
+    if (!user) {
+      toast.info("Initializing guest session…");
+      const loginRes = await guestLogin.mutateAsync({
+        name: "Player 1 (Host)",
+      });
+      if (loginRes.token) {
+        sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+      }
+      await utils.auth.me.invalidate();
+    }
+  }
+
+  async function handleCreateRoom(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await ensureSession();
+      toast.loading("Generating private game room…", { id: "create-room" });
+      const res = await createChallenge.mutateAsync({
+        gameSlug: selectedGame,
+      });
+      setCreatedMatch({ id: res.id, joinCode: res.joinCode });
+      toast.success("Game room created!", {
+        id: "create-room",
+        description: `Invite Code: ${res.joinCode}. Share with your friend!`,
+      });
+    } catch (err) {
+      toast.error("Failed to create room", {
+        id: "create-room",
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    }
+  }
+
+  async function handleJoinSubmit(event: React.FormEvent) {
     event.preventDefault();
     try {
       if (!user) {
-        toast.info("Signing in as Player 2 (Guest)…");
+        toast.info("Signing in as guest player…");
         const loginRes = await guestLogin.mutateAsync({
           name: "Player 2 (Guest)",
         });
         if (loginRes.token) {
-          sessionStorage.setItem(
-            "manus-cookie",
-            `manus-session=${loginRes.token}`
-          );
+          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
         }
         await utils.auth.me.invalidate();
       }
@@ -56,10 +107,14 @@ export default function JoinMatch() {
         description:
           error instanceof Error
             ? error.message
-            : "The challenge code is invalid or unavailable.",
+            : "The invite code is invalid or the match has expired.",
       });
     }
   }
+
+  const shareableUrl = createdMatch
+    ? `${window.location.origin}/join?code=${createdMatch.joinCode}`
+    : "";
 
   return (
     <div className="detail-page">
@@ -67,85 +122,389 @@ export default function JoinMatch() {
         <Link href="/" className="back-link">
           <ArrowLeft size={15} /> Arena home
         </Link>
-        <span className="detail-brand">NIMIQ ARENA / JOIN</span>
+        <span className="detail-brand">NIMIQ ARENA / PLAY WITH FRIENDS</span>
         <span className="detail-state">
-          {user ? `PLAYING AS: ${user.name || "PLAYER 2"}` : "GUEST MODE"}
+          {user ? `PLAYING AS: ${user.name || "PLAYER"}` : "GUEST MODE"}
         </span>
       </header>
-      <main className="detail-main join-main">
-        <section className="room-hero">
-          <span className="stamp orange">CHALLENGE FRIEND</span>
-          <p className="eyebrow">JOIN A REAL MATCH</p>
+
+      <main className="detail-main join-main" style={{ maxWidth: "680px", margin: "0 auto" }}>
+        <section className="room-hero" style={{ textAlign: "center", marginBottom: "24px" }}>
+          <span className="stamp orange">DIRECT MULTIPLAYER</span>
+          <p className="eyebrow">PLAY WITH A FRIEND</p>
           <h1>
-            Enter the
+            Create or Join
             <br />
-            <em>code.</em>
+            <em>a friend's game.</em>
           </h1>
-          <p className="detail-lede">
-            Use the invite code shared by a friend. The server validates the
-            code, checks the match capacity and expiry, then assigns your real
-            player seat.
+          <p className="detail-lede" style={{ maxWidth: "540px", margin: "0 auto" }}>
+            Generate a private match code to send to your friend, or enter an invite code you received to join immediately.
           </p>
         </section>
-        <form className="join-card" onSubmit={submit}>
-          <div className="join-icon">
-            <KeyRound size={20} />
-          </div>
-          <label htmlFor="join-code" className="card-label">
-            INVITE CODE
-          </label>
-          <input
-            id="join-code"
-            value={joinCode}
-            onChange={event =>
-              setJoinCode(
-                event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12)
-              )
-            }
-            placeholder="AB12CD34"
-            autoComplete="one-time-code"
-            required
-            minLength={6}
-            maxLength={12}
-          />
-          <div
-            style={{
-              background: "rgba(245, 158, 11, 0.1)",
-              border: "1px solid rgba(245, 158, 11, 0.25)",
-              borderRadius: "10px",
-              padding: "10px 14px",
-              margin: "12px 0",
-              fontSize: "11px",
-              color: "#fbbf24",
-              fontFamily: "IBM Plex Mono, monospace",
-              textAlign: "left",
-            }}
-          >
-            <strong style={{ display: "block", marginBottom: "4px" }}>
-              MATCH DISTRIBUTION MODEL (100%)
-            </strong>
-            <span>🏆 Winner 90% · 👷 Builder 5% · 🌐 Ecosystem 3% · ❤️ Charity 2%</span>
-          </div>
+
+        {/* Mode Switcher Tabs */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "10px",
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            padding: "6px",
+            borderRadius: "14px",
+            marginBottom: "24px",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
           <button
-            className="primary-action"
-            type="submit"
-            disabled={join.isPending || joinCode.length < 6}
+            onClick={() => setActiveTab("create")}
             style={{
-              background: "linear-gradient(135deg, #f59e0b, #d97706)",
-              padding: "14px",
+              padding: "12px",
+              borderRadius: "10px",
+              border: "none",
+              backgroundColor: activeTab === "create" ? "#EC9918" : "transparent",
+              color: activeTab === "create" ? "#111" : "rgba(255, 255, 255, 0.7)",
               fontWeight: 800,
+              fontSize: "14px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              transition: "all 0.15s ease",
             }}
           >
-            {join.isPending ? "Validating table…" : "ENTER TABLE"}
+            <PlusCircle size={16} /> 1. Create Room (Host)
           </button>
-          <div className="trust-line">
-            <ShieldCheck size={15} />
-            <span>
-              Authoritative server matchmaking. Real Testnet deposit verification.
-            </span>
+          <button
+            onClick={() => setActiveTab("join")}
+            style={{
+              padding: "12px",
+              borderRadius: "10px",
+              border: "none",
+              backgroundColor: activeTab === "join" ? "#EC9918" : "transparent",
+              color: activeTab === "join" ? "#111" : "rgba(255, 255, 255, 0.7)",
+              fontWeight: 800,
+              fontSize: "14px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <KeyRound size={16} /> 2. Join with Code
+          </button>
+        </div>
+
+        {/* Tab 1: Create Game Room */}
+        {activeTab === "create" && (
+          <div className="join-card" style={{ padding: "28px" }}>
+            {!createdMatch ? (
+              <form onSubmit={handleCreateRoom} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div>
+                  <label className="card-label" style={{ display: "block", marginBottom: "10px", color: "#EC9918" }}>
+                    SELECT ARENA GAME
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGame("ludo-league")}
+                      style={{
+                        padding: "16px 12px",
+                        borderRadius: "12px",
+                        backgroundColor: selectedGame === "ludo-league" ? "rgba(236, 153, 24, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                        border: selectedGame === "ludo-league" ? "2px solid #EC9918" : "1px solid rgba(255, 255, 255, 0.1)",
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "28px" }}>🎲</span>
+                      <strong style={{ color: "#fff", fontSize: "14px" }}>Ludo League</strong>
+                      <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.55)" }}>Classic Board Game</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGame("connect-four")}
+                      style={{
+                        padding: "16px 12px",
+                        borderRadius: "12px",
+                        backgroundColor: selectedGame === "connect-four" ? "rgba(236, 153, 24, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                        border: selectedGame === "connect-four" ? "2px solid #EC9918" : "1px solid rgba(255, 255, 255, 0.1)",
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "28px" }}>🔴</span>
+                      <strong style={{ color: "#fff", fontSize: "14px" }}>Connect NIM</strong>
+                      <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.55)" }}>Tactical 4-in-a-Row</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    backgroundColor: "rgba(245, 158, 11, 0.08)",
+                    border: "1px solid rgba(245, 158, 11, 0.2)",
+                    fontSize: "12px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <strong style={{ color: "#EC9918", display: "block", marginBottom: "4px" }}>
+                    Instant Peer-to-Peer Invite:
+                  </strong>
+                  Generating a room creates an authoritative 8-character token. Send the token or 1-click link to your friend on Telegram, WhatsApp, or Discord to play immediately!
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={createChallenge.isPending}
+                  className="primary-action"
+                  style={{
+                    background: "linear-gradient(135deg, #EC9918, #d4820a)",
+                    padding: "15px",
+                    fontWeight: 800,
+                    fontSize: "15px",
+                  }}
+                >
+                  {createChallenge.isPending ? "Generating Room…" : "Generate Room & Invite Code"}
+                </button>
+              </form>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px", textAlign: "center" }}>
+                <div style={{ fontSize: "36px" }}>🎉</div>
+                <div>
+                  <span className="card-label" style={{ color: "#EC9918" }}>YOUR PRIVATE INVITE CODE</span>
+                  <div
+                    style={{
+                      fontSize: "32px",
+                      fontWeight: 900,
+                      letterSpacing: "4px",
+                      color: "#EC9918",
+                      fontFamily: "IBM Plex Mono, monospace",
+                      padding: "14px",
+                      backgroundColor: "rgba(236, 153, 24, 0.1)",
+                      borderRadius: "12px",
+                      border: "1px dashed #EC9918",
+                      margin: "10px 0",
+                    }}
+                  >
+                    {createdMatch.joinCode}
+                  </div>
+                  <p style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.65)" }}>
+                    Send this code to your friend or share the direct link below:
+                  </p>
+                </div>
+
+                {/* Share Actions */}
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdMatch.joinCode);
+                      toast.success("Invite code copied to clipboard!");
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "10px",
+                      backgroundColor: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      color: "#fff",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <Copy size={15} /> Copy Code
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareableUrl);
+                      toast.success("Direct invite link copied!");
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: "10px",
+                      backgroundColor: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      color: "#fff",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <Share2 size={15} /> Copy Link
+                  </button>
+                </div>
+
+                {/* Social Quick Share */}
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(shareableUrl)}&text=${encodeURIComponent(`Play ${selectedGame === "ludo-league" ? "Ludo League" : "Connect NIM"} with me on Nimiq Arena! Code: ${createdMatch.joinCode}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "8px",
+                      backgroundColor: "rgba(0, 136, 204, 0.2)",
+                      border: "1px solid rgba(0, 136, 204, 0.4)",
+                      color: "#0088cc",
+                      textDecoration: "none",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    Telegram Share
+                  </a>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Play with me on Nimiq Arena! Code: ${createdMatch.joinCode} - ${shareableUrl}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "8px",
+                      backgroundColor: "rgba(37, 211, 102, 0.2)",
+                      border: "1px solid rgba(37, 211, 102, 0.4)",
+                      color: "#25d366",
+                      textDecoration: "none",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    WhatsApp Share
+                  </a>
+                </div>
+
+                {/* Enter Match CTA */}
+                <button
+                  onClick={() => navigate(`/matches/${createdMatch.id}`)}
+                  className="primary-action"
+                  style={{
+                    backgroundColor: "#EC9918",
+                    padding: "15px",
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    color: "#111",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Gamepad2 size={18} /> Enter Game Lobby & Wait for Friend
+                </button>
+              </div>
+            )}
           </div>
-        </form>
+        )}
+
+        {/* Tab 2: Join with Code */}
+        {activeTab === "join" && (
+          <form className="join-card" onSubmit={handleJoinSubmit} style={{ padding: "28px" }}>
+            <div className="join-icon">
+              <KeyRound size={20} />
+            </div>
+            <label htmlFor="join-code" className="card-label">
+              INVITE CODE
+            </label>
+            <input
+              id="join-code"
+              value={joinCode}
+              onChange={(event) =>
+                setJoinCode(
+                  event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12)
+                )
+              }
+              placeholder="e.g. AB12CD34"
+              autoComplete="one-time-code"
+              required
+              minLength={6}
+              maxLength={12}
+              style={{
+                textAlign: "center",
+                letterSpacing: "3px",
+                fontSize: "20px",
+                fontWeight: 800,
+                padding: "14px",
+              }}
+            />
+
+            <div
+              style={{
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                borderRadius: "10px",
+                padding: "10px 14px",
+                margin: "14px 0",
+                fontSize: "11px",
+                color: "#fbbf24",
+                fontFamily: "IBM Plex Mono, monospace",
+                textAlign: "left",
+              }}
+            >
+              <strong style={{ display: "block", marginBottom: "4px" }}>
+                INSTANT SEAT VERIFICATION
+              </strong>
+              <span>Validates room availability, checks capacity, and assigns your official match seat.</span>
+            </div>
+
+            <button
+              className="primary-action"
+              type="submit"
+              disabled={join.isPending || joinCode.length < 6}
+              style={{
+                background: "linear-gradient(135deg, #EC9918, #d4820a)",
+                padding: "15px",
+                fontWeight: 800,
+                fontSize: "15px",
+                color: "#111",
+              }}
+            >
+              {join.isPending ? "Validating table…" : "ENTER TABLE NOW"}
+            </button>
+
+            <div className="trust-line" style={{ marginTop: "16px" }}>
+              <ShieldCheck size={15} />
+              <span>
+                Authoritative server matchmaking. Real Testnet deposit verification.
+              </span>
+            </div>
+          </form>
+        )}
       </main>
+
       <footer className="detail-footer">
         <span>
           Invalid, full, expired, and unauthorized joins are rejected.

@@ -12,6 +12,7 @@ import {
   createWageredChallengeMatch,
   checkUsernameAvailable,
   registerUserIdentity,
+  claimWelcomeReward,
   getUserReferralStats,
   linkUserEvmAddress,
   addBotToWaitingMatch,
@@ -285,6 +286,7 @@ export const appRouter = router({
       .input(
         z.object({
           username: z.string().min(2).max(32),
+          avatar: z.string().max(255).optional(),
           referralCode: z.string().max(32).optional(),
         })
       )
@@ -292,11 +294,15 @@ export const appRouter = router({
         const updated = await registerUserIdentity({
           userId: ctx.user.id,
           name: input.username,
+          avatar: input.avatar,
           referralCodeUsed: input.referralCode,
           address: ctx.user.address ?? undefined,
         });
         return { success: true, user: updated };
       }),
+    claimWelcomeReward: protectedProcedure.mutation(async ({ ctx }) => {
+      return await claimWelcomeReward(ctx.user.id);
+    }),
     getReferralStats: protectedProcedure.query(async ({ ctx }) => {
       const stats = await getUserReferralStats(ctx.user.id);
       return stats ?? {

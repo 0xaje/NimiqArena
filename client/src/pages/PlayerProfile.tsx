@@ -7,8 +7,10 @@ import {
   Coins,
   Flame,
   Gamepad2,
+  Gift,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   Swords,
   Trophy,
   User,
@@ -19,6 +21,10 @@ import {
 import { useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import {
+  AVATAR_PRESETS,
+  IdentityRegistrationModal,
+} from "@/components/profile/IdentityRegistrationModal";
 
 export default function PlayerProfile() {
   const utils = trpc.useUtils();
@@ -67,6 +73,30 @@ export default function PlayerProfile() {
             ? { name: "Challenger", color: "#3498db", icon: "⚔️" }
             : { name: "Contender", color: "#95a5a6", icon: "🛡️" };
 
+  const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
+  const claimRewardMutation = trpc.auth.claimWelcomeReward.useMutation();
+  const referralStatsQuery = trpc.auth.getReferralStats.useQuery(undefined, {
+    enabled: Boolean(user),
+  });
+
+  const avatarPreset = AVATAR_PRESETS.find((p) => p.id === (user as any)?.avatar);
+  const isCustomAvatar = (user as any)?.avatar && (user as any)?.avatar.startsWith("http");
+
+  async function handleClaimWelcome() {
+    try {
+      const res = await claimRewardMutation.mutateAsync();
+      await utils.auth.me.invalidate();
+      await utils.auth.getReferralStats.invalidate();
+      toast.success("Welcome Gift Claimed!", {
+        description: res.message || "+1,000 Arena Points added to your balance!",
+      });
+    } catch (err) {
+      toast.error("Claim failed", {
+        description: err instanceof Error ? err.message : "Try again later",
+      });
+    }
+  }
+
   return (
     <div className="detail-page">
       <header className="detail-header">
@@ -83,17 +113,76 @@ export default function PlayerProfile() {
         {/* Profile Card Header */}
         <section className="profile-hero-card">
           <div className="profile-identity">
-            <div className="profile-avatar">
-              {user ? (user.name || "P")[0].toUpperCase() : "?"}
+            <div
+              className="profile-avatar"
+              style={{
+                background: avatarPreset ? avatarPreset.bg : "linear-gradient(135deg, #EC9918 0%, #d4820a 100%)",
+                border: "2px solid #EC9918",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "30px",
+                overflow: "hidden",
+              }}
+            >
+              {isCustomAvatar ? (
+                <img
+                  src={(user as any).avatar}
+                  alt="Avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : avatarPreset ? (
+                <span>{avatarPreset.icon}</span>
+              ) : (
+                <span>{user ? (user.name || "P")[0].toUpperCase() : "?"}</span>
+              )}
             </div>
             <div className="profile-titles">
-              <div className="profile-tier-badge" style={{ borderColor: tier.color }}>
-                <span>{tier.icon}</span>
-                <strong>{tier.name.toUpperCase()}</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <div className="profile-tier-badge" style={{ borderColor: tier.color }}>
+                  <span>{tier.icon}</span>
+                  <strong>{tier.name.toUpperCase()}</strong>
+                </div>
+                {user?.address && (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      padding: "3px 8px",
+                      borderRadius: "6px",
+                      backgroundColor: "rgba(236, 153, 24, 0.12)",
+                      border: "1px solid rgba(236, 153, 24, 0.3)",
+                      color: "#EC9918",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {user.address.slice(0, 10)}...{user.address.slice(-6)}
+                  </span>
+                )}
               </div>
-              <h1>{user?.name || "Guest Player"}</h1>
+              <h1 style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+                {user?.name || "Guest Player"}
+                <button
+                  onClick={() => setIsIdentityModalOpen(true)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    borderRadius: "8px",
+                    color: "#EC9918",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    padding: "4px 10px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <Sparkles size={12} /> Edit Identity
+                </button>
+              </h1>
               <p className="profile-sub">
-                {user?.email || `OpenID: ${user?.openId || "Not signed in"}`}
+                {user?.referralCode ? `Referral Handle: @${user.referralCode}` : "Web3 Player Identity"}
               </p>
             </div>
           </div>
@@ -137,6 +226,122 @@ export default function PlayerProfile() {
                 Charlie
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Dedicated Welcome Claim & Rewards Section */}
+        <section
+          style={{
+            margin: "20px 0",
+            padding: "20px 24px",
+            borderRadius: "16px",
+            backgroundColor: "#16191f",
+            border: "1px solid rgba(236, 153, 24, 0.35)",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 24px rgba(236, 153, 24, 0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "16px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "14px",
+                backgroundColor: "rgba(236, 153, 24, 0.15)",
+                border: "1px solid rgba(236, 153, 24, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "26px",
+                flexShrink: 0,
+              }}
+            >
+              🎁
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase",
+                    color: "#EC9918",
+                  }}
+                >
+                  WELCOME REWARD
+                </span>
+                {(user as any)?.welcomeClaimed && (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                      backgroundColor: "rgba(16, 185, 129, 0.15)",
+                      color: "#10b981",
+                      fontWeight: 700,
+                    }}
+                  >
+                    ✓ CLAIMED
+                  </span>
+                )}
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#fff", margin: "4px 0 2px" }}>
+                {(user as any)?.welcomeClaimed
+                  ? "1,000 Points Welcome Gift Active"
+                  : "Claim Your 1,000 Welcome Arena Points"}
+              </h3>
+              <p style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.6)", margin: 0 }}>
+                {(user as any)?.welcomeClaimed
+                  ? `Your points balance is ${(user as any)?.points ?? 1000} pts (~$${(((user as any)?.points ?? 1000) / 100).toFixed(2)} USD).`
+                  : "Join the arena, register your identity, and claim your welcome bonus instantly."}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {!(user as any)?.welcomeClaimed ? (
+              <button
+                onClick={handleClaimWelcome}
+                disabled={claimRewardMutation.isPending}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: "10px",
+                  backgroundColor: "#EC9918",
+                  border: "none",
+                  color: "#111",
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 16px rgba(236, 153, 24, 0.4)",
+                  transition: "transform 0.15s ease",
+                }}
+              >
+                <Gift size={16} />
+                {claimRewardMutation.isPending ? "Claiming…" : "Claim +1,000 Points"}
+              </button>
+            ) : (
+              <div
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: "10px",
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  color: "#EC9918",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                }}
+              >
+                ⭐ {(user as any)?.points ?? 1000} Arena Points Active
+              </div>
+            )}
           </div>
         </section>
 
@@ -296,6 +501,14 @@ export default function PlayerProfile() {
           </span>
         </div>
       </main>
+
+      <IdentityRegistrationModal
+        isOpen={isIdentityModalOpen}
+        onClose={() => setIsIdentityModalOpen(false)}
+        currentName={user?.name}
+        currentAvatar={(user as any)?.avatar}
+        walletAddress={user?.address}
+      />
     </div>
   );
 }

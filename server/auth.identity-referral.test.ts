@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const dbMocks = vi.hoisted(() => ({
   checkUsernameAvailable: vi.fn(),
   registerUserIdentity: vi.fn(),
+  claimWelcomeReward: vi.fn(),
   getUserReferralStats: vi.fn(),
   linkUserEvmAddress: vi.fn(),
 }));
@@ -43,6 +44,8 @@ function createMockUser(overrides: Partial<TrpcContext["user"]> = {}) {
     referredByUserId: null,
     referralEarningsNim: 0,
     evmAddress: null,
+    avatar: null,
+    welcomeClaimed: false,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,
@@ -80,12 +83,13 @@ describe("Web3 Identity, Referral System & EVM Linking", () => {
       ).rejects.toThrow("Please login");
     });
 
-    it("registers username and returns updated user", async () => {
+    it("registers username with avatar and returns updated user", async () => {
       const mockUser = createMockUser();
 
       const updatedUser = {
         ...mockUser,
         name: "Jack",
+        avatar: "gladiator",
         points: 1000,
         referralCode: "JACK",
       };
@@ -93,16 +97,39 @@ describe("Web3 Identity, Referral System & EVM Linking", () => {
       dbMocks.registerUserIdentity.mockResolvedValue(updatedUser);
 
       const caller = appRouter.createCaller(createContext(mockUser));
-      const result = await caller.auth.registerIdentity({ username: "Jack" });
+      const result = await caller.auth.registerIdentity({ username: "Jack", avatar: "gladiator" });
 
       expect(result.success).toBe(true);
       expect(result.user.points).toBe(1000);
+      expect(result.user.avatar).toBe("gladiator");
       expect(dbMocks.registerUserIdentity).toHaveBeenCalledWith({
         userId: 101,
         name: "Jack",
+        avatar: "gladiator",
         referralCodeUsed: undefined,
         address: "NQ0700000000000000000000000000000000",
       });
+    });
+  });
+
+  describe("auth.claimWelcomeReward", () => {
+    it("claims 1000 welcome points reward successfully", async () => {
+      const mockUser = createMockUser({ welcomeClaimed: false });
+      dbMocks.claimWelcomeReward.mockResolvedValue({
+        success: true,
+        alreadyClaimed: false,
+        points: 2000,
+        welcomeClaimed: true,
+        message: "1,000 Welcome Arena Points added to your balance!",
+      });
+
+      const caller = appRouter.createCaller(createContext(mockUser));
+      const result = await caller.auth.claimWelcomeReward();
+
+      expect(result.success).toBe(true);
+      expect(result.alreadyClaimed).toBe(false);
+      expect(result.points).toBe(2000);
+      expect(dbMocks.claimWelcomeReward).toHaveBeenCalledWith(101);
     });
   });
 

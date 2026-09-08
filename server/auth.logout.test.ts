@@ -29,6 +29,8 @@ function createAuthContext(): {
     referredByUserId: null,
     referralEarningsNim: 0,
     evmAddress: null,
+    avatar: null,
+    welcomeClaimed: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),
