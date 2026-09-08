@@ -35,3 +35,51 @@ export const decodeOAuthState = (state: string): OAuthState => {
   }
   return { redirectUri: decoded };
 };
+
+/* ---------------------------------------------------------------------------
+   Match liveness
+   
+   Client and server both reason about whether a player is still there, so the
+   thresholds live here rather than being restated on each side, where they
+   drifted into contradicting each other.
+   --------------------------------------------------------------------------- */
+
+/** How often a client in a match reports that it is still there. */
+export const PLAYER_HEARTBEAT_INTERVAL_MS = 15_000;
+
+/**
+ * How stale a player's last contact may get before the server treats them as
+ * disconnected. Three missed beats, so a single slow request or a brief
+ * network blip never counts against a player.
+ */
+export const PLAYER_HEARTBEAT_TIMEOUT_MS = 45_000;
+
+/**
+ * When the UI starts telling the opponent that someone looks absent.
+ *
+ * Must sit above the heartbeat interval - a beat that has simply not come due
+ * yet is not a disconnect - and below the server's timeout, so the warning
+ * leads the state change rather than contradicting it. This was 14s against a
+ * 15s heartbeat, so it fired on every cycle of every match.
+ */
+export const OPPONENT_PRESENCE_WARNING_MS = 32_000;
+
+/**
+ * How long a disconnected player has to come back before the match is awarded
+ * to their opponent. The UI counts this down, so it must be the same number
+ * the server acts on - the countdown claimed 60s against a ten-minute rule.
+ */
+export const ABANDONMENT_GRACE_MS = 10 * 60_000;
+
+/**
+ * How long a match may sit unstarted before it is expired. This is a lobby
+ * timeout: it applies to a waiting match, never to one being played.
+ */
+export const MATCH_LOBBY_TIMEOUT_MS = 15 * 60_000;
+
+/**
+ * The window a started match gets, refreshed from the moment play begins.
+ * Generous, because it exists only to reap matches that stall forever, not to
+ * put a clock on a game.
+ */
+export const MATCH_PLAY_WINDOW_MS = 3 * 60 * 60_000;
