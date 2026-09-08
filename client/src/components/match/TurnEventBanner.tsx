@@ -24,15 +24,18 @@ export function TurnEventBanner({
   botActionMessage = null,
 }: TurnEventBannerProps) {
   const isC4 = gameKind === "connect4";
+  const isSpectator = yourSeat === -1;
 
   return (
     <div
       className={`turn-event-banner ${
-        isYourTurn
-          ? dice === 6
-            ? "bonus-turn"
-            : "your-turn"
-          : "opponent-turn"
+        isSpectator
+          ? "spectator-banner"
+          : isYourTurn
+            ? dice === 6
+              ? "bonus-turn"
+              : "your-turn"
+            : "opponent-turn"
       }`}
     >
       {isFinished ? (
@@ -41,8 +44,12 @@ export function TurnEventBanner({
             ? "🤝 MATCH ENDED IN A DRAW"
             : winner === yourSeat
               ? "🎉 CONGRATULATIONS! YOU WON THE MATCH!"
-              : `MATCH OVER — ${opponentName.toUpperCase()} WON`}
+              : isSpectator
+                ? `🏆 MATCH OVER — PLAYER ${typeof winner === "number" ? winner + 1 : ""} WON`
+                : `MATCH OVER — ${opponentName.toUpperCase()} WON`}
         </span>
+      ) : isSpectator ? (
+        <span>👁️ LIVE SPECTATOR MODE — Watching Live Match Action</span>
       ) : botActionMessage ? (
         <span>{botActionMessage}</span>
       ) : isYourTurn ? (

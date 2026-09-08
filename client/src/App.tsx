@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { initTelegramApp } from "./lib/telegram";
 import Home from "./pages/Home";
 import LudoDetail from "./pages/LudoDetail";
 import Connect4Detail from "./pages/Connect4Detail";
@@ -29,6 +31,10 @@ function Router() {
 }
 
 export default function App() {
+  useEffect(() => {
+    initTelegramApp();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">

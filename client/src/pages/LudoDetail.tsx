@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
+import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
+import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
 
 export default function LudoDetail() {
   const [, navigate] = useLocation();
@@ -34,6 +36,7 @@ export default function LudoDetail() {
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const [isEntryFlowOpen, setIsEntryFlowOpen] = useState(false);
+  const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [selectedStake, setSelectedStake] = useState(50);
 
   const game = gameQuery.data;
@@ -165,6 +168,10 @@ export default function LudoDetail() {
           setIsStakeModalOpen(false);
         }}
       />
+      <TournamentCupModal
+        isOpen={isTournamentOpen}
+        onClose={() => setIsTournamentOpen(false)}
+      />
 
       <header className="detail-header">
         <Link href="/" className="back-link">
@@ -219,6 +226,22 @@ export default function LudoDetail() {
               >
                 <Zap size={16} /> Quick Match
               </button>
+              <button
+                className="secondary-chip"
+                onClick={() => setIsTournamentOpen(true)}
+                style={{
+                  padding: "12px 18px",
+                  background: "rgba(245, 158, 11, 0.15)",
+                  borderColor: "rgba(245, 158, 11, 0.4)",
+                  color: "#fbbf24",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                🏆 8-Player Cup
+              </button>
               <Link className="text-action" href="/join" style={{ padding: "12px 16px" }}>
                 <Coins size={16} /> Enter Match Code
               </Link>
@@ -245,15 +268,18 @@ export default function LudoDetail() {
           </div>
         </section>
 
+        {/* Live Active Tables Radar */}
+        <div style={{ marginBottom: "32px" }}>
+          <ActiveTablesDirectory />
+        </div>
+
         <section className="detail-grid">
           <article className="detail-panel">
             <span className="card-label">MATCH CREATION</span>
             <h2>Start a private table.</h2>
             <p>
-              Challenge Friend creates the match on the backend and returns a
-              unique match ID and invite code. Joining a friend, turn execution,
-              and reconnection are separate dependencies and remain unavailable
-              until implemented.
+              Challenge Friend creates a private match on the server and generates a
+              unique invite code. Send the code to your friend to join the table in real-time.
             </p>
             {createdMatch ? (
               <div className="match-created">

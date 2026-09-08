@@ -1,5 +1,48 @@
-// Procedural Web Audio API sound generator for Nimiq Arena
+// Procedural Web Audio API sound generator & Haptic Feedback for Nimiq Arena
 // Zero latency, zero external file dependencies, highly responsive.
+
+export function triggerHaptic(
+  type: "light" | "medium" | "heavy" | "success" | "warning" | "error" = "medium"
+) {
+  if (typeof window === "undefined") return;
+
+  // 1. Telegram WebApp native haptic engine
+  try {
+    const tgHaptic = (window as any).Telegram?.WebApp?.HapticFeedback;
+    if (tgHaptic) {
+      if (type === "light" || type === "medium" || type === "heavy") {
+        tgHaptic.impactOccurred(type);
+      } else {
+        tgHaptic.notificationOccurred(type);
+      }
+      return;
+    }
+  } catch {}
+
+  // 2. Standard Web Vibration API fallback
+  try {
+    if ("vibrate" in navigator && typeof navigator.vibrate === "function") {
+      switch (type) {
+        case "light":
+          navigator.vibrate(15);
+          break;
+        case "medium":
+          navigator.vibrate(35);
+          break;
+        case "heavy":
+          navigator.vibrate(60);
+          break;
+        case "success":
+          navigator.vibrate([25, 40, 50]);
+          break;
+        case "warning":
+        case "error":
+          navigator.vibrate([50, 40, 50]);
+          break;
+      }
+    }
+  } catch {}
+}
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -42,6 +85,7 @@ class SoundEngine {
   }
 
   public playDiceRoll() {
+    triggerHaptic("light");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -69,6 +113,7 @@ class SoundEngine {
   }
 
   public playPieceMove() {
+    triggerHaptic("medium");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -92,6 +137,7 @@ class SoundEngine {
   }
 
   public playStepTick(stepNum: number = 1) {
+    triggerHaptic("light");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -117,6 +163,7 @@ class SoundEngine {
   }
 
   public playCapture() {
+    triggerHaptic("heavy");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -144,6 +191,7 @@ class SoundEngine {
   }
 
   public playBonusTurn() {
+    triggerHaptic("medium");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -170,6 +218,7 @@ class SoundEngine {
   }
 
   public playVictoryFanfare() {
+    triggerHaptic("success");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -203,6 +252,7 @@ class SoundEngine {
   }
 
   public playTurnAlert() {
+    triggerHaptic("light");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;

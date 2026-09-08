@@ -13,6 +13,7 @@ import {
   addBotToWaitingMatch,
   executeBotTurn,
   findOrCreateQuickMatch,
+  getActiveMatchesForDirectory,
   getActiveSeason,
   getGameBySlug,
   getLeaderboardTop,
@@ -620,6 +621,17 @@ export const appRouter = router({
           expiresAt: match.expiresAt,
         };
       }),
+    listActiveMatches: publicProcedure
+      .input(
+        z
+          .object({
+            limit: z.number().int().min(1).max(50).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return await getActiveMatchesForDirectory(input?.limit ?? 10);
+      }),
     state: protectedProcedure
       .input(z.object({ id: matchIdSchema }))
       .query(async ({ ctx, input }) => {
@@ -629,7 +641,7 @@ export const appRouter = router({
             code: "NOT_FOUND",
             message: "Match not found.",
           });
-        const player = await requireMatchParticipant(input.id, ctx.user.id);
+        const player = await getMatchPlayer(input.id, ctx.user.id);
         const players = await getMatchPlayers(input.id);
         return {
           id: match.id,
@@ -643,7 +655,8 @@ export const appRouter = router({
             status: current.status,
             lastSeenAt: current.lastSeenAt,
           })),
-          yourSeat: player.seat,
+          yourSeat: player ? player.seat : -1,
+          isSpectator: !player,
           expiresAt: match.expiresAt,
         };
       }),
@@ -729,12 +742,11 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const player = await getMatchPlayer(input.matchId, ctx.user.id);
-        if (!player || player.status !== "joined") {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "You are not an active player in this match.",
-          });
-        }
+        const seat = player?.seat ?? -1;
+        const userName =
+          ctx.user.name ??
+          (seat >= 0 ? `Player ${seat + 1}` : "Spectator");
+
         const emojiMap: Record<string, string> = {
           bullseye: "🎯",
           rocket: "🚀",
@@ -749,8 +761,8 @@ export const appRouter = router({
         broadcastEmote(input.matchId, {
           id: nanoid(12),
           userId: ctx.user.id,
-          userName: ctx.user.name ?? `Player ${player.seat + 1}`,
-          seat: player.seat,
+          userName,
+          seat,
           emote: input.emote,
           emoji,
           timestamp: Date.now(),

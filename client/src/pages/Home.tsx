@@ -32,6 +32,8 @@ import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
 import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
+import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
+import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
 import {
   restoreSavedWallet,
   getWalletConnectionMode,
@@ -143,6 +145,7 @@ export default function Home() {
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
+  const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
   const [clientNonce, setClientNonce] = useState(createPaymentNonce);
   const createIntent = trpc.payment.createIntent.useMutation();
@@ -372,6 +375,10 @@ export default function Home() {
         isOpen={isDevModalOpen}
         onClose={() => setIsDevModalOpen(false)}
       />
+      <TournamentCupModal
+        isOpen={isTournamentOpen}
+        onClose={() => setIsTournamentOpen(false)}
+      />
       <WalletConnectModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
@@ -535,6 +542,14 @@ export default function Home() {
           <div className="top-actions">
             <button
               className="search-button"
+              onClick={() => setIsTournamentOpen(true)}
+              title="8-Player Knockout Tournament Cup"
+              style={{ borderColor: "rgba(245, 158, 11, 0.4)", color: "#f59e0b", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <Trophy size={14} /> 8-Player Cup
+            </button>
+            <button
+              className="search-button"
               onClick={() => setIsFaucetOpen(true)}
               title="Get free Testnet NIM from the official PoS faucet"
               style={{ borderColor: "rgba(236, 153, 24, 0.4)", color: "#EC9918" }}
@@ -648,12 +663,20 @@ export default function Home() {
                   <br />
                   <em>League</em>
                 </h2>
-                <p>Strategy, luck, and the long way around.</p>
-                <Link className="stage-button" href="/games/ludo-league">
-                  <Gamepad2 size={15} /> View game
-                </Link>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
+                  <Link className="stage-button" href="/games/ludo-league">
+                    <Gamepad2 size={15} /> Play Arena
+                  </Link>
+                  <Link
+                    className="stage-button"
+                    href="/games/ludo-league"
+                    style={{ background: "rgba(234, 179, 8, 0.2)", border: "1px solid rgba(234, 179, 8, 0.4)", color: "#facc15" }}
+                  >
+                    <Coins size={14} /> Wager Escrow
+                  </Link>
+                </div>
               </div>
-              <span className="feature-chip">FEATURED / NOT LIVE</span>
+              <span className="feature-chip" style={{ background: "rgba(34, 197, 94, 0.2)", color: "#4ade80", border: "1px solid rgba(34, 197, 94, 0.4)" }}>● LIVE ON NIMIQ TESTNET</span>
             </div>
             <div className="feature-footer">
               <span>
@@ -723,6 +746,9 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        {/* Live Active Arena Tables Directory & Radar */}
+        <ActiveTablesDirectory />
 
         <section className="arena-rails">
           <div className="rail-card rail-dark">

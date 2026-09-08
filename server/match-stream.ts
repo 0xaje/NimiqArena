@@ -53,15 +53,11 @@ export function registerMatchStream(app: Express) {
 
     const matchId = req.params.id;
     const match = await refreshMatchLifecycle(matchId);
-    const player = match
-      ? await getMatchPlayer(matchId, context.user.id)
-      : undefined;
-    if (!match || !player) {
-      res
-        .status(403)
-        .json({ message: "Only joined match participants may subscribe." });
+    if (!match) {
+      res.status(404).json({ message: "Match not found." });
       return;
     }
+    const player = await getMatchPlayer(matchId, context.user.id);
 
     res.status(200);
     res.setHeader("Content-Type", "text/event-stream");
@@ -138,7 +134,7 @@ export function registerMatchStream(app: Express) {
     // for having tabbed away. The client's own beat still drives presence when
     // the stream is unavailable.
     const presenceSync = setInterval(() => {
-      if (closed) return;
+      if (closed || !player) return;
       void touchMatchPlayerPresence(matchId, context.user!.id).catch(
         () => undefined
       );

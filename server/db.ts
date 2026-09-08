@@ -4,7 +4,7 @@ import {
   MATCH_PLAY_WINDOW_MS,
   PLAYER_HEARTBEAT_TIMEOUT_MS,
 } from "@shared/const";
-import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertGame,
@@ -2881,5 +2881,27 @@ export function stopMatchHeartbeatDaemon() {
     clearInterval(matchHeartbeatTimer);
     matchHeartbeatTimer = null;
   }
+}
+
+export async function getActiveMatchesForDirectory(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const list = await db
+    .select({
+      id: matches.id,
+      joinCode: matches.joinCode,
+      status: matches.status,
+      gameId: matches.gameId,
+      stateVersion: matches.stateVersion,
+      createdAt: matches.createdAt,
+      updatedAt: matches.updatedAt,
+      paymentIntentId: matches.paymentIntentId,
+    })
+    .from(matches)
+    .where(or(eq(matches.status, "in_progress"), eq(matches.status, "waiting")))
+    .orderBy(desc(matches.updatedAt))
+    .limit(limit);
+
+  return list;
 }
 

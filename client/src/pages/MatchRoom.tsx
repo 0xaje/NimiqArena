@@ -94,6 +94,7 @@ export default function MatchRoom() {
   const botTurnMutation = trpc.match.triggerBotTurn.useMutation({
     onSuccess: () => utils.match.state.invalidate({ id: matchId }),
   });
+  const emoteMutation = trpc.match.sendEmote.useMutation();
 
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
@@ -409,6 +410,8 @@ export default function MatchRoom() {
         isMuted={isMuted}
         onToggleSound={toggleSound}
         returnRoute={returnRoute}
+        stateVersion={state?.stateVersion}
+        dice={(snapshot as any)?.dice}
       />
 
       {/* Players Battle Strip */}
@@ -536,6 +539,41 @@ export default function MatchRoom() {
             />
           ))}
       </div>
+
+      {/* Spectator Interactive Cheer Bar */}
+      {yourSeat === -1 && (
+        <div className="spectator-cheer-bar">
+          <span className="spectator-cheer-title">CHEER THE TABLE:</span>
+          <div className="spectator-cheer-emojis">
+            {[
+              { id: "fire", emoji: "🔥" },
+              { id: "gg", emoji: "👏" },
+              { id: "crown", emoji: "👑" },
+              { id: "rocket", emoji: "🚀" },
+              { id: "bullseye", emoji: "🎯" },
+              { id: "diamond", emoji: "💎" },
+              { id: "shock", emoji: "😱" },
+            ].map(({ id, emoji }) => (
+              <button
+                key={id}
+                type="button"
+                className="spectator-cheer-chip"
+                onClick={async () => {
+                  try {
+                    soundEngine.playChipDrop();
+                    await emoteMutation.mutateAsync({
+                      matchId,
+                      emote: id as any,
+                    });
+                  } catch {}
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
