@@ -21,12 +21,18 @@ export const users = mysqlTable(
     loginMethod: varchar("loginMethod", { length: 64 }),
     role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
     address: varchar("address", { length: 64 }),
+    points: int("points").default(1000).notNull(),
+    referralCode: varchar("referralCode", { length: 32 }),
+    referredByUserId: int("referredByUserId"),
+    referralEarningsNim: int("referralEarningsNim").default(0).notNull(),
+    evmAddress: varchar("evmAddress", { length: 64 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
     lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   },
   table => ({
     addressIdx: uniqueIndex("users_address_idx").on(table.address),
+    referralCodeIdx: uniqueIndex("users_referral_code_idx").on(table.referralCode),
   })
 );
 

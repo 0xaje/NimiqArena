@@ -233,6 +233,128 @@ export async function getUserByNimiqAddress(address: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function checkUsernameAvailable(
+  name: string,
+  excludeUserId?: number
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return true;
+  const cleanName = name.trim();
+  if (!cleanName) return false;
+
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.name, cleanName))
+    .limit(1);
+
+  if (existing.length === 0) return true;
+  if (excludeUserId && existing[0].id === excludeUserId) return true;
+  return false;
+}
+
+export async function registerUserIdentity(input: {
+  userId: number;
+  name: string;
+  referralCodeUsed?: string;
+  address?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const cleanName = input.name.trim();
+  if (cleanName.length < 2 || cleanName.length > 32) {
+    throw new Error("Username must be between 2 and 32 characters.");
+  }
+  const isAvailable = await checkUsernameAvailable(cleanName, input.userId);
+  if (!isAvailable) {
+    throw new Error(`Username "${cleanName}" is already taken.`);
+  }
+
+  const currentUser = (
+    await db.select().from(users).where(eq(users.id, input.userId)).limit(1)
+  )[0];
+  if (!currentUser) throw new Error("User not found.");
+
+  let referredByUserId = currentUser.referredByUserId;
+
+  // Handle referral code if provided and not yet referred
+  if (input.referralCodeUsed && !referredByUserId) {
+    const code = input.referralCodeUsed.trim().toLowerCase();
+    const referrer = (
+      await db
+        .select()
+        .from(users)
+        .where(eq(users.referralCode, code))
+        .limit(1)
+    )[0];
+    if (referrer && referrer.id !== input.userId) {
+      referredByUserId = referrer.id;
+      // Award referrer +500 points
+      await db
+        .update(users)
+        .set({ points: sql`${users.points} + 500` })
+        .where(eq(users.id, referrer.id));
+    }
+  }
+
+  // Set user's own referral code as their username
+  const myReferralCode = cleanName.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  await db
+    .update(users)
+    .set({
+      name: cleanName,
+      referralCode: myReferralCode || `user${input.userId}`,
+      referredByUserId,
+      address: input.address
+        ? normalizeNimiqAddress(input.address)
+        : currentUser.address,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, input.userId));
+
+  return (
+    await db.select().from(users).where(eq(users.id, input.userId)).limit(1)
+  )[0];
+}
+
+export async function getUserReferralStats(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const user = (
+    await db.select().from(users).where(eq(users.id, userId)).limit(1)
+  )[0];
+  if (!user) return null;
+
+  const referredUsers = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .where(eq(users.referredByUserId, userId));
+
+  return {
+    referralCode: user.referralCode || `user${user.id}`,
+    points: user.points,
+    referralEarningsNim: user.referralEarningsNim,
+    totalReferred: referredUsers.length,
+    referredUsers,
+  };
+}
+
+export async function linkUserEvmAddress(userId: number, evmAddress: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const normalized = evmAddress.toLowerCase().trim();
+  await db
+    .update(users)
+    .set({ evmAddress: normalized, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+  return { ok: true, evmAddress: normalized };
+}
+
 export async function getGameBySlug(slug: string): Promise<Game | undefined> {
   const db = await getDb();
   if (!db) throw new Error("Game service is unavailable. Database connection is required.");
@@ -2772,10 +2894,27 @@ export async function settleMatchWinnerPayout(input: {
   )[0];
 
   const grossPotNim = escrow.totalPotNim || 0;
-  const dist = calculatePotDistribution(grossPotNim);
+  const hasReferrer = Boolean(winnerUser?.referredByUserId);
+  const dist = calculatePotDistribution(grossPotNim, hasReferrer);
+
+  // Credit 5% referral earning and points to the referrer if present
+  if (hasReferrer && dist.referrerNim > 0 && winnerUser?.referredByUserId) {
+    try {
+      await db
+        .update(users)
+        .set({
+          referralEarningsNim: sql`${users.referralEarningsNim} + ${Math.round(dist.referrerNim)}`,
+          points: sql`${users.points} + ${Math.round(dist.referrerNim * 10)}`,
+        })
+        .where(eq(users.id, winnerUser.referredByUserId));
+    } catch (err) {
+      console.warn("[Referral] Failed to credit referrer:", err);
+    }
+  }
+
   const protocolFeeNim = Number(
-    (dist.builderNim + dist.ecosystemNim + dist.charityNim).toFixed(2)
-  ); // 10% platform total (5% Builder, 3% Ecosystem, 2% Charity)
+    (dist.builderNim + dist.ecosystemNim + dist.charityNim + dist.referrerNim).toFixed(2)
+  ); // 10% platform total
   const netPayoutNim = dist.winnerNim; // 90% Winner
   const isTestnet = ENV.nimiqNetworkId === 5;
 
@@ -2802,6 +2941,7 @@ export async function settleMatchWinnerPayout(input: {
     netPayoutNim,
     distribution: {
       winnerNim: dist.winnerNim,
+      referrerNim: dist.referrerNim,
       builderNim: dist.builderNim,
       ecosystemNim: dist.ecosystemNim,
       charityNim: dist.charityNim,

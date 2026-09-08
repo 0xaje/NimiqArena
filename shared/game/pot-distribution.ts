@@ -19,6 +19,8 @@ export interface PotDistribution {
   totalPotLuna: string; // stringified bigint for JSON/RPC safety
   winnerNim: number;
   winnerLuna: string;
+  referrerNim: number;
+  referrerLuna: string;
   builderNim: number;
   builderLuna: string;
   ecosystemNim: number;
@@ -26,29 +28,43 @@ export interface PotDistribution {
   charityNim: number;
   charityLuna: string;
   percentages: {
-    winner: 90;
-    builder: 5;
-    ecosystem: 3;
-    charity: 2;
+    winner: number;
+    referrer: number;
+    builder: number;
+    ecosystem: number;
+    charity: number;
   };
 }
 
-export function calculatePotDistribution(totalPotNim: number): PotDistribution {
+export function calculatePotDistribution(
+  totalPotNim: number,
+  hasReferrer: boolean = false
+): PotDistribution {
   const safePotNim = Math.max(0, Number(totalPotNim) || 0);
   const totalPotLuna = BigInt(Math.round(safePotNim * 100_000));
 
   // Integer Luna calculations
   const winnerLuna = (totalPotLuna * BigInt(90)) / BigInt(100);
-  const builderLuna = (totalPotLuna * BigInt(5)) / BigInt(100);
-  const ecosystemLuna = (totalPotLuna * BigInt(3)) / BigInt(100);
+  const referrerLuna = hasReferrer
+    ? (totalPotLuna * BigInt(5)) / BigInt(100)
+    : BigInt(0);
+  const builderLuna = hasReferrer
+    ? (totalPotLuna * BigInt(25)) / BigInt(1000) // 2.5%
+    : (totalPotLuna * BigInt(5)) / BigInt(100);   // 5%
+  const ecosystemLuna = hasReferrer
+    ? (totalPotLuna * BigInt(15)) / BigInt(1000) // 1.5%
+    : (totalPotLuna * BigInt(3)) / BigInt(100);   // 3%
+  
   // Charity receives remaining Luna to guarantee exact 100% balance with 0 rounding leakage
-  const charityLuna = totalPotLuna - winnerLuna - builderLuna - ecosystemLuna;
+  const charityLuna = totalPotLuna - winnerLuna - referrerLuna - builderLuna - ecosystemLuna;
 
   return {
     totalPotNim: safePotNim,
     totalPotLuna: totalPotLuna.toString(),
     winnerNim: Number(winnerLuna) / 100_000,
     winnerLuna: winnerLuna.toString(),
+    referrerNim: Number(referrerLuna) / 100_000,
+    referrerLuna: referrerLuna.toString(),
     builderNim: Number(builderLuna) / 100_000,
     builderLuna: builderLuna.toString(),
     ecosystemNim: Number(ecosystemLuna) / 100_000,
@@ -57,9 +73,10 @@ export function calculatePotDistribution(totalPotNim: number): PotDistribution {
     charityLuna: charityLuna.toString(),
     percentages: {
       winner: 90,
-      builder: 5,
-      ecosystem: 3,
-      charity: 2,
+      referrer: hasReferrer ? 5 : 0,
+      builder: hasReferrer ? 2.5 : 5,
+      ecosystem: hasReferrer ? 1.5 : 3,
+      charity: hasReferrer ? 1 : 2,
     },
   };
 }

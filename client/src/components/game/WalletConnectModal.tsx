@@ -576,6 +576,86 @@ export function WalletConnectModal({
                 </div>
               )}
 
+              {/* EVM Wallet Option (MetaMask / Web3) */}
+              <div
+                style={{
+                  backgroundColor: "#0d1117",
+                  border: "1px solid rgba(147, 51, 234, 0.3)",
+                  borderRadius: "14px",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "10px",
+                        background: "rgba(147, 51, 234, 0.15)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#c084fc",
+                        fontWeight: 800,
+                        fontSize: "14px",
+                      }}
+                    >
+                      EVM
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "14px", color: "#f0f6fc" }}>
+                        Connect EVM Wallet (MetaMask)
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#8b949e" }}>
+                        Have USDT/ETH on Ethereum or Polygon? Link your EVM account
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (typeof window === "undefined" || !(window as any).ethereum) {
+                        toast.error("No EVM Wallet Found", {
+                          description: "Please install MetaMask or open in an EVM Web3 browser.",
+                        });
+                        return;
+                      }
+                      try {
+                        const accounts = await (window as any).ethereum.request({
+                          method: "eth_requestAccounts",
+                        });
+                        if (accounts && accounts[0]) {
+                          toast.success("EVM Wallet Detected!", {
+                            description: `Linked ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
+                          });
+                        }
+                      } catch (err: any) {
+                        toast.error("EVM Connection Cancelled", {
+                          description: err?.message || "User closed popup",
+                        });
+                      }
+                    }}
+                    style={{
+                      background: "rgba(147, 51, 234, 0.2)",
+                      border: "1px solid rgba(147, 51, 234, 0.4)",
+                      color: "#c084fc",
+                      borderRadius: "8px",
+                      padding: "8px 14px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Connect EVM
+                  </button>
+                </div>
+              </div>
+
               {/* Direct Link to Official Nimiq Web Wallet */}
               <div
                 style={{

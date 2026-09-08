@@ -10,6 +10,10 @@ import {
   createPaymentIntent,
   createSoloPracticeMatch,
   createWageredChallengeMatch,
+  checkUsernameAvailable,
+  registerUserIdentity,
+  getUserReferralStats,
+  linkUserEvmAddress,
   addBotToWaitingMatch,
   executeBotTurn,
   findOrCreateQuickMatch,
@@ -268,6 +272,50 @@ export const appRouter = router({
       }
       return { success: true };
     }),
+    checkUsername: publicProcedure
+      .input(z.object({ username: z.string().min(2).max(32) }))
+      .query(async ({ ctx, input }) => {
+        const isAvailable = await checkUsernameAvailable(
+          input.username,
+          ctx.user?.id
+        );
+        return { username: input.username, isAvailable };
+      }),
+    registerIdentity: protectedProcedure
+      .input(
+        z.object({
+          username: z.string().min(2).max(32),
+          referralCode: z.string().max(32).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const updated = await registerUserIdentity({
+          userId: ctx.user.id,
+          name: input.username,
+          referralCodeUsed: input.referralCode,
+          address: ctx.user.address ?? undefined,
+        });
+        return { success: true, user: updated };
+      }),
+    getReferralStats: protectedProcedure.query(async ({ ctx }) => {
+      const stats = await getUserReferralStats(ctx.user.id);
+      return stats ?? {
+        referralCode: `user${ctx.user.id}`,
+        points: ctx.user.points ?? 1000,
+        referralEarningsNim: 0,
+        totalReferred: 0,
+        referredUsers: [],
+      };
+    }),
+    linkEvmAddress: protectedProcedure
+      .input(
+        z.object({
+          evmAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid EVM address"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        return await linkUserEvmAddress(ctx.user.id, input.evmAddress);
+      }),
     stats: protectedProcedure
       .input(
         z

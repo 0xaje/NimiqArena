@@ -32,8 +32,9 @@ import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
 import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
-import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
-import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
+import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
+import { ReferralCard } from "@/components/referral/ReferralCard";
 import {
   restoreSavedWallet,
   getWalletConnectionMode,
@@ -145,7 +146,7 @@ export default function Home() {
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
   const [isFaucetOpen, setIsFaucetOpen] = useState(false);
-  const [isTournamentOpen, setIsTournamentOpen] = useState(false);
+  const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
   const [clientNonce, setClientNonce] = useState(createPaymentNonce);
   const createIntent = trpc.payment.createIntent.useMutation();
@@ -375,9 +376,10 @@ export default function Home() {
         isOpen={isDevModalOpen}
         onClose={() => setIsDevModalOpen(false)}
       />
-      <TournamentCupModal
-        isOpen={isTournamentOpen}
-        onClose={() => setIsTournamentOpen(false)}
+      <IdentityRegistrationModal
+        isOpen={isIdentityModalOpen}
+        onClose={() => setIsIdentityModalOpen(false)}
+        currentName={user?.name}
       />
       <WalletConnectModal
         isOpen={isWalletModalOpen}
@@ -419,15 +421,7 @@ export default function Home() {
       <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="sidebar-topline">
           <div className="brand-lockup" aria-label="Nimiq Arena">
-            <img
-              src="/manus-storage/nimiq-arena-mark_d1d871ea.png"
-              alt=""
-              className="brand-mark"
-            />
-            <div>
-              <span className="brand-overline">NIMIQ</span>
-              <span className="brand-name">ARENA</span>
-            </div>
+            <NimiqArenaLogo size={36} showText={true} />
           </div>
           <button
             className="icon-button mobile-close"
@@ -542,11 +536,20 @@ export default function Home() {
           <div className="top-actions">
             <button
               className="search-button"
-              onClick={() => setIsTournamentOpen(true)}
-              title="8-Player Knockout Tournament Cup"
-              style={{ borderColor: "rgba(245, 158, 11, 0.4)", color: "#f59e0b", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              onClick={() => setIsIdentityModalOpen(true)}
+              title="Arena Web3 Identity & Custom Handle"
+              style={{
+                borderColor: "rgba(245, 158, 11, 0.4)",
+                color: "#f59e0b",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
             >
-              <Trophy size={14} /> 8-Player Cup
+              <Sparkles size={14} />
+              {user?.name && !user.name.startsWith("Player 1") && !user.name.startsWith("guest-")
+                ? user.name
+                : "Claim Identity (+1,000 Pts)"}
             </button>
             <button
               className="search-button"
@@ -591,57 +594,46 @@ export default function Home() {
           <div className="intro-copy">
             <div className="stamp-row">
               <span className="stamp orange">SEASON 01</span>
-              <span className="stamp">OPENING TABLES</span>
+              <span className="stamp">WEB3 MULTI-GAME ARENA</span>
             </div>
-            <p className="eyebrow">A NIM-POWERED GAME ROOM</p>
+            <p className="eyebrow">ON-CHAIN MICRO-STAKES ESPORTS</p>
             <h1>
-              Find your next
+              Enter the Nimiq
               <br />
-              <em>favorite game.</em>
+              <em>Gaming Arena.</em>
             </h1>
             <p className="hero-dek">
-              Nimiq Arena is a growing home for games with real ownership,
-              honest competition, and room for more than one kind of player.
+              Provably fair multiplayer strategy games powered by the ultra-fast Nimiq blockchain.
+              Claim your Web3 identity, invite friends to earn 5% match commissions, and compete for on-chain pots.
             </p>
             <div className="hero-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
-              <button
-                type="button"
+              <a
+                href="#games"
                 className="primary-action"
-                onClick={() => setIsLudoFlowOpen(true)}
                 style={{
                   background: "linear-gradient(135deg, #f59e0b, #d97706)",
                   boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
-                  border: "none",
-                  cursor: "pointer",
                   padding: "14px 24px",
                   fontSize: "14px",
                   fontWeight: 800,
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "8px",
+                  textDecoration: "none",
                 }}
               >
-                <Gamepad2 size={18} /> PLAY LUDO LEAGUE
-              </button>
+                <Gamepad2 size={18} /> BROWSE GAMES
+              </a>
               <button
                 type="button"
                 className="secondary-chip"
-                onClick={handleStartSoloPractice}
-                disabled={createSolo.isPending}
+                onClick={() => setIsIdentityModalOpen(true)}
                 style={{ padding: "12px 18px" }}
               >
-                🤖 {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
-              </button>
-              <button
-                type="button"
-                className="secondary-chip"
-                onClick={() => setIsQuickMatchOpen(true)}
-                style={{ padding: "12px 18px" }}
-              >
-                <Zap size={16} /> Quick Match
+                <Sparkles size={16} /> Claim Identity (+1,000 Pts)
               </button>
               <Link className="text-action" href="/join" style={{ padding: "12px 16px" }}>
-                <Coins size={16} /> Enter Match Code
+                <Coins size={16} /> Join by Match Code
               </Link>
             </div>
             <div className="trust-line">
@@ -747,10 +739,209 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Live Active Arena Tables Directory & Radar */}
-        <ActiveTablesDirectory />
+        {/* Arena Ecosystem Navigation Grid */}
+        <section className="section-block" id="hub-navigation" style={{ marginTop: "36px" }}>
+          <div className="section-topline">
+            <div>
+              <p className="eyebrow">ARENA ECOSYSTEM</p>
+              <h2>
+                Standings, records,
+                <br />
+                <em>and community tables.</em>
+              </h2>
+            </div>
+          </div>
 
-        <section className="arena-rails">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "20px",
+              marginTop: "20px",
+            }}
+          >
+            {/* Leaderboard Card */}
+            <div
+              style={{
+                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    background: "rgba(245, 158, 11, 0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fbbf24",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <Trophy size={22} />
+                </div>
+                <span className="card-label" style={{ color: "#fbbf24" }}>SEASON 01 RANKINGS</span>
+                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
+                  Global Leaderboards
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
+                  Explore top competitive Elo rankings, win streaks, and seasonal champion crowns across all Arena games.
+                </p>
+              </div>
+              <Link
+                href="/leaderboard"
+                style={{
+                  marginTop: "20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  background: "rgba(245, 158, 11, 0.15)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  color: "#fbbf24",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                View Standings <ArrowUpRight size={15} />
+              </Link>
+            </div>
+
+            {/* Profile Card */}
+            <div
+              style={{
+                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    background: "rgba(56, 189, 248, 0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#38bdf8",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <ShieldCheck size={22} />
+                </div>
+                <span className="card-label" style={{ color: "#38bdf8" }}>YOUR WEB3 RECORD</span>
+                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
+                  Player Profile & Identity
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
+                  Review your personal win-loss ratio, lifetime NIM earned, rating tier, and cryptographic match receipts.
+                </p>
+              </div>
+              <Link
+                href="/profile"
+                style={{
+                  marginTop: "20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  background: "rgba(56, 189, 248, 0.15)",
+                  border: "1px solid rgba(56, 189, 248, 0.3)",
+                  color: "#38bdf8",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                Open Profile <ArrowUpRight size={15} />
+              </Link>
+            </div>
+
+            {/* Join Private Match Card */}
+            <div
+              style={{
+                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    background: "rgba(34, 197, 94, 0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#4ade80",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <Coins size={22} />
+                </div>
+                <span className="card-label" style={{ color: "#4ade80" }}>CHALLENGE ROOMS</span>
+                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
+                  Join Friend by Code
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
+                  Have an invite code from a friend? Enter directly into a private match table with zero waiting time.
+                </p>
+              </div>
+              <Link
+                href="/join"
+                style={{
+                  marginTop: "20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  background: "rgba(34, 197, 94, 0.15)",
+                  border: "1px solid rgba(34, 197, 94, 0.3)",
+                  color: "#4ade80",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                Enter Room <ArrowUpRight size={15} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Referral & Points Engine Section */}
+        <section className="section-block" id="referrals" style={{ marginTop: "36px" }}>
+          <ReferralCard />
+        </section>
+
+        <section className="arena-rails" style={{ marginTop: "36px" }}>
           <div className="rail-card rail-dark">
             <span className="card-label">THE POINT OF THE ARENA</span>
             <h3>
