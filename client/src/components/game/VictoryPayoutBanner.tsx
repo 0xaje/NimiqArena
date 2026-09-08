@@ -18,6 +18,7 @@ interface VictoryPayoutBannerProps {
   winnerUserId: number;
   yourUserId: number;
   totalPotNim: number;
+  isReplaying?: boolean;
   onPlayAgain?: () => void;
   onReturnToLobby?: () => void;
 }
@@ -27,6 +28,7 @@ export function VictoryPayoutBanner({
   winnerUserId,
   yourUserId,
   totalPotNim,
+  isReplaying,
   onPlayAgain,
   onReturnToLobby,
 }: VictoryPayoutBannerProps) {
@@ -167,14 +169,19 @@ export function VictoryPayoutBanner({
       {/* Post-Match Action CTAs */}
       <div className="victory-action-row">
         {onPlayAgain && (
-          <button type="button" className="btn-victory-primary" onClick={onPlayAgain}>
-            <RefreshCw size={18} />
-            <span>PLAY AGAIN</span>
+          <button
+            type="button"
+            className="btn-victory-primary"
+            onClick={onPlayAgain}
+            disabled={isReplaying}
+          >
+            <RefreshCw size={18} className={isReplaying ? "spin" : ""} />
+            <span>{isReplaying ? "STARTING REPLAY…" : "REPLAY MATCH"}</span>
           </button>
         )}
         {onReturnToLobby && (
           <button type="button" className="btn-victory-secondary" onClick={onReturnToLobby}>
-            <span>RETURN TO LOBBY</span>
+            <span>RETURN HOME</span>
           </button>
         )}
       </div>

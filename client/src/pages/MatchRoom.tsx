@@ -78,7 +78,11 @@ export default function MatchRoom() {
     { enabled: Boolean(matchId), refetchInterval: 5_000 }
   );
   const authQuery = trpc.auth.me.useQuery();
+  const guestLogin = trpc.auth.guestLogin.useMutation();
+  const createSolo = trpc.match.createSoloMatch.useMutation();
+  const createWagered = trpc.match.createWageredMatch.useMutation();
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isReplaying, setIsReplaying] = useState(false);
   const escrow = escrowQuery.data;
 
   const command = trpc.match.command.useMutation({
@@ -399,6 +403,42 @@ export default function MatchRoom() {
   const isFinished = snapshot?.winner !== null && snapshot?.winner !== undefined;
   const returnRoute = isC4 ? "/games/connect-four" : "/games/ludo-league";
 
+  async function handlePlayAgain() {
+    if (isReplaying) return;
+    setIsReplaying(true);
+    const gameSlug = isC4 ? "connect-four" : "ludo-league";
+    try {
+      if (!authQuery.data) {
+        const loginRes = await guestLogin.mutateAsync({
+          name: "Player 1 (Solo)",
+        });
+        if (loginRes.token) {
+          sessionStorage.setItem(
+            "manus-cookie",
+            `manus-session=${loginRes.token}`
+          );
+        }
+        await utils.auth.me.invalidate();
+      }
+      toast.info("Starting replay match…");
+      if (escrow?.isWagered && escrow.stakeNim) {
+        const newMatch = await createWagered.mutateAsync({
+          gameSlug,
+          stakeNim: escrow.stakeNim,
+        });
+        window.location.href = `/matches/${newMatch.id}`;
+      } else {
+        const newMatch = await createSolo.mutateAsync({ gameSlug });
+        window.location.href = `/matches/${newMatch.id}`;
+      }
+    } catch (err) {
+      setIsReplaying(false);
+      toast.error("Failed to start replay", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    }
+  }
+
   return (
     <div className="pure-gameplay-page">
       {/* Modular Topbar */}
@@ -475,9 +515,8 @@ export default function MatchRoom() {
           }
           yourUserId={authQuery.data?.id ?? 0}
           totalPotNim={escrow?.totalPotNim || 0}
-          onPlayAgain={() => {
-            window.location.href = returnRoute;
-          }}
+          isReplaying={isReplaying}
+          onPlayAgain={handlePlayAgain}
           onReturnToLobby={() => {
             window.location.href = returnRoute;
           }}
