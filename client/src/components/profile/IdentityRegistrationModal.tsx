@@ -68,6 +68,13 @@ export function IdentityRegistrationModal({
   const isAvailable = availabilityQuery.data?.isAvailable;
   const isChecking = availabilityQuery.isFetching;
 
+  const handleDismiss = () => {
+    try {
+      sessionStorage.setItem("dismissed_identity_modal", "true");
+    } catch {}
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = username.trim();
@@ -101,6 +108,21 @@ export function IdentityRegistrationModal({
         avatar: finalAvatar,
         referralCode: referralCode.trim() || undefined,
       });
+
+      if ((res as any)?.token) {
+        try {
+          sessionStorage.setItem("manus-cookie", `manus-session=${(res as any).token}`);
+          localStorage.setItem("manus-cookie", `manus-session=${(res as any).token}`);
+        } catch {}
+      }
+      if (walletAddress) {
+        try {
+          localStorage.setItem(`onboarding_completed_${walletAddress}`, "true");
+        } catch {}
+      }
+      try {
+        localStorage.setItem("arena_registered_nickname", clean);
+      } catch {}
 
       await utils.auth.me.invalidate();
       await utils.auth.getReferralStats.invalidate();
@@ -137,7 +159,7 @@ export function IdentityRegistrationModal({
         zIndex: 9999,
         padding: "16px",
       }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && handleDismiss()}
     >
       <div
         style={{
@@ -190,7 +212,7 @@ export function IdentityRegistrationModal({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleDismiss}
             style={{
               background: "none",
               border: "none",
@@ -453,6 +475,27 @@ export function IdentityRegistrationModal({
               : registerMutation.isPending
                 ? "Registering…"
                 : "Approve & Confirm in Wallet"}
+          </button>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: "10px",
+              backgroundColor: "transparent",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              color: "rgba(255, 255, 255, 0.6)",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "color 0.15s ease",
+            }}
+          >
+            Skip for now
           </button>
         </form>
       </div>

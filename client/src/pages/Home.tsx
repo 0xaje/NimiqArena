@@ -30,7 +30,6 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
-import { TestnetFaucetModal } from "@/components/game/TestnetFaucetModal";
 import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
@@ -144,27 +143,67 @@ export default function Home() {
   const [isGameLibraryOpen, setIsGameLibraryOpen] = useState(false);
   const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
-  const [isFaucetOpen, setIsFaucetOpen] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
 
-  // Auto-onboarding for newly connected wallets: prompt identity registration if no custom nickname set
+  // Auto-sync wallet session on mount if wallet is connected but current session is guest
   useEffect(() => {
-    if (address && user) {
-      const isTemporary =
-        !user.name ||
-        user.name.startsWith("Player 1") ||
-        user.name.startsWith("guest-") ||
-        user.name.startsWith("0x") ||
-        user.name.startsWith("NQ") ||
-        !(user as any).avatar;
-      if (isTemporary && !isIdentityModalOpen) {
-        setIsIdentityModalOpen(true);
-      }
+    if (address && user && user.loginMethod === "guest") {
+      utils.client.auth.requestChallenge.query().then(challengeRes => {
+        return loginWithNimiq.mutateAsync({
+          address,
+          challenge: challengeRes.challenge,
+        });
+      }).then(loginRes => {
+        if (loginRes?.token) {
+          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+        }
+        if (loginRes?.user?.name && !loginRes.user.name.startsWith("Nimiq (") && !loginRes.user.name.startsWith("NQ")) {
+          try {
+            localStorage.setItem(`onboarding_completed_${address}`, "true");
+          } catch {}
+        }
+        void utils.auth.me.invalidate();
+      }).catch(err => {
+        console.warn("[Auth] Auto-sync wallet session:", err);
+      });
     }
-  }, [address, user]);
+  }, [address, user?.id, user?.loginMethod]);
+
+  // Auto-onboarding for newly connected wallets: prompt identity registration ONLY if no custom nickname set
+  useEffect(() => {
+    if (!address || !user) return;
+
+    // Check if dismissed or already completed
+    try {
+      const isDismissed = sessionStorage.getItem("dismissed_identity_modal") === "true";
+      const isCompleted = localStorage.getItem(`onboarding_completed_${address}`) === "true";
+      if (isDismissed || isCompleted) return;
+    } catch {}
+
+    const name = user.name?.trim() || "";
+    // Check if user already has a custom name
+    const isGenericName =
+      !name ||
+      name.startsWith("Player 1") ||
+      name.startsWith("Player 2") ||
+      name.startsWith("guest-") ||
+      name.startsWith("0x") ||
+      name.startsWith("NQ") ||
+      name.startsWith("Nimiq (");
+
+    if (isGenericName && !isIdentityModalOpen) {
+      setIsIdentityModalOpen(true);
+    } else if (!isGenericName) {
+      // User already has a custom name registered. Mark complete so we never bother them again.
+      try {
+        localStorage.setItem(`onboarding_completed_${address}`, "true");
+      } catch {}
+    }
+  }, [address, user, isIdentityModalOpen]);
 
   async function handleStartSoloPractice() {
     try {
@@ -272,11 +311,6 @@ export default function Home() {
         isOpen={isLudoFlowOpen}
         onClose={() => setIsLudoFlowOpen(false)}
       />
-      <TestnetFaucetModal
-        isOpen={isFaucetOpen}
-        onClose={() => setIsFaucetOpen(false)}
-        userAddress={address}
-      />
       <MiniAppDevModal
         isOpen={isDevModalOpen}
         onClose={() => setIsDevModalOpen(false)}
@@ -299,11 +333,20 @@ export default function Home() {
           fetchNimiqBalance(addr).then(bal => setWalletBalance(bal)).catch(() => {});
           try {
             const challengeRes = await utils.client.auth.requestChallenge.query();
-            await loginWithNimiq.mutateAsync({
+            const loginRes = await loginWithNimiq.mutateAsync({
               address: addr,
               challenge: challengeRes.challenge,
             });
-            void utils.auth.me.invalidate();
+            if (loginRes?.token) {
+              sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+              localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+            }
+            if (loginRes?.user?.name && !loginRes.user.name.startsWith("Nimiq (") && !loginRes.user.name.startsWith("NQ")) {
+              try {
+                localStorage.setItem(`onboarding_completed_${addr}`, "true");
+              } catch {}
+            }
+            await utils.auth.me.invalidate();
             toast.success("Signed in with Nimiq Wallet", {
               description: `Session bound to ${addr.slice(0, 8)}...`,
             });
@@ -520,14 +563,6 @@ export default function Home() {
                 @{user.name}
               </Link>
             )}
-            <button
-              className="search-button"
-              onClick={() => setIsFaucetOpen(true)}
-              title="Get free Testnet NIM from the official PoS faucet"
-              style={{ borderColor: "rgba(236, 153, 24, 0.4)", color: "#EC9918" }}
-            >
-              💧 Get Testnet NIM
-            </button>
             <button
               className="search-button"
               onClick={() =>

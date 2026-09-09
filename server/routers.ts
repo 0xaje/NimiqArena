@@ -213,8 +213,8 @@ export const appRouter = router({
         if (user) {
           openId = user.openId;
           displayName =
-            input.name?.trim() ||
             user.name ||
+            input.name?.trim() ||
             `Nimiq (${normalizedAddress.slice(0, 4)}...${normalizedAddress.slice(-4)})`;
           await upsertUser({
             openId,
@@ -298,7 +298,17 @@ export const appRouter = router({
           referralCodeUsed: input.referralCode,
           address: ctx.user.address ?? undefined,
         });
-        return { success: true, user: updated };
+        const token = await sdk.createSessionToken(ctx.user.openId, { name: input.username });
+        const cookieOpts = getSessionCookieOptions(ctx.req);
+        if (typeof (ctx.res as any).cookie === "function") {
+          (ctx.res as any).cookie(COOKIE_NAME, token, cookieOpts);
+        } else {
+          ctx.res.setHeader(
+            "Set-Cookie",
+            `${COOKIE_NAME}=${token}; ${cookieOpts}`
+          );
+        }
+        return { success: true, user: updated, token };
       }),
     claimWelcomeReward: protectedProcedure.mutation(async ({ ctx }) => {
       return await claimWelcomeReward(ctx.user.id);
