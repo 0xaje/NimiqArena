@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ShieldCheck, X, Copy, Check, Lock, Cpu } from "lucide-react";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
 interface ProvablyFairModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export function ProvablyFairModal({
   stateVersion,
   dice,
 }: ProvablyFairModalProps) {
+  useModalBackHandler(isOpen, onClose);
   const [liveHash, setLiveHash] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
   const [customInput, setCustomInput] = useState<string>("");

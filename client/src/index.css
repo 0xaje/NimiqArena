@@ -5346,6 +5346,12 @@ h1 em,
     width: 22px;
     height: 22px;
   }
+  .ludo-3d-pawn::after {
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+  }
   .pawn-head { width: 11px; height: 11px; }
   .pawn-ring { width: 16px; height: 5px; top: 10px; }
   .pawn-body { width: 15px; height: 15px; }

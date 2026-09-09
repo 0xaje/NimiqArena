@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Trophy, X, Users, Coins, Sparkles, CheckCircle2, ArrowRight } from "lucide-react";
 import { formatNim } from "@shared/game/pot-distribution";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
 interface TournamentCupModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function TournamentCupModal({
   onClose,
   onEnterCup,
 }: TournamentCupModalProps) {
+  useModalBackHandler(isOpen, onClose);
   const [buyIn, setBuyIn] = useState<number>(100);
   const [registered, setRegistered] = useState<boolean>(false);
 
