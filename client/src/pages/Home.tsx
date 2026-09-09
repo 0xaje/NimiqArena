@@ -26,7 +26,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
@@ -41,6 +41,8 @@ import {
   isRunningInNimiqPay,
   sendNimiqPayment,
   fetchNimiqBalance,
+  fetchNimiqAccountInfo,
+  type NimiqAccountInfo,
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
 
@@ -122,17 +124,30 @@ export default function Home() {
   const [address, setAddress] = useState<string | null>(() =>
     restoreSavedWallet()
   );
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
 
-  useEffect(() => {
-    if (!address) {
-      setWalletBalance(null);
+  const refreshAccountBalance = useCallback(async (targetAddr?: string | null) => {
+    const addr = targetAddr || address;
+    if (!addr) {
+      setAccountInfo(null);
       return;
     }
-    fetchNimiqBalance(address)
-      .then(bal => setWalletBalance(bal))
-      .catch(() => {});
+    try {
+      const info = await fetchNimiqAccountInfo(addr);
+      setAccountInfo(info);
+    } catch {
+      // transient balance catch
+    }
   }, [address]);
+
+  useEffect(() => {
+    void refreshAccountBalance(address);
+    if (!address) return;
+    const interval = setInterval(() => {
+      void refreshAccountBalance(address);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [address, refreshAccountBalance]);
 
   const [language, setLanguage] = useState(() =>
     getHostLanguage() || (typeof navigator !== "undefined" ? navigator.language?.split("-")[0] : "en") || "en"
@@ -329,7 +344,7 @@ export default function Home() {
         onConnected={async (addr, mode) => {
           setAddress(addr);
           setConnectionMode(mode);
-          fetchNimiqBalance(addr).then(bal => setWalletBalance(bal)).catch(() => {});
+          void refreshAccountBalance(addr);
           try {
             const challengeRes = await utils.client.auth.requestChallenge.query();
             const loginRes = await loginWithNimiq.mutateAsync({
@@ -340,12 +355,27 @@ export default function Home() {
               sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
               localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
             }
-            if (loginRes?.user?.name && !loginRes.user.name.startsWith("Nimiq (") && !loginRes.user.name.startsWith("NQ")) {
+            await utils.auth.me.invalidate();
+
+            const currentName = loginRes?.user?.name || "";
+            const isCustom =
+              currentName &&
+              !currentName.startsWith("Nimiq (") &&
+              !currentName.startsWith("NQ") &&
+              !currentName.startsWith("Player ") &&
+              !currentName.startsWith("guest-");
+
+            if (!isCustom) {
+              try {
+                sessionStorage.removeItem("dismissed_identity_modal");
+              } catch {}
+              setIsIdentityModalOpen(true);
+            } else {
               try {
                 localStorage.setItem(`onboarding_completed_${addr}`, "true");
               } catch {}
             }
-            await utils.auth.me.invalidate();
+
             toast.success("Signed in with Nimiq Wallet", {
               description: `Session bound to ${addr.slice(0, 8)}...`,
             });
@@ -588,13 +618,18 @@ export default function Home() {
               <button
                 className="topbar-wallet-capsule"
                 onClick={connectWallet}
-                title={`Connected: ${address}\nBalance: ${walletBalance !== null ? walletBalance.toFixed(2) + " NIM" : "Loading..."}\nClick to manage wallet`}
+                title={`Connected: ${address}\nBalance: ${accountInfo ? accountInfo.balanceNim.toFixed(2) + " NIM (~$" + accountInfo.usdValue.toFixed(2) + " USD)" : "Fetching balance…"}\nNetwork: ${accountInfo?.network || "testnet"}\nClick to manage wallet`}
               >
-                {walletBalance !== null && (
+                {accountInfo !== null && (
                   <span className="capsule-balance-zone">
                     <span className="balance-live-dot" />
-                    <strong className="balance-amount">{walletBalance.toFixed(1)}</strong>
+                    <strong className="balance-amount">{accountInfo.balanceNim.toFixed(1)}</strong>
                     <span className="balance-ticker">NIM</span>
+                    {accountInfo.usdValue > 0 && (
+                      <span className="balance-usd" style={{ fontSize: "10px", opacity: 0.7, marginLeft: "4px" }}>
+                        (~${accountInfo.usdValue < 0.01 ? accountInfo.usdValue.toFixed(4) : accountInfo.usdValue.toFixed(2)})
+                      </span>
+                    )}
                   </span>
                 )}
                 <span className="capsule-address-zone">

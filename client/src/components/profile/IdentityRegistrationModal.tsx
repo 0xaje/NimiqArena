@@ -102,7 +102,7 @@ export function IdentityRegistrationModal({
 
       // Wallet confirmation popup request
       const messageToSign = `Confirm Nimiq Arena Identity Registration:\nHandle: ${clean}\nAvatar: ${finalAvatar}\nTimestamp: ${Date.now()}`;
-      await signIdentityMessage(messageToSign);
+      await signIdentityMessage(messageToSign, walletAddress || undefined);
 
       toast.loading("Locking identity on Nimiq Arena…", { id: "register-id" });
 

@@ -20,6 +20,8 @@ import {
   formatNimiqAddress,
   isRunningInNimiqPay,
   fetchNimiqBalance,
+  fetchNimiqAccountInfo,
+  type NimiqAccountInfo,
   NIMIQ_MAINNET_HUB_URL,
   NIMIQ_TESTNET_HUB_URL,
   NIMIQ_MAINNET_RPC_URL,
@@ -50,15 +52,16 @@ export function WalletConnectModal({
   const [isConnectingHub, setIsConnectingHub] = useState(false);
   const [useTestnet, setUseTestnet] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);
+  const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
   const refreshBalance = async () => {
     if (!connectedAddress) return;
     setIsLoadingBalance(true);
     try {
-      const rpc = useTestnet ? NIMIQ_TESTNET_RPC_URL : NIMIQ_MAINNET_RPC_URL;
-      const bal = await fetchNimiqBalance(connectedAddress, rpc);
-      setBalance(bal);
+      const info = await fetchNimiqAccountInfo(connectedAddress);
+      setAccountInfo(info);
+      setBalance(info.balanceNim);
     } catch {
       // transient network catch
     } finally {
@@ -291,8 +294,15 @@ export function WalletConnectModal({
                   >
                     {isLoadingBalance ? (
                       <Loader2 size={13} className="animate-spin" />
-                    ) : balance !== null ? (
-                      `${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} NIM`
+                    ) : accountInfo !== null ? (
+                      <span>
+                        {accountInfo.balanceNim.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} NIM
+                        {accountInfo.usdValue > 0 && (
+                          <span style={{ fontSize: "12px", color: "#8b949e", marginLeft: "6px", fontWeight: 400 }}>
+                            (~${accountInfo.usdValue < 0.01 ? accountInfo.usdValue.toFixed(4) : accountInfo.usdValue.toFixed(2)} USD)
+                          </span>
+                        )}
+                      </span>
                     ) : (
                       "0.00 NIM"
                     )}

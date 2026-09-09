@@ -6,6 +6,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { registerMatchStream } from "../match-stream";
 import { registerMatchCleanup } from "../match-cleanup";
+import { registerNimiqAccountRoutes } from "../nimiq-account";
 import { apiRateLimiter } from "./rateLimiter";
 import { ENV } from "./env";
 
@@ -38,6 +39,7 @@ export function createExpressApp(): Express {
   registerOAuthRoutes(app);
   registerMatchStream(app);
   registerMatchCleanup(app);
+  registerNimiqAccountRoutes(app);
 
   // tRPC API
   app.use(

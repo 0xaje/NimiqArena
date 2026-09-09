@@ -227,38 +227,103 @@ export async function sendNimiqPayment(options: {
   return (checkoutRes as any).hash;
 }
 
+export interface NimiqAccountInfo {
+  balanceNim: number;
+  balanceLuna: number;
+  usdValue: number;
+  usdPrice: number;
+  network: "testnet" | "mainnet";
+}
+
 /**
  * Prompts the connected wallet for an identity signature/confirmation popup.
  */
-export async function signIdentityMessage(message: string): Promise<string> {
-  const mode = getWalletConnectionMode();
-  if (mode === "mini-app" && _miniAppProvider && typeof _miniAppProvider.sign === "function") {
-    const res = await _miniAppProvider.sign(message);
-    return typeof res === "string" ? res : "signed_miniapp";
+export async function signIdentityMessage(message: string, signerAddress?: string): Promise<string> {
+  const targetSigner = signerAddress || _activeAddress || "";
+  
+  // 1. Try Nimiq Pay Mini-App if executing inside mobile wallet
+  if (isRunningInNimiqPay()) {
+    try {
+      if (!_miniAppProvider) {
+        _miniAppProvider = await initMiniApp({ timeout: 4000 }).catch(() => null);
+      }
+      if (_miniAppProvider && typeof _miniAppProvider.sign === "function") {
+        const res = await _miniAppProvider.sign(message);
+        if (res && typeof res === "object" && "error" in res) {
+          throw new Error((res as any).error?.message || "Signature request was declined in Nimiq Pay.");
+        }
+        return (res as any)?.signature ? String((res as any).signature) : "signed_miniapp";
+      }
+    } catch (err: any) {
+      console.warn("[NimiqWallet] Mini-App sign attempt:", err);
+      throw err;
+    }
   }
+
+  // 2. Official Nimiq Hub Web Wallet confirmation
   try {
     const hub = getHubApi();
     if (hub && typeof (hub as any).signMessage === "function") {
-      const res = await (hub as any).signMessage({ message });
+      const res = await (hub as any).signMessage({
+        appName: "Nimiq Arena",
+        message,
+        signer: targetSigner || undefined,
+      });
       return res?.signature ? String(res.signature) : "signed_hub";
     }
-  } catch (err) {
-    console.warn("[NimiqWallet] Hub signMessage completed or bypassed:", err);
+  } catch (err: any) {
+    console.warn("[NimiqWallet] Hub signMessage error:", err);
+    throw new Error(err?.message || "Wallet confirmation was cancelled.");
   }
+
   return "verified_wallet_session";
 }
 
 /**
- * Fetches the live balance in NIM for an address from Nimiq Testnet/Mainnet RPC.
+ * Fetches the live balance and USD valuation for an address.
+ * Queries high-performance server proxy first, then falls back to direct JSON-RPC.
  */
-export async function fetchNimiqBalance(
-  address: string,
-  rpcUrl = NIMIQ_TESTNET_RPC_URL
-): Promise<number> {
-  if (!address || !isValidNimiqAddress(address)) return 0;
+export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccountInfo> {
+  const defaultInfo: NimiqAccountInfo = {
+    balanceNim: 0,
+    balanceLuna: 0,
+    usdValue: 0,
+    usdPrice: 0.0004,
+    network: "testnet",
+  };
+
+  if (!address || !isValidNimiqAddress(address)) return defaultInfo;
   const clean = address.replace(/\s+/g, "").toUpperCase();
+
+  // 1. Primary: Server Proxy (/api/nimiq/account/:address) with fast multi-RPC fallback & price
   try {
-    const res = await fetch(rpcUrl, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch(`/api/nimiq/account/${encodeURIComponent(clean)}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success) {
+        return {
+          balanceNim: Number(json.balanceNim) || 0,
+          balanceLuna: Number(json.balanceLuna) || 0,
+          usdValue: Number(json.usdValue) || 0,
+          usdPrice: Number(json.usdPrice) || 0.0004,
+          network: json.network || "testnet",
+        };
+      }
+    }
+  } catch {
+    // Server proxy fetch failed, fall through to client RPC
+  }
+
+  // 2. Direct Fallback: Client-side JSON-RPC
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(NIMIQ_TESTNET_RPC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -267,16 +332,37 @@ export async function fetchNimiqBalance(
         params: [clean],
         id: 1,
       }),
+      signal: controller.signal,
     });
-    if (!res.ok) return 0;
-    const json = await res.json();
-    const balanceLuna =
-      json?.result?.data?.balance ?? json?.result?.balance ?? 0;
-    return Number(balanceLuna) / 100_000;
+    clearTimeout(timeout);
+    if (res.ok) {
+      const json = await res.json();
+      const balanceLuna =
+        json?.result?.data?.balance ?? json?.result?.balance ?? 0;
+      const balanceNim = Number(balanceLuna) / 100_000;
+      return {
+        ...defaultInfo,
+        balanceNim,
+        balanceLuna: Number(balanceLuna),
+        usdValue: Number((balanceNim * 0.0004).toFixed(4)),
+      };
+    }
   } catch (err) {
-    console.warn("[NimiqWallet] Failed to fetch balance:", err);
-    return 0;
+    console.warn("[NimiqWallet] Direct RPC balance check failed:", err);
   }
+
+  return defaultInfo;
+}
+
+/**
+ * Fetches the live balance in NIM for an address from Nimiq Testnet/Mainnet RPC.
+ */
+export async function fetchNimiqBalance(
+  address: string,
+  _rpcUrl = NIMIQ_TESTNET_RPC_URL
+): Promise<number> {
+  const info = await fetchNimiqAccountInfo(address);
+  return info.balanceNim;
 }
 
 /**
