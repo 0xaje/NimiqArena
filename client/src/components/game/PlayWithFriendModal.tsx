@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
 interface PlayWithFriendModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export function PlayWithFriendModal({
   gameSlug,
   gameTitle,
 }: PlayWithFriendModalProps) {
+  useModalBackHandler(isOpen, onClose);
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();

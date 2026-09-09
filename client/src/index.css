@@ -21,6 +21,10 @@
   --card-foreground: var(--ink);
   --border: var(--rule);
   --radius: 0.65rem;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -4837,12 +4841,13 @@ h1 em,
 /* 3. Board-First Pure Gameplay Screen */
 .pure-gameplay-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: radial-gradient(circle at 50% 15%, #18223c 0%, #0c1222 100%);
   color: #f8fafc;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 8px 24px;
+  padding: max(10px, var(--sat)) max(8px, var(--sar)) max(24px, var(--sab)) max(8px, var(--sal));
   overflow-x: hidden;
 }
 
@@ -5267,7 +5272,7 @@ h1 em,
    ========================================================================== */
 @media (max-width: 480px) {
   .pure-gameplay-page {
-    padding: 4px 4px 16px;
+    padding: max(6px, var(--sat)) max(4px, var(--sar)) max(24px, var(--sab)) max(4px, var(--sal));
     gap: 4px;
   }
   .gameplay-topbar {

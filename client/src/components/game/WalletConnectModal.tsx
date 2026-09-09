@@ -27,6 +27,7 @@ import {
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
 import { toast } from "sonner";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
 interface WalletConnectModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ export function WalletConnectModal({
   onConnected,
   onDisconnected,
 }: WalletConnectModalProps) {
+  useModalBackHandler(isOpen, onClose);
   const [isConnectingHub, setIsConnectingHub] = useState(false);
   const [useTestnet, setUseTestnet] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);

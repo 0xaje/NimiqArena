@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 import {
   ShieldCheck,
   Coins,
@@ -12,6 +13,7 @@ import {
   ExternalLink,
   Wallet,
   Sparkles,
+  Check,
 } from "lucide-react";
 import { createPaymentNonce } from "@/lib/payment-state";
 import {
@@ -36,6 +38,7 @@ export function EscrowDepositModal({
   stakeNim,
   onDepositSuccess,
 }: EscrowDepositModalProps) {
+  useModalBackHandler(isOpen, onClose);
   const utils = trpc.useUtils();
   const [step, setStep] = useState<
     "idle" | "creating" | "paying" | "verifying" | "success" | "error"
@@ -355,37 +358,114 @@ export function EscrowDepositModal({
           {step !== "idle" && step !== "error" && step !== "success" && (
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-                padding: "12px",
-                color: "var(--orange)",
-                fontFamily: "IBM Plex Mono, monospace",
-                fontSize: "13px",
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+                border: "1px solid rgba(236, 153, 24, 0.3)",
+                borderRadius: "10px",
+                padding: "16px",
+                marginBottom: "12px",
+                textAlign: "left",
               }}
             >
-              <Loader2 className="radar-header-icon" size={18} />
-              <span>
-                {step === "creating" && "Initializing Payment Intent…"}
-                {step === "paying" && "Submitting Nimiq Transaction…"}
-                {step === "verifying" && "Verifying On-Chain Confirmations…"}
-              </span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  color: "#EC9918",
+                  fontFamily: "IBM Plex Mono, monospace",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  marginBottom: "12px",
+                }}
+              >
+                <Loader2 className="radar-header-icon" size={18} />
+                <span>
+                  {step === "creating" && "Step 1/3: Initializing Intent…"}
+                  {step === "paying" && "Step 2/3: Authorizing Transaction…"}
+                  {step === "verifying" && "Step 3/3: Verifying on Nimiq PoS…"}
+                </span>
+              </div>
+
+              {/* Progress Track */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: step !== "creating" ? "#2ecc71" : "rgba(255,255,255,0.7)" }}>
+                  <span style={{ width: "16px", height: "16px", borderRadius: "50%", background: step !== "creating" ? "#2ecc71" : "rgba(255,255,255,0.2)", display: "grid", placeItems: "center", fontSize: "10px", color: "#111" }}>✓</span>
+                  <span>Match Intent & Anti-Replay Nonce Generated</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: step === "verifying" ? "#2ecc71" : step === "paying" ? "#EC9918" : "rgba(255,255,255,0.4)" }}>
+                  <span style={{ width: "16px", height: "16px", borderRadius: "50%", background: step === "verifying" ? "#2ecc71" : step === "paying" ? "#EC9918" : "rgba(255,255,255,0.2)", display: "grid", placeItems: "center", fontSize: "10px", color: "#111" }}>
+                    {step === "verifying" ? "✓" : "2"}
+                  </span>
+                  <span>Broadcast to PoS Validator Microblock</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: step === "verifying" ? "#EC9918" : "rgba(255,255,255,0.4)" }}>
+                  <span style={{ width: "16px", height: "16px", borderRadius: "50%", background: step === "verifying" ? "#EC9918" : "rgba(255,255,255,0.2)", display: "grid", placeItems: "center", fontSize: "10px", color: "#111" }}>
+                    3
+                  </span>
+                  <span>Authoritative Server JSON-RPC Verification</span>
+                </div>
+              </div>
+
+              {txHash && (
+                <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                  <a
+                    href={`https://block-explorer.nimiq-testnet.com/transaction/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#EC9918",
+                      fontSize: "11px",
+                      fontFamily: "IBM Plex Mono, monospace",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    View on Nimiq Explorer ({txHash.slice(0, 10)}...{txHash.slice(-6)}) <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
           {step === "success" && (
             <div
               style={{
+                backgroundColor: "rgba(46, 204, 113, 0.12)",
+                border: "1px solid rgba(46, 204, 113, 0.35)",
+                borderRadius: "10px",
+                padding: "16px",
                 color: "#2ecc71",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
                 gap: "8px",
                 fontWeight: 600,
               }}
             >
-              <CheckCircle2 size={20} /> Stake Verified & Escrow Locked!
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <CheckCircle2 size={20} /> Stake Verified & Escrow Locked!
+              </div>
+              {txHash && (
+                <a
+                  href={`https://block-explorer.nimiq-testnet.com/transaction/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "rgba(255,255,255,0.75)",
+                    fontSize: "11px",
+                    fontFamily: "IBM Plex Mono, monospace",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    textDecoration: "underline",
+                    marginTop: "4px",
+                  }}
+                >
+                  Confirmed TX: {txHash.slice(0, 12)}...{txHash.slice(-6)} <ExternalLink size={11} />
+                </a>
+              )}
             </div>
           )}
 

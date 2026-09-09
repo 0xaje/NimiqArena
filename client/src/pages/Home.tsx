@@ -624,6 +624,24 @@ export default function Home() {
               <button
                 type="button"
                 className="secondary-chip"
+                onClick={handleStartSoloPractice}
+                disabled={createSolo.isPending}
+                style={{
+                  padding: "12px 18px",
+                  background: "rgba(234, 179, 8, 0.15)",
+                  borderColor: "rgba(234, 179, 8, 0.4)",
+                  color: "#fbbf24",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Zap size={16} /> {createSolo.isPending ? "Launching…" : "⚡ Instant Demo vs AI"}
+              </button>
+              <button
+                type="button"
+                className="secondary-chip"
                 onClick={() => setIsIdentityModalOpen(true)}
                 style={{ padding: "12px 18px" }}
               >
@@ -656,6 +674,23 @@ export default function Home() {
                   <Link className="stage-button" href="/games/ludo-league">
                     <Gamepad2 size={15} /> Play Arena
                   </Link>
+                  <button
+                    type="button"
+                    className="stage-button"
+                    onClick={handleStartSoloPractice}
+                    disabled={createSolo.isPending}
+                    style={{
+                      background: "rgba(245, 158, 11, 0.2)",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      color: "#fbbf24",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Zap size={14} /> {createSolo.isPending ? "Loading…" : "⚡ Instant Demo"}
+                  </button>
                   <Link
                     className="stage-button"
                     href="/games/ludo-league"

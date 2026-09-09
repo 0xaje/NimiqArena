@@ -3,6 +3,7 @@ import { User, X, Check, AlertCircle, Sparkles, Shield, Gift, Wallet, Image as I
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { signIdentityMessage } from "@/lib/nimiq-wallet";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
 interface IdentityRegistrationModalProps {
   isOpen: boolean;
@@ -74,6 +75,8 @@ export function IdentityRegistrationModal({
     } catch {}
     onClose();
   };
+
+  useModalBackHandler(isOpen, handleDismiss);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
