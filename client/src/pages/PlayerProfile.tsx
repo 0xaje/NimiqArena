@@ -5,10 +5,14 @@ import {
   ChevronRight,
   Clock,
   Coins,
+  Crown,
   Flame,
   Gamepad2,
+  Gem,
   Gift,
+  Medal,
   RefreshCw,
+  Shield,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -64,14 +68,14 @@ export default function PlayerProfile() {
   const rating = stats?.rating ?? 1000;
   const tier =
     rating >= 1400
-      ? { name: "Grandmaster", color: "#e67e22", icon: "👑" }
+      ? { name: "Grandmaster", color: "#e67e22", Icon: Crown }
       : rating >= 1200
-        ? { name: "Diamond", color: "#9b59b6", icon: "💎" }
+        ? { name: "Diamond", color: "#9b59b6", Icon: Gem }
         : rating >= 1100
-          ? { name: "Gold", color: "#f1c40f", icon: "🥇" }
+          ? { name: "Gold", color: "#f1c40f", Icon: Medal }
           : rating >= 1000
-            ? { name: "Challenger", color: "#3498db", icon: "⚔️" }
-            : { name: "Contender", color: "#95a5a6", icon: "🛡️" };
+            ? { name: "Challenger", color: "#3498db", Icon: Swords }
+            : { name: "Contender", color: "#95a5a6", Icon: Shield };
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const claimRewardMutation = trpc.auth.claimWelcomeReward.useMutation();
@@ -140,8 +144,8 @@ export default function PlayerProfile() {
             </div>
             <div className="profile-titles">
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <div className="profile-tier-badge" style={{ borderColor: tier.color }}>
-                  <span>{tier.icon}</span>
+                <div className="profile-tier-badge" style={{ borderColor: tier.color, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <tier.Icon size={14} color={tier.color} />
                   <strong>{tier.name.toUpperCase()}</strong>
                 </div>
                 {user?.address && (
@@ -256,11 +260,10 @@ export default function PlayerProfile() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "26px",
                 flexShrink: 0,
               }}
             >
-              🎁
+              <Gift size={24} color="#EC9918" />
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -339,7 +342,9 @@ export default function PlayerProfile() {
                   fontWeight: 700,
                 }}
               >
-                ⭐ {(user as any)?.points ?? 1000} Arena Points Active
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <Sparkles size={14} /> {(user as any)?.points ?? 1000} Arena Points Active
+                </span>
               </div>
             )}
           </div>

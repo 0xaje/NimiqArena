@@ -1,3 +1,5 @@
+import { Clock, Target } from "lucide-react";
+
 interface BattlePlayersStripProps {
   p1Name: string;
   p2Name: string;
@@ -51,9 +53,12 @@ export function BattlePlayersStrip({
                   background: "rgba(16, 185, 129, 0.15)",
                   padding: "1px 5px",
                   borderRadius: "4px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
                 }}
               >
-                🎯 {p1Score}/{totalTarget ?? 8}
+                <Target size={11} /> {p1Score}/{totalTarget ?? 8}
               </span>
             )}
           </div>
@@ -65,9 +70,12 @@ export function BattlePlayersStrip({
           style={{
             font: "800 11px 'IBM Plex Mono', monospace",
             color: turnSecondsLeft <= 8 ? "#ef4444" : "#fbbf24",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
           }}
         >
-          ⏱️ {turnSecondsLeft}s
+          <Clock size={12} /> {turnSecondsLeft}s
         </span>
       </div>
 
@@ -84,9 +92,12 @@ export function BattlePlayersStrip({
                   background: "rgba(16, 185, 129, 0.15)",
                   padding: "1px 5px",
                   borderRadius: "4px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
                 }}
               >
-                🎯 {p2Score}/{totalTarget ?? 8}
+                <Target size={11} /> {p2Score}/{totalTarget ?? 8}
               </span>
             )}
             <span className="battle-turn-label">

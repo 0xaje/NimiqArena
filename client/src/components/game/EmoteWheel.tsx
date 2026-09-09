@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageSquare, Smile, Zap } from "lucide-react";
+import { MessageSquare, Smile, X, Zap } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { soundEngine } from "@/lib/audio";
 import { toast } from "sonner";
@@ -170,7 +170,7 @@ export function EmoteWheel({ matchId, disabled = false }: EmoteWheelProps) {
                 fontSize: "12px",
               }}
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
 

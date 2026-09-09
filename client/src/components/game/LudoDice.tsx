@@ -1,4 +1,5 @@
 import React from "react";
+import { Check, Dices } from "lucide-react";
 import { soundEngine } from "@/lib/audio";
 
 export interface LudoDiceProps {
@@ -82,7 +83,7 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
     if (!val) {
       return (
         <div className="dice-empty-face">
-          <span className="dice-symbol">🎲</span>
+          <Dices size={24} color="#94a3b8" />
         </div>
       );
     }
@@ -207,23 +208,45 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
                 <button
                   type="button"
                   className={`dice-choice-pill ${selectedDie === val1 ? "active-choice" : ""}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
                   onClick={e => {
                     e.stopPropagation();
                     onSelectDie?.(selectedDie === val1 ? null : val1);
                   }}
                 >
-                  {selectedDie === val1 ? `✓ Use ${val1} First` : `Count ${val1}`}
-                </button>
-                <button
-                  type="button"
-                  className={`dice-choice-pill ${selectedDie === val2 ? "active-choice" : ""}`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    onSelectDie?.(selectedDie === val2 ? null : val2);
-                  }}
-                >
-                  {selectedDie === val2 ? `✓ Use ${val2} First` : `Count ${val2}`}
-                </button>
+                {selectedDie === val1 ? (
+                  <>
+                    <Check size={11} /> Use {val1} First
+                  </>
+                ) : (
+                  `Count ${val1}`
+                )}
+              </button>
+              <button
+                type="button"
+                className={`dice-choice-pill ${selectedDie === val2 ? "active-choice" : ""}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                onClick={e => {
+                  e.stopPropagation();
+                  onSelectDie?.(selectedDie === val2 ? null : val2);
+                }}
+              >
+                {selectedDie === val2 ? (
+                  <>
+                    <Check size={11} /> Use {val2} First
+                  </>
+                ) : (
+                  `Count ${val2}`
+                )}
+              </button>
               </>
             ) : remainingDice && remainingDice.length === 1 ? (
               <span className="dice-choice-single">

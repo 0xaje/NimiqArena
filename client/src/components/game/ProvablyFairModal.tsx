@@ -164,7 +164,7 @@ export function ProvablyFairModal({
             <div style={{ background: "rgba(0,0,0,0.25)", padding: "8px 10px", borderRadius: "8px", gridColumn: "span 2" }}>
               <span style={{ color: "#64748b", display: "block", fontSize: "0.7rem" }}>ACTIVE DICE REGISTER</span>
               <span style={{ fontFamily: "monospace", color: dice?.length ? "#4ade80" : "#94a3b8" }}>
-                {dice && dice.length > 0 ? `🎲 [ ${dice.join(" , ")} ]` : "Awaiting Roll"}
+                {dice && dice.length > 0 ? `[ ${dice.join(" , ")} ]` : "Awaiting Roll"}
               </span>
             </div>
           </div>

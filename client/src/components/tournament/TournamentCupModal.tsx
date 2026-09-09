@@ -36,52 +36,52 @@ export function TournamentCupModal({
     {
       id: "q1",
       round: "quarter",
-      p1: { name: "You (Challenger)", score: 8, isWinner: true, avatar: "⚡" },
-      p2: { name: "NimiqNinja", score: 5, isWinner: false, avatar: "🥷" },
+      p1: { name: "You (Challenger)", score: 8, isWinner: true, avatar: "YC" },
+      p2: { name: "NimiqNinja", score: 5, isWinner: false, avatar: "NN" },
       status: "completed",
     },
     {
       id: "q2",
       round: "quarter",
-      p1: { name: "Albatross_99", score: 8, isWinner: true, avatar: "🦅" },
-      p2: { name: "CryptoKing", score: 6, isWinner: false, avatar: "👑" },
+      p1: { name: "Albatross_99", score: 8, isWinner: true, avatar: "A9" },
+      p2: { name: "CryptoKing", score: 6, isWinner: false, avatar: "CK" },
       status: "completed",
     },
     {
       id: "q3",
       round: "quarter",
-      p1: { name: "BlockMaster", score: 8, isWinner: true, avatar: "🛡️" },
-      p2: { name: "DiceRoller42", score: 3, isWinner: false, avatar: "🎲" },
+      p1: { name: "BlockMaster", score: 8, isWinner: true, avatar: "BM" },
+      p2: { name: "DiceRoller42", score: 3, isWinner: false, avatar: "DR" },
       status: "completed",
     },
     {
       id: "q4",
       round: "quarter",
-      p1: { name: "SpeedyGonzales", score: 4, isWinner: false, avatar: "🚀" },
-      p2: { name: "SatoshiDream", score: 8, isWinner: true, avatar: "💎" },
+      p1: { name: "SpeedyGonzales", score: 4, isWinner: false, avatar: "SG" },
+      p2: { name: "SatoshiDream", score: 8, isWinner: true, avatar: "SD" },
       status: "completed",
     },
     // Semi finals
     {
       id: "s1",
       round: "semi",
-      p1: { name: "You (Challenger)", score: undefined, isWinner: undefined, avatar: "⚡" },
-      p2: { name: "Albatross_99", score: undefined, isWinner: undefined, avatar: "🦅" },
+      p1: { name: "You (Challenger)", score: undefined, isWinner: undefined, avatar: "YC" },
+      p2: { name: "Albatross_99", score: undefined, isWinner: undefined, avatar: "A9" },
       status: "live",
     },
     {
       id: "s2",
       round: "semi",
-      p1: { name: "BlockMaster", score: undefined, isWinner: undefined, avatar: "🛡️" },
-      p2: { name: "SatoshiDream", score: undefined, isWinner: undefined, avatar: "💎" },
+      p1: { name: "BlockMaster", score: undefined, isWinner: undefined, avatar: "BM" },
+      p2: { name: "SatoshiDream", score: undefined, isWinner: undefined, avatar: "SD" },
       status: "scheduled",
     },
     // Grand Final
     {
       id: "f1",
       round: "final",
-      p1: { name: "Semi-Final 1 Winner", avatar: "🏆" },
-      p2: { name: "Semi-Final 2 Winner", avatar: "🏆" },
+      p1: { name: "Semi-Final 1 Winner", avatar: "TBD" },
+      p2: { name: "Semi-Final 2 Winner", avatar: "TBD" },
       status: "scheduled",
     },
   ];
@@ -200,7 +200,7 @@ export function TournamentCupModal({
             }}
           >
             <span style={{ fontSize: "0.7rem", color: "#fbbf24", fontWeight: 700, display: "block" }}>
-              🥇 1ST PLACE (65%)
+              1ST PLACE (65%)
             </span>
             <strong style={{ fontSize: "1.2rem", color: "#fef08a" }}>{formatNim(firstPrize)} NIM</strong>
           </div>
@@ -214,7 +214,7 @@ export function TournamentCupModal({
             }}
           >
             <span style={{ fontSize: "0.7rem", color: "#cbd5e1", fontWeight: 700, display: "block" }}>
-              🥈 2ND PLACE (25%)
+              2ND PLACE (25%)
             </span>
             <strong style={{ fontSize: "1.2rem", color: "#f1f5f9" }}>{formatNim(secondPrize)} NIM</strong>
           </div>
@@ -228,7 +228,7 @@ export function TournamentCupModal({
             }}
           >
             <span style={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700, display: "block" }}>
-              🥉 3RD/4TH (10%)
+              3RD/4TH PLACE (10%)
             </span>
             <strong style={{ fontSize: "1.2rem", color: "#fed7aa" }}>{formatNim(thirdPrize)} NIM</strong>
           </div>

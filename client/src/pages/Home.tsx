@@ -21,6 +21,7 @@ import {
   Sparkles,
   Terminal,
   Trophy,
+  User,
   WalletCards,
   X,
   Zap,
@@ -436,7 +437,7 @@ export default function Home() {
                     background: "rgba(255, 255, 255, 0.03)",
                   }}
                 >
-                  🎲 Ludo League <span style={{ fontSize: "10px", color: "#EC9918", fontWeight: 700 }}>LIVE</span>
+                  Ludo League <span style={{ fontSize: "10px", color: "#EC9918", fontWeight: 700 }}>LIVE</span>
                 </Link>
                 <Link
                   className="side-nav-sublink"
@@ -454,7 +455,7 @@ export default function Home() {
                     background: "rgba(255, 255, 255, 0.03)",
                   }}
                 >
-                  🔴 Connect NIM <span style={{ fontSize: "10px", color: "#00f0ff", fontWeight: 700 }}>LIVE</span>
+                  Connect NIM <span style={{ fontSize: "10px", color: "#00f0ff", fontWeight: 700 }}>LIVE</span>
                 </Link>
               </div>
             )}
@@ -566,8 +567,9 @@ export default function Home() {
                 )
               }
               title="Switch between Player 1 and Player 2 for two-client testing"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
-              👤 {user?.name ? user.name : "Sign in as Player 1"}
+              <User size={14} /> {user?.name ? user.name : "Sign in as Player 1"}
             </button>
             <button className="wallet-button" onClick={connectWallet}>
               <WalletCards size={16} />{" "}
@@ -637,7 +639,7 @@ export default function Home() {
                   gap: "6px",
                 }}
               >
-                <Zap size={16} /> {createSolo.isPending ? "Launching…" : "⚡ Instant Demo vs AI"}
+                <Zap size={16} /> {createSolo.isPending ? "Launching…" : "Instant Demo vs AI"}
               </button>
               <button
                 type="button"
@@ -689,7 +691,7 @@ export default function Home() {
                       gap: "6px",
                     }}
                   >
-                    <Zap size={14} /> {createSolo.isPending ? "Loading…" : "⚡ Instant Demo"}
+                    <Zap size={14} /> {createSolo.isPending ? "Loading…" : "Instant Demo"}
                   </button>
                   <Link
                     className="stage-button"

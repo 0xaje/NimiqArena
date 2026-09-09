@@ -1,6 +1,8 @@
 import {
   ArrowLeft,
+  CircleDot,
   Copy,
+  Dices,
   Gamepad2,
   KeyRound,
   PlusCircle,
@@ -222,7 +224,7 @@ export default function JoinMatch() {
                         gap: "6px",
                       }}
                     >
-                      <span style={{ fontSize: "28px" }}>🎲</span>
+                      <Dices size={28} color="#EC9918" />
                       <strong style={{ color: "#fff", fontSize: "14px" }}>Ludo League</strong>
                       <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.55)" }}>Classic Board Game</span>
                     </button>
@@ -242,7 +244,7 @@ export default function JoinMatch() {
                         gap: "6px",
                       }}
                     >
-                      <span style={{ fontSize: "28px" }}>🔴</span>
+                      <CircleDot size={28} color="#00f0ff" />
                       <strong style={{ color: "#fff", fontSize: "14px" }}>Connect NIM</strong>
                       <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.55)" }}>Tactical 4-in-a-Row</span>
                     </button>
@@ -282,7 +284,9 @@ export default function JoinMatch() {
               </form>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "20px", textAlign: "center" }}>
-                <div style={{ fontSize: "36px" }}>🎉</div>
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <Sparkles size={36} color="#EC9918" />
+                </div>
                 <div>
                   <span className="card-label" style={{ color: "#EC9918" }}>YOUR PRIVATE INVITE CODE</span>
                   <div

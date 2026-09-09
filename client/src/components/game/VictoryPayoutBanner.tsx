@@ -80,7 +80,7 @@ export function VictoryPayoutBanner({
           {totalPotNim > 0 ? "COMPETITIVE MATCH CONCLUDED" : "PRACTICE MATCH COMPLETE"}
         </span>
         <h2 className="victory-main-title">
-          {isWinner ? "🏆 YOU WON THE MATCH!" : "MATCH CONCLUDED"}
+          {isWinner ? "YOU WON THE MATCH!" : "MATCH CONCLUDED"}
         </h2>
       </div>
 

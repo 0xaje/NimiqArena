@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Coins,
   Copy,
+  Gem,
   Gift,
   Share2,
   ShieldCheck,
@@ -99,15 +100,14 @@ export default function Earn() {
                 height: "56px",
                 borderRadius: "16px",
                 backgroundColor: isClaimed ? "rgba(16, 185, 129, 0.15)" : "rgba(236, 153, 24, 0.15)",
-                border: isClaimed ? "1px solid rgba(16, 185, 129, 0.5)" : "1px solid rgba(236, 153, 24, 0.5)",
+                border: isClaimed ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(236, 153, 24, 0.4)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "28px",
                 flexShrink: 0,
               }}
             >
-              🎁
+              <Gift size={26} color={isClaimed ? "#10b981" : "#EC9918"} />
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -187,7 +187,7 @@ export default function Earn() {
                   gap: "8px",
                 }}
               >
-                ⭐ {points.toLocaleString()} Arena Points
+                <Sparkles size={16} /> {points.toLocaleString()} Arena Points
               </div>
             )}
           </div>
@@ -215,7 +215,7 @@ export default function Earn() {
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
-            <div style={{ fontSize: "24px", marginBottom: "8px" }}>🏆</div>
+            <Trophy size={24} color="#EC9918" style={{ marginBottom: "8px" }} />
             <strong style={{ color: "#fff", display: "block", fontSize: "15px", marginBottom: "4px" }}>
               90% Winner Prize Pot
             </strong>
@@ -232,7 +232,7 @@ export default function Earn() {
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
-            <div style={{ fontSize: "24px", marginBottom: "8px" }}>👥</div>
+            <Users size={24} color="#38bdf8" style={{ marginBottom: "8px" }} />
             <strong style={{ color: "#fff", display: "block", fontSize: "15px", marginBottom: "4px" }}>
               5% Lifetime Referral Cut
             </strong>
@@ -249,7 +249,7 @@ export default function Earn() {
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
-            <div style={{ fontSize: "24px", marginBottom: "8px" }}>💎</div>
+            <Gem size={24} color="#c084fc" style={{ marginBottom: "8px" }} />
             <strong style={{ color: "#fff", display: "block", fontSize: "15px", marginBottom: "4px" }}>
               Rankings &amp; Elo Tiers
             </strong>

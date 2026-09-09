@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ArrowUpRight,
+  Bot,
   Check,
   Coins,
   Copy,
@@ -9,6 +10,7 @@ import {
   ShieldCheck,
   Users,
   WalletCards,
+  X,
   Zap,
 } from "lucide-react";
 import { useState } from "react";
@@ -174,8 +176,9 @@ export default function Connect4Detail() {
               <button
                 className="quickmatch-close-btn"
                 onClick={() => setIsStakeModalOpen(false)}
+                aria-label="Close"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
             <div
@@ -316,9 +319,15 @@ export default function Connect4Detail() {
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
                 disabled={createSolo.isPending}
-                style={{ padding: "12px 16px", cursor: "pointer" }}
+                style={{
+                  padding: "12px 16px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
               >
-                🤖{" "}
+                <Bot size={16} />
                 {createSolo.isPending
                   ? "Starting…"
                   : "Solo Practice (vs AI)"}

@@ -89,10 +89,12 @@ export function ReferralCard() {
             fontWeight: 700,
             padding: "4px 10px",
             borderRadius: "20px",
-            border: "1px solid rgba(34, 197, 94, 0.3)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
           }}
         >
-          🎁 500 PTS / REFERRAL
+          <Gift size={13} /> 500 PTS / REFERRAL
         </span>
       </div>
 

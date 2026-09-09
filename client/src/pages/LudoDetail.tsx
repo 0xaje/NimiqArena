@@ -1,12 +1,14 @@
 import {
   ArrowLeft,
   ArrowUpRight,
+  Bot,
   Check,
   Coins,
   Copy,
   Gamepad2,
   LockKeyhole,
   ShieldCheck,
+  Trophy,
   Users,
   WalletCards,
   Zap,
@@ -223,9 +225,15 @@ export default function LudoDetail() {
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
                 disabled={createSolo.isPending}
-                style={{ padding: "12px 18px", cursor: "pointer" }}
+                style={{
+                  padding: "12px 18px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
               >
-                🤖 {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
+                <Bot size={16} /> {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
               </button>
               <button
                 className="secondary-chip"
@@ -241,7 +249,7 @@ export default function LudoDetail() {
                   gap: "6px",
                 }}
               >
-                🏆 8-Player Cup
+                <Trophy size={16} /> 8-Player Cup
               </button>
             </div>
             <div className="trust-line">

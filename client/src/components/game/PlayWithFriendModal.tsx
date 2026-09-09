@@ -128,7 +128,7 @@ export function PlayWithFriendModal({
   const shareTelegram = () => {
     if (!createdMatch) return;
     const text = encodeURIComponent(
-      `⚔️ Play ${gameTitle} with me on Nimiq Arena!\nRoom Code: ${createdMatch.joinCode}\n${shareableUrl}`
+      `Play ${gameTitle} with me on Nimiq Arena!\nRoom Code: ${createdMatch.joinCode}\n${shareableUrl}`
     );
     window.open(`https://t.me/share/url?url=${encodeURIComponent(shareableUrl)}&text=${text}`, "_blank");
   };
@@ -136,7 +136,7 @@ export function PlayWithFriendModal({
   const shareWhatsApp = () => {
     if (!createdMatch) return;
     const text = encodeURIComponent(
-      `⚔️ Play ${gameTitle} with me on Nimiq Arena! Join code: ${createdMatch.joinCode} 👉 ${shareableUrl}`
+      `Play ${gameTitle} with me on Nimiq Arena! Join code: ${createdMatch.joinCode} - ${shareableUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };

@@ -259,19 +259,19 @@ export function MatchWaitingRoom({
           {showDistDetails && (
             <div className="dist-expanded-grid">
               <div className="dist-expanded-item">
-                <span className="role">🏆 Winner (90%)</span>
+                <span className="role">Winner (90%)</span>
                 <span className="val">{formatNim(dist.winnerNim)} NIM</span>
               </div>
               <div className="dist-expanded-item">
-                <span className="role">👷 Builder (5%)</span>
+                <span className="role">Builder Fee (5%)</span>
                 <span className="val">{formatNim(dist.builderNim)} NIM</span>
               </div>
               <div className="dist-expanded-item">
-                <span className="role">🌐 Nimiq Ecosystem (3%)</span>
+                <span className="role">Nimiq Ecosystem (3%)</span>
                 <span className="val">{formatNim(dist.ecosystemNim)} NIM</span>
               </div>
               <div className="dist-expanded-item">
-                <span className="role">❤️ Charity (2%)</span>
+                <span className="role">Charity Vault (2%)</span>
                 <span className="val">{formatNim(dist.charityNim)} NIM</span>
               </div>
             </div>

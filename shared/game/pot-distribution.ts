@@ -2,11 +2,11 @@
  * Shared Authoritative Pot Distribution Engine for Nimiq Arena
  * 
  * Official Match Pot Distribution Model:
- * 🏆 Winner — 90%
- * 👷 Builder — 5%
- * 🌐 Nimiq Ecosystem — 3%
- * ❤️ Charity — 2%
- * Total — 100%
+ * - Winner: 90%
+ * - Builder Fee: 5%
+ * - Nimiq Ecosystem Pool: 3%
+ * - Charity Vault: 2%
+ * Total: 100%
  *
  * All financial allocations are computed in integer Luna (1 NIM = 100,000 Luna)
  * to prevent floating-point inaccuracies or value leakage.

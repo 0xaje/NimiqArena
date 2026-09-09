@@ -41,33 +41,33 @@ export function TurnEventBanner({
       {isFinished ? (
         <span>
           {winner === "draw"
-            ? "🤝 MATCH ENDED IN A DRAW"
+            ? "MATCH ENDED IN A DRAW"
             : winner === yourSeat
-              ? "🎉 CONGRATULATIONS! YOU WON THE MATCH!"
+              ? "CONGRATULATIONS! YOU WON THE MATCH!"
               : isSpectator
-                ? `🏆 MATCH OVER — PLAYER ${typeof winner === "number" ? winner + 1 : ""} WON`
+                ? `MATCH OVER — PLAYER ${typeof winner === "number" ? winner + 1 : ""} WON`
                 : `MATCH OVER — ${opponentName.toUpperCase()} WON`}
         </span>
       ) : isSpectator ? (
-        <span>👁️ LIVE SPECTATOR MODE — Watching Live Match Action</span>
+        <span>LIVE SPECTATOR MODE — Watching Live Match Action</span>
       ) : botActionMessage ? (
         <span>{botActionMessage}</span>
       ) : isYourTurn ? (
         isC4 ? (
-          <span>🎯 YOUR TURN — CLICK ANY COLUMN TO DROP YOUR DISC</span>
+          <span>YOUR TURN — CLICK ANY COLUMN TO DROP YOUR DISC</span>
         ) : remainingDice && remainingDice.length === 2 && remainingDice[0] === 6 && remainingDice[1] === 6 ? (
-          <span>🌟 DOUBLE 6! Deploy 2 pawns from base or move! (Bonus roll awaits)</span>
+          <span>DOUBLE 6! Deploy 2 pawns from base or move (Bonus roll awaits)</span>
         ) : remainingDice && remainingDice.length === 1 ? (
-          <span>👉 1 MOVE REMAINING ([{remainingDice[0]}]) — Select next piece to move</span>
+          <span>1 MOVE REMAINING ([{remainingDice[0]}]) — Select next piece to move</span>
         ) : dice !== null ? (
-          <span>👉 CHOOSE YOUR HIGHLIGHTED PAWN TO MOVE</span>
+          <span>CHOOSE YOUR HIGHLIGHTED PAWN TO MOVE</span>
         ) : (
-          <span>🎲 YOUR TURN — ROLL THE DICE</span>
+          <span>YOUR TURN — ROLL THE DICE</span>
         )
       ) : isBotTurn ? (
-        <span>🤖 NIMIQ AI IS EVALUATING THE BOARD…</span>
+        <span>NIMIQ AI IS EVALUATING THE BOARD…</span>
       ) : (
-        <span>⏳ OPPONENT'S TURN — WAITING…</span>
+        <span>OPPONENT'S TURN — WAITING…</span>
       )}
     </div>
   );

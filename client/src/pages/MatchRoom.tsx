@@ -164,25 +164,25 @@ export default function MatchRoom() {
   useEffect(() => {
     if (isBotTurn) {
       setIsBotRolling(true);
-      setBotActionMessage("🤖 Nimiq AI is taking its turn…");
+      setBotActionMessage("Nimiq AI is taking its turn…");
     } else {
       setIsBotRolling(false);
       const lastRoll = snapshot?.lastRoll;
       if (lastRoll && isBotMatch && lastRoll.playerId === 1) {
         if (!lastRoll.hadLegalMoves) {
           setBotActionMessage(
-            `🤖 Nimiq AI rolled ${lastRoll.value} (no legal moves) — Your turn!`
+            `Nimiq AI rolled ${lastRoll.value} (no legal moves) — Your turn!`
           );
         } else {
           setBotActionMessage(
-            `🤖 Nimiq AI rolled ${lastRoll.value} and moved! Your turn!`
+            `Nimiq AI rolled ${lastRoll.value} and moved! Your turn!`
           );
         }
         const timer = window.setTimeout(() => setBotActionMessage(null), 2500);
         return () => window.clearTimeout(timer);
       } else if (lastRoll && lastRoll.playerId === yourSeat && !lastRoll.hadLegalMoves) {
         setBotActionMessage(
-          `🎲 You rolled ${lastRoll.value} (no legal moves available) — Turn passed.`
+          `You rolled ${lastRoll.value} (no legal moves available) — Turn passed.`
         );
         const timer = window.setTimeout(() => setBotActionMessage(null), 2600);
         return () => window.clearTimeout(timer);
