@@ -55,7 +55,13 @@ type GameCard = {
   description: string;
 };
 
-function formatAddress(address: string) {
+function formatAddress(address: string, short: boolean = false) {
+  if (!address) return "";
+  if (short) {
+    return address.length > 9
+      ? `${address.slice(0, 4)}…${address.slice(-4)}`
+      : address;
+  }
   return address.length > 14
     ? `${address.slice(0, 7)}…${address.slice(-5)}`
     : address;
@@ -487,6 +493,22 @@ export default function Home() {
             <span>Mini App SDK</span>
             <strong>INSPECT</strong>
           </button>
+          <button
+            className="language-button"
+            onClick={() => {
+              switchPlayer(
+                user?.name?.includes("1")
+                  ? "Player 2 (Guest)"
+                  : "Player 1 (Host)"
+              );
+              setMobileMenu(false);
+            }}
+            style={{ marginTop: 8 }}
+            title="Switch between Player 1 and Player 2"
+          >
+            <span>Test Player Identity</span>
+            <strong>{user?.name || "PLAYER 1"}</strong>
+          </button>
         </div>
       </aside>
       {mobileMenu && (
@@ -499,40 +521,37 @@ export default function Home() {
 
       <main className="arena-main">
         <header className="topbar">
-          <button
-            className="icon-button mobile-trigger"
-            aria-label="Open navigation"
-            onClick={() => setMobileMenu(true)}
-          >
-            <Menu size={20} />
-          </button>
-          <div className="topbar-brand">
-            <span className="topbar-kicker">NIMIQ ARENA</span>
-            <span className="topbar-title">
-              A place to play, meet, and compete.
-            </span>
+          <div className="topbar-left">
+            <button
+              className="icon-button mobile-trigger"
+              aria-label="Open navigation"
+              onClick={() => setMobileMenu(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <div className="topbar-brand">
+              <span className="topbar-kicker">NIMIQ ARENA</span>
+              <span className="topbar-title">
+                A place to play, meet, and compete.
+              </span>
+            </div>
           </div>
+
           <div className="top-actions">
             {user?.name && !user.name.startsWith("Player 1") && !user.name.startsWith("guest-") && (
               <Link
                 href="/profile"
-                className="search-button"
+                className="topbar-profile-badge"
                 title="View Player Profile & Rewards"
-                style={{
-                  borderColor: "rgba(245, 158, 11, 0.4)",
-                  color: "#f59e0b",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  textDecoration: "none",
-                }}
               >
-                <Sparkles size={14} />
-                @{user.name}
+                <Sparkles size={13} className="sparkle-gold" />
+                <span className="profile-name">@{user.name}</span>
               </Link>
             )}
+
+            {/* Desktop-only player switcher */}
             <button
-              className="search-button"
+              className="search-button desktop-player-switch"
               onClick={() =>
                 switchPlayer(
                   user?.name?.includes("1")
@@ -540,26 +559,57 @@ export default function Home() {
                     : "Player 1 (Host)"
                 )
               }
-              title="Switch between Player 1 and Player 2 for two-client testing"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              title="Switch between Player 1 and Player 2 for testing"
             >
               <User size={14} /> {user?.name ? user.name : "Sign in as Player 1"}
             </button>
-            <button className="wallet-button" onClick={connectWallet}>
-              <WalletCards size={16} />{" "}
-              {address ? (
-                <>
-                  {walletBalance !== null ? (
-                    <span style={{ color: "#EC9918", fontWeight: 700, marginRight: "4px" }}>
-                      {walletBalance.toFixed(1)} NIM ·
-                    </span>
-                  ) : null}
-                  {formatAddress(address)}
-                </>
-              ) : (
-                "Connect wallet"
-              )}
+
+            {/* Mobile-only compact player indicator button */}
+            <button
+              className="mobile-player-icon-btn"
+              onClick={() =>
+                switchPlayer(
+                  user?.name?.includes("1")
+                    ? "Player 2 (Guest)"
+                    : "Player 1 (Host)"
+                )
+              }
+              title={`Switch Player (Active: ${user?.name || "Player 1"})`}
+              aria-label="Switch test player"
+            >
+              <User size={13} />
+              <span className="mobile-player-indicator">
+                {user?.name?.includes("2") ? "P2" : "P1"}
+              </span>
             </button>
+
+            {/* Premium Web3 Connect & Balance Capsule */}
+            {address ? (
+              <button
+                className="topbar-wallet-capsule"
+                onClick={connectWallet}
+                title={`Connected: ${address}\nBalance: ${walletBalance !== null ? walletBalance.toFixed(2) + " NIM" : "Loading..."}\nClick to manage wallet`}
+              >
+                {walletBalance !== null && (
+                  <span className="capsule-balance-zone">
+                    <span className="balance-live-dot" />
+                    <strong className="balance-amount">{walletBalance.toFixed(1)}</strong>
+                    <span className="balance-ticker">NIM</span>
+                  </span>
+                )}
+                <span className="capsule-address-zone">
+                  <WalletCards size={13} className="capsule-wallet-icon" />
+                  <span className="capsule-address-desktop">{formatAddress(address)}</span>
+                  <span className="capsule-address-mobile">{formatAddress(address, true)}</span>
+                </span>
+              </button>
+            ) : (
+              <button className="topbar-connect-btn" onClick={connectWallet}>
+                <WalletCards size={14} />
+                <span className="connect-btn-text">Connect Wallet</span>
+                <span className="connect-btn-mobile-text">Connect</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -577,7 +627,7 @@ export default function Home() {
             </h1>
             <p className="hero-dek">
               Provably fair multiplayer strategy games powered by the ultra-fast Nimiq blockchain.
-              Claim your Web3 identity, invite friends to earn 5% match commissions, and compete for on-chain pots.
+              Claim your Web3 identity, invite friends to earn 2% match commissions, and compete for on-chain pots.
             </p>
             <div className="hero-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
               <a

@@ -317,8 +317,17 @@ a:focus-visible {
 }
 .topbar {
   height: 86px;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--rule);
+  position: relative;
+  z-index: 10;
+}
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 .breadcrumb {
   gap: 8px;
@@ -329,8 +338,160 @@ a:focus-visible {
   font-size: 10px;
 }
 .top-actions {
-  gap: 26px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
 }
+.desktop-player-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mobile-player-icon-btn {
+  display: none;
+}
+.topbar-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.08);
+  color: #f59e0b;
+  font: 600 11px "IBM Plex Mono", monospace;
+  text-decoration: none;
+  transition: all 0.2s var(--ease-out);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbar-profile-badge:hover {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+.sparkle-gold {
+  color: #f59e0b;
+}
+
+/* Premium Web3 Wallet Capsule */
+.topbar-wallet-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f121a;
+  border: 1px solid rgba(236, 153, 24, 0.38);
+  border-radius: 9999px;
+  padding: 4px 6px 4px 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.18s var(--ease-out);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbar-wallet-capsule:hover {
+  border-color: #EC9918;
+  background: #141824;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(236, 153, 24, 0.25);
+}
+.topbar-wallet-capsule:active {
+  transform: scale(0.98);
+}
+.capsule-balance-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #EC9918;
+  font-family: "IBM Plex Mono", monospace;
+}
+.balance-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.9);
+  flex-shrink: 0;
+  animation: livePulse 2.4s infinite ease-in-out;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.balance-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #EC9918;
+  letter-spacing: -0.02em;
+}
+.balance-ticker {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(236, 153, 24, 0.85);
+  margin-right: 2px;
+}
+.capsule-address-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 6px 11px;
+  border-radius: 9999px;
+  color: #e6edf3;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+.topbar-wallet-capsule:hover .capsule-address-zone {
+  background: rgba(255, 255, 255, 0.13);
+}
+.capsule-wallet-icon {
+  color: #EC9918;
+  flex-shrink: 0;
+}
+.capsule-address-mobile {
+  display: none;
+}
+.capsule-address-desktop {
+  display: inline;
+}
+
+/* Connect Wallet CTA */
+.topbar-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #EC9918 0%, #D97706 100%);
+  color: #0b0e14;
+  border: none;
+  border-radius: 9999px;
+  padding: 10px 18px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(236, 153, 24, 0.35);
+  transition: all 0.18s var(--ease-out);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbar-connect-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(236, 153, 24, 0.5);
+}
+.topbar-connect-btn:active {
+  transform: scale(0.97);
+}
+.connect-btn-mobile-text {
+  display: none;
+}
+.connect-btn-text {
+  display: inline;
+}
+
 .help-link,
 .text-action {
   color: var(--ink-soft);
@@ -880,7 +1041,76 @@ h1 em,
     display: inline-flex;
   }
   .topbar {
-    height: 70px;
+    height: 64px;
+    padding: 0;
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .topbar-title {
+    display: none;
+  }
+  .topbar-kicker {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .desktop-player-switch {
+    display: none !important;
+  }
+  .mobile-player-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(251, 248, 241, 0.85);
+    border: 1px solid var(--rule);
+    border-radius: 9999px;
+    padding: 6px 9px;
+    font-size: 11px;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+  .mobile-player-icon-btn:hover {
+    background: #fff;
+    border-color: var(--orange);
+  }
+  .mobile-player-indicator {
+    background: var(--ink);
+    color: var(--paper-bright);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+  .top-actions {
+    gap: 8px !important;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .topbar-profile-badge {
+    padding: 5px 9px;
+    font-size: 10px;
+  }
+  .topbar-wallet-capsule {
+    padding: 3px 4px 3px 9px;
+    gap: 6px;
+  }
+  .balance-amount {
+    font-size: 12px;
+  }
+  .balance-ticker {
+    font-size: 9.5px;
+  }
+  .capsule-address-zone {
+    padding: 5px 8px;
+    font-size: 10.5px;
+    gap: 4px;
   }
   .breadcrumb {
     margin-right: auto;
@@ -951,13 +1181,54 @@ h1 em,
 }
 @media (max-width: 480px) {
   .arena-main {
-    padding: 0 20px;
+    padding: 0 16px;
   }
-  .wallet-button {
-    padding: 10px 11px;
+  .topbar {
+    height: 60px !important;
   }
-  .wallet-button svg {
+  .top-actions {
+    gap: 6px !important;
+  }
+  .topbar-profile-badge .profile-name {
     display: none;
+  }
+  .topbar-profile-badge {
+    padding: 5px 7px;
+  }
+  .capsule-address-desktop {
+    display: none !important;
+  }
+  .capsule-address-mobile {
+    display: inline !important;
+  }
+  .topbar-wallet-capsule {
+    padding: 3px 3px 3px 8px;
+    gap: 5px;
+  }
+  .balance-amount {
+    font-size: 11px;
+  }
+  .balance-ticker {
+    font-size: 9px;
+  }
+  .capsule-address-zone {
+    padding: 4px 7px;
+    font-size: 10px;
+    gap: 4px;
+  }
+  .connect-btn-text {
+    display: none !important;
+  }
+  .connect-btn-mobile-text {
+    display: inline !important;
+  }
+  .topbar-connect-btn {
+    padding: 7px 11px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .mobile-player-icon-btn {
+    padding: 5px 7px;
   }
   h1 {
     font-size: 54px;
