@@ -397,8 +397,7 @@ export default function Home() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "8px 12px",
-                color: isGameLibraryOpen ? "#ffffff" : "var(--silver)",
+                padding: "12px 0",
                 fontFamily: "inherit",
               }}
               onClick={() => setIsGameLibraryOpen(!isGameLibraryOpen)}
@@ -409,52 +408,28 @@ export default function Home() {
               <span>02</span>
             </button>
             {isGameLibraryOpen && (
-              <div
-                className="side-nav-sublinks"
-                style={{
-                  paddingLeft: "16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                  marginTop: "2px",
-                  marginBottom: "6px",
-                }}
-              >
+              <div className="side-nav-sublinks">
                 <Link
                   className="side-nav-sublink"
                   href="/games/ludo-league"
                   onClick={() => setMobileMenu(false)}
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 255, 255, 0.75)",
-                    textDecoration: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "6px 8px",
-                    borderRadius: "6px",
-                    background: "rgba(255, 255, 255, 0.03)",
-                  }}
                 >
-                  Ludo League <span style={{ fontSize: "10px", color: "#EC9918", fontWeight: 700 }}>LIVE</span>
+                  <span className="side-nav-sublink-title">
+                    <span className="side-nav-dot ludo-dot" />
+                    Ludo League
+                  </span>
+                  <span className="side-nav-badge ludo-badge">LIVE</span>
                 </Link>
                 <Link
                   className="side-nav-sublink"
                   href="/games/connect-four"
                   onClick={() => setMobileMenu(false)}
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 255, 255, 0.75)",
-                    textDecoration: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "6px 8px",
-                    borderRadius: "6px",
-                    background: "rgba(255, 255, 255, 0.03)",
-                  }}
                 >
-                  Connect NIM <span style={{ fontSize: "10px", color: "#00f0ff", fontWeight: 700 }}>LIVE</span>
+                  <span className="side-nav-sublink-title">
+                    <span className="side-nav-dot c4-dot" />
+                    Connect NIM
+                  </span>
+                  <span className="side-nav-badge c4-badge">LIVE</span>
                 </Link>
               </div>
             )}

@@ -374,53 +374,78 @@ export default function Connect4Detail() {
           </div>
         </section>
 
-        <section className="detail-grid" style={{ marginTop: "40px" }}>
-          <div className="detail-hero-card" style={{ gridColumn: "span 2" }}>
-            <div className="card-topline">
-              <span className="card-label">TACTICAL PROTOCOL SPECIFICATIONS</span>
-              <span className="status-indicator">
-                <span className="status-dot green"></span>
+        <section className="c4-protocol-section">
+          <div className="c4-protocol-card">
+            <div className="c4-protocol-topline">
+              <div className="c4-protocol-tagline">
+                <span className="c4-protocol-pulse" />
+                <span className="c4-protocol-label">TACTICAL PROTOCOL SPECIFICATIONS</span>
+                <span className="c4-protocol-code">[SYS_PROTO_002]</span>
+              </div>
+              <div className="c4-protocol-status">
+                <span className="c4-status-dot-pulse" />
                 ACTIVE PROTOCOL
-              </span>
+              </div>
             </div>
 
-            <div className="feature-grid">
-              <div className="feature-item">
-                <div className="feature-icon">
-                  <Gamepad2 size={20} />
+            <div className="c4-feature-grid">
+              <div className="c4-feature-card">
+                <div className="c4-feature-header">
+                  <div className="c4-feature-icon-wrapper grid-accent">
+                    <Gamepad2 size={22} />
+                  </div>
+                  <span className="c4-feature-badge grid-accent">MATRIX ENGINE</span>
                 </div>
-                <div>
-                  <h4>7x6 Vertical Grid</h4>
-                  <p>
+                <div className="c4-feature-body">
+                  <h4 className="c4-feature-title">7x6 Vertical Grid</h4>
+                  <p className="c4-feature-description">
                     Vertical gravity drop physics with horizontal, vertical,
                     and diagonal win detection.
                   </p>
                 </div>
+                <div className="c4-feature-footer">
+                  <span className="c4-metric-label">ARCHITECTURE</span>
+                  <span className="c4-metric-value">42-SLOT BITBOARD</span>
+                </div>
               </div>
 
-              <div className="feature-item">
-                <div className="feature-icon">
-                  <Coins size={20} />
+              <div className="c4-feature-card">
+                <div className="c4-feature-header">
+                  <div className="c4-feature-icon-wrapper escrow-accent">
+                    <Coins size={22} />
+                  </div>
+                  <span className="c4-feature-badge escrow-accent">ON-CHAIN ESCROW</span>
                 </div>
-                <div>
-                  <h4>Wagered NIM Escrow</h4>
-                  <p>
+                <div className="c4-feature-body">
+                  <h4 className="c4-feature-title">Wagered NIM Escrow</h4>
+                  <p className="c4-feature-description">
                     Stake 10 to 500 NIM per match. Winner automatically claims
                     90% of the pot on-chain.
                   </p>
                 </div>
+                <div className="c4-feature-footer">
+                  <span className="c4-metric-label">SETTLEMENT</span>
+                  <span className="c4-metric-value">90% WINNER PAYOUT</span>
+                </div>
               </div>
 
-              <div className="feature-item">
-                <div className="feature-icon">
-                  <Zap size={20} />
+              <div className="c4-feature-card">
+                <div className="c4-feature-header">
+                  <div className="c4-feature-icon-wrapper ai-accent">
+                    <Zap size={22} />
+                  </div>
+                  <span className="c4-feature-badge ai-accent">NEURAL HEURISTIC</span>
                 </div>
-                <div>
-                  <h4>Tactical AI Engine</h4>
-                  <p>
+                <div className="c4-feature-body">
+                  <h4 className="c4-feature-title">Tactical AI Engine</h4>
+                  <p className="c4-feature-description">
                     Practice against an intelligent heuristic bot that detects
                     tactical forks and blocks.
                   </p>
+                </div>
+                <div className="c4-feature-footer">
+                  <span className="c4-metric-label">RESPONSE TIME</span>
+                  <span className="c4-metric-value">&lt; 300MS ADAPTIVE</span>
                 </div>
               </div>
             </div>
