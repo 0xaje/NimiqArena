@@ -115,8 +115,175 @@ export async function ensureDefaultGamesSeeded(db: ReturnType<typeof drizzle>) {
 
 let _initDbPromise: Promise<void> | null = null;
 
+async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
+  const tableStatements = [
+    sql`CREATE TABLE IF NOT EXISTS \`users\` (
+      \`id\` int AUTO_INCREMENT NOT NULL,
+      \`openId\` varchar(64) NOT NULL,
+      \`name\` text,
+      \`email\` varchar(320),
+      \`loginMethod\` varchar(64),
+      \`role\` enum('user','admin') NOT NULL DEFAULT 'user',
+      \`address\` varchar(64),
+      \`points\` int NOT NULL DEFAULT 1000,
+      \`referralCode\` varchar(32),
+      \`referredByUserId\` int,
+      \`referralEarningsNim\` int NOT NULL DEFAULT 0,
+      \`evmAddress\` varchar(64),
+      \`avatar\` varchar(255),
+      \`welcomeClaimed\` boolean NOT NULL DEFAULT false,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      \`lastSignedIn\` timestamp NOT NULL DEFAULT (now()),
+      CONSTRAINT \`users_id\` PRIMARY KEY(\`id\`),
+      CONSTRAINT \`users_openId_unique\` UNIQUE(\`openId\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`games\` (
+      \`id\` varchar(32) NOT NULL,
+      \`slug\` varchar(64) NOT NULL,
+      \`name\` varchar(128) NOT NULL,
+      \`kind\` enum('ludo','connect4') NOT NULL,
+      \`status\` enum('active','coming_soon','concept','unavailable') NOT NULL DEFAULT 'unavailable',
+      \`description\` text NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`games_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`seasons\` (
+      \`id\` varchar(32) NOT NULL,
+      \`number\` int unsigned NOT NULL,
+      \`name\` varchar(64) NOT NULL,
+      \`status\` enum('upcoming','active','ended') NOT NULL DEFAULT 'active',
+      \`startsAt\` timestamp NOT NULL,
+      \`endsAt\` timestamp NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`seasons_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`matches\` (
+      \`id\` varchar(32) NOT NULL,
+      \`gameId\` varchar(32) NOT NULL,
+      \`seasonId\` varchar(32) NOT NULL DEFAULT 'season-1',
+      \`hostUserId\` int NOT NULL,
+      \`winnerUserId\` int,
+      \`loserUserId\` int,
+      \`paymentIntentId\` varchar(32),
+      \`joinCode\` varchar(16) NOT NULL,
+      \`visibility\` enum('challenge_friend','public') NOT NULL DEFAULT 'challenge_friend',
+      \`status\` enum('waiting','in_progress','finished','cancelled','expired') NOT NULL DEFAULT 'waiting',
+      \`engineVersion\` varchar(16) NOT NULL,
+      \`stateVersion\` int unsigned NOT NULL DEFAULT 0,
+      \`stateJson\` text NOT NULL,
+      \`expiresAt\` timestamp NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`matches_id\` PRIMARY KEY(\`id\`),
+      CONSTRAINT \`matches_joinCode_unique\` UNIQUE(\`joinCode\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`match_players\` (
+      \`id\` int AUTO_INCREMENT NOT NULL,
+      \`matchId\` varchar(32) NOT NULL,
+      \`userId\` int NOT NULL,
+      \`seat\` int unsigned NOT NULL,
+      \`paymentIntentId\` varchar(32),
+      \`status\` enum('joined','disconnected','left') NOT NULL DEFAULT 'joined',
+      \`joinedAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      \`lastSeenAt\` timestamp NOT NULL DEFAULT (now()),
+      CONSTRAINT \`match_players_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`match_events\` (
+      \`id\` int unsigned AUTO_INCREMENT NOT NULL,
+      \`matchId\` varchar(32) NOT NULL,
+      \`version\` int unsigned NOT NULL,
+      \`userId\` int NOT NULL,
+      \`commandNonce\` varchar(64) NOT NULL,
+      \`commandJson\` text NOT NULL,
+      \`eventJson\` text NOT NULL,
+      \`snapshotJson\` text NOT NULL,
+      \`resultStatus\` varchar(32) NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      CONSTRAINT \`match_events_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`player_ratings\` (
+      \`id\` int unsigned AUTO_INCREMENT NOT NULL,
+      \`userId\` int NOT NULL,
+      \`gameSlug\` varchar(64) NOT NULL,
+      \`seasonId\` varchar(32) NOT NULL,
+      \`rating\` int NOT NULL DEFAULT 1000,
+      \`wins\` int unsigned NOT NULL DEFAULT 0,
+      \`losses\` int unsigned NOT NULL DEFAULT 0,
+      \`currentStreak\` int unsigned NOT NULL DEFAULT 0,
+      \`bestStreak\` int unsigned NOT NULL DEFAULT 0,
+      \`matchesPlayed\` int unsigned NOT NULL DEFAULT 0,
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`player_ratings_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`rating_history\` (
+      \`id\` int unsigned AUTO_INCREMENT NOT NULL,
+      \`matchId\` varchar(32) NOT NULL,
+      \`userId\` int NOT NULL,
+      \`seasonId\` varchar(32) NOT NULL,
+      \`gameSlug\` varchar(64) NOT NULL,
+      \`previousRating\` int NOT NULL,
+      \`ratingChange\` int NOT NULL,
+      \`newRating\` int NOT NULL,
+      \`opponentUserId\` int NOT NULL,
+      \`opponentRating\` int NOT NULL,
+      \`outcome\` enum('win','loss','draw','abandoned_loss','abandoned_win') NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      CONSTRAINT \`rating_history_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`payment_intents\` (
+      \`id\` varchar(32) NOT NULL,
+      \`userId\` int NOT NULL,
+      \`recipient\` varchar(64) NOT NULL,
+      \`valueLuna\` int unsigned NOT NULL,
+      \`status\` enum('created','confirmation_pending','submitted','verifying','verified','rejected','failed','expired','invalid','underpaid','wrong_recipient','duplicate','verification_failed') NOT NULL DEFAULT 'created',
+      \`clientNonce\` varchar(64) NOT NULL,
+      \`transactionHash\` varchar(128),
+      \`senderAddress\` varchar(64),
+      \`blockNumber\` int unsigned,
+      \`confirmations\` int unsigned,
+      \`networkId\` int,
+      \`failureCode\` varchar(64),
+      \`verifiedAt\` timestamp NULL,
+      \`expiresAt\` timestamp NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`payment_intents_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`payment_verifications\` (
+      \`id\` int unsigned AUTO_INCREMENT NOT NULL,
+      \`paymentIntentId\` varchar(32) NOT NULL,
+      \`transactionHash\` varchar(128) NOT NULL,
+      \`status\` varchar(32) NOT NULL,
+      \`sender\` varchar(64),
+      \`recipient\` varchar(64),
+      \`valueLuna\` int unsigned,
+      \`blockNumber\` int unsigned,
+      \`confirmations\` int unsigned,
+      \`networkId\` int,
+      \`executionResult\` boolean,
+      \`failureReason\` varchar(64),
+      \`rawResponseJson\` text,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      CONSTRAINT \`payment_verifications_id\` PRIMARY KEY(\`id\`)
+    )`,
+  ];
+
+  for (const stmt of tableStatements) {
+    try {
+      await db.execute(stmt);
+    } catch (err: any) {
+      console.warn("[Database] Schema check notice:", err.message);
+    }
+  }
+}
+
 async function bootstrapDatabase(db: ReturnType<typeof drizzle>) {
   try {
+    await ensureTablesExist(db);
     await ensureDefaultGamesSeeded(db);
     await ensureDefaultSeasonsSeeded(db);
   } catch (err) {
@@ -124,12 +291,17 @@ async function bootstrapDatabase(db: ReturnType<typeof drizzle>) {
   }
 }
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
+// Lazily create the drizzle instance with connection pooling and SSL support.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
-      if (!_initDbPromise) {
+      let url = process.env.DATABASE_URL;
+      if (url.includes("tidbcloud.com") && !url.includes("ssl=")) {
+        url += (url.includes("?") ? "&" : "?") + 'ssl={"rejectUnauthorized":true}';
+      }
+
+      _db = drizzle(url);
+      if (_db && !_initDbPromise) {
         _initDbPromise = bootstrapDatabase(_db);
       }
       await _initDbPromise;
