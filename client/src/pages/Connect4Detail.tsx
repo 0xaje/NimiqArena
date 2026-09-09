@@ -359,9 +359,25 @@ export default function Connect4Detail() {
             </div>
           </div>
 
-          <div className="detail-hero-card">
+          <div className="detail-board">
+            <img
+              src="/images/connect-nim.jpg"
+              alt="Connect NIM game table preview"
+            />
+            <div className="detail-board-wash" />
+            <span className="detail-board-label">TACTICAL ARENA / 7x6 GRID</span>
+            <strong>
+              Connect four.
+              <br />
+              <em>Claim the pot.</em>
+            </strong>
+          </div>
+        </section>
+
+        <section className="detail-grid" style={{ marginTop: "40px" }}>
+          <div className="detail-hero-card" style={{ gridColumn: "span 2" }}>
             <div className="card-topline">
-              <span className="card-label">AVAILABLE ACTIONS</span>
+              <span className="card-label">TACTICAL PROTOCOL SPECIFICATIONS</span>
               <span className="status-indicator">
                 <span className="status-dot green"></span>
                 ACTIVE PROTOCOL
@@ -390,7 +406,7 @@ export default function Connect4Detail() {
                   <h4>Wagered NIM Escrow</h4>
                   <p>
                     Stake 10 to 500 NIM per match. Winner automatically claims
-                    100% of the pot on-chain.
+                    90% of the pot on-chain.
                   </p>
                 </div>
               </div>

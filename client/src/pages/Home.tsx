@@ -96,8 +96,7 @@ export default function Home() {
       title: connect4Query.data?.name ?? "Connect NIM",
       genre: "TACTICAL / STRATEGY",
       status: connect4Query.data ? "FEATURED" : "UNAVAILABLE",
-      image:
-        "https://images.unsplash.com/photo-1611996575749-79a3a250f948?auto=format&fit=crop&w=900&q=85",
+      image: "/images/connect-nim.jpg",
       accent: "blue",
       description:
         connect4Query.data?.description ??
