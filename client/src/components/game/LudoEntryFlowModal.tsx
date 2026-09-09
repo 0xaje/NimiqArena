@@ -19,14 +19,13 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
 import { useModalBackHandler } from "@/hooks/useModalBackHandler";
+import { StakeSelector } from "@/components/game/StakeSelector";
 
 interface LudoEntryFlowModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultStake?: number;
 }
-
-const PRESET_STAKES = [50, 100, 500, 1_000, 10_000];
 
 export function LudoEntryFlowModal({
   isOpen,
@@ -44,18 +43,13 @@ export function LudoEntryFlowModal({
 
   const [activeTab, setActiveTab] = useState<"wager" | "practice">("wager");
   const [selectedStake, setSelectedStake] = useState<number>(defaultStake);
-  const [customStakeInput, setCustomStakeInput] = useState<string>("");
-  const [isCustom, setIsCustom] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"bot" | "private" | "friend">("bot");
   const [friendUsername, setFriendUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const currentStake = isCustom
-    ? Math.max(1, parseInt(customStakeInput, 10) || 1)
-    : selectedStake;
-
+  const currentStake = selectedStake;
   const totalPot = currentStake * 2;
   const dist = calculatePotDistribution(totalPot);
 
@@ -210,44 +204,13 @@ export function LudoEntryFlowModal({
                 <span>CHOOSE YOUR STAKE</span>
               </div>
 
-              <div className="stake-preset-grid">
-                {PRESET_STAKES.map(amount => (
-                  <button
-                    key={amount}
-                    type="button"
-                    className={`stake-pill ${!isCustom && selectedStake === amount ? "active" : ""}`}
-                    onClick={() => {
-                      setSelectedStake(amount);
-                      setIsCustom(false);
-                    }}
-                  >
-                    <span className="stake-val">{formatNim(amount)}</span>
-                    <span className="stake-sym">NIM</span>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className={`stake-pill custom ${isCustom ? "active" : ""}`}
-                  onClick={() => setIsCustom(true)}
-                >
-                  <span className="stake-val">CUSTOM</span>
-                </button>
-              </div>
-
-              {isCustom && (
-                <div className="custom-stake-input-wrapper">
-                  <input
-                    type="number"
-                    min="1"
-                    max="100000"
-                    placeholder="Enter custom NIM stake (e.g. 2500)"
-                    value={customStakeInput}
-                    onChange={e => setCustomStakeInput(e.target.value)}
-                    className="custom-stake-field"
-                  />
-                  <span className="custom-nim-suffix">NIM</span>
-                </div>
-              )}
+              <StakeSelector
+                stakeNim={selectedStake}
+                onChangeStakeNim={setSelectedStake}
+                minNim={1}
+                maxNim={500000}
+                hideSummary={true}
+              />
             </div>
 
             {/* Transparent Pot & Distribution Summary */}

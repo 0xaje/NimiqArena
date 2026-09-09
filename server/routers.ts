@@ -533,7 +533,7 @@ export const appRouter = router({
       .input(
         z.object({
           gameSlug: z.string().min(1).max(64),
-          stakeNim: z.number().int().min(1).max(10000),
+          stakeNim: z.number().int().min(1).max(500000),
         })
       )
       .mutation(async ({ ctx, input }) => {

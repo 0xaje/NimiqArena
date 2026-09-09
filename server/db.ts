@@ -2757,8 +2757,8 @@ export async function createWageredChallengeMatch(input: {
   if (!game || game.status !== "active") {
     throw new Error("This game is not available for wagered match creation.");
   }
-  if (input.stakeNim < 1 || input.stakeNim > 10000) {
-    throw new Error("Stake must be between 1 and 10,000 NIM.");
+  if (input.stakeNim < 1 || input.stakeNim > 500000) {
+    throw new Error("Stake must be between 1 and 500,000 NIM.");
   }
 
   const id = nanoid(20);

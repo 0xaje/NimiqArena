@@ -18,6 +18,8 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
+import { StakeSelector } from "@/components/game/StakeSelector";
+import { formatNim } from "@shared/game/pot-distribution";
 
 export default function Connect4Detail() {
   const [, navigate] = useLocation();
@@ -183,7 +185,7 @@ export default function Connect4Detail() {
             </div>
             <div
               className="quickmatch-modal-body"
-              style={{ textAlign: "center", padding: "24px" }}
+              style={{ textAlign: "center", padding: "20px 24px" }}
             >
               <h2 style={{ margin: "0 0 8px", fontSize: "22px" }}>
                 Choose Your Entry Stake
@@ -191,84 +193,38 @@ export default function Connect4Detail() {
               <p
                 style={{
                   color: "rgba(251, 248, 241, 0.7)",
-                  fontSize: "13px",
-                  margin: "0 0 20px",
+                  fontSize: "12px",
+                  margin: "0 0 16px",
                 }}
               >
-                Both players deposit matching stakes into table escrow. Winner
-                receives 90% of the total match pot!
+                Set a custom NIM or USD dollar stake. Both players deposit matching stakes into table escrow. Winner receives 90% of the total match pot!
               </p>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "10px",
-                  width: "100%",
-                  marginBottom: "20px",
-                }}
-              >
-                {[10, 50, 100, 500].map(stake => (
-                  <button
-                    key={stake}
-                    type="button"
-                    onClick={() => setSelectedStake(stake)}
-                    style={{
-                      padding: "16px",
-                      background:
-                        selectedStake === stake
-                          ? "rgba(230, 93, 35, 0.2)"
-                          : "rgba(0, 0, 0, 0.25)",
-                      border: `2px solid ${selectedStake === stake ? "var(--orange)" : "rgba(251, 248, 241, 0.15)"}`,
-                      borderRadius: "8px",
-                      color: "var(--paper-bright)",
-                      cursor: "pointer",
-                      fontFamily: "IBM Plex Mono, monospace",
-                      textAlign: "center",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "18px",
-                        fontWeight: "bold",
-                        color:
-                          selectedStake === stake
-                            ? "var(--orange)"
-                            : "inherit",
-                      }}
-                    >
-                      {stake} NIM
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "rgba(251, 248, 241, 0.6)",
-                        marginTop: "4px",
-                      }}
-                    >
-                      Pot: {stake * 2} NIM
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <StakeSelector
+                stakeNim={selectedStake}
+                onChangeStakeNim={setSelectedStake}
+                minNim={1}
+                maxNim={500000}
+              />
 
               <button
                 className="primary-action"
                 onClick={handleStartWageredMatch}
-                disabled={createWagered.isPending}
+                disabled={createWagered.isPending || selectedStake < 1}
                 style={{
                   width: "100%",
                   justifyContent: "center",
                   background: "var(--orange)",
                   padding: "14px",
                   fontSize: "14px",
+                  marginTop: "16px",
+                  cursor: "pointer",
                 }}
               >
                 <Coins size={16} />{" "}
                 {createWagered.isPending
                   ? "Creating Wagered Table…"
-                  : `Create ${selectedStake} NIM Match`}
+                  : `Create ${formatNim(selectedStake)} NIM Match`}
               </button>
             </div>
           </div>
