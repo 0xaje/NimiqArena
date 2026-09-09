@@ -15,7 +15,6 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
 import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
@@ -35,7 +34,6 @@ export default function LudoDetail() {
     joinCode: string;
   } | null>(null);
   const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
-  const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const [isEntryFlowOpen, setIsEntryFlowOpen] = useState(false);
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
@@ -138,30 +136,8 @@ export default function LudoDetail() {
     }
   }
 
-  const handleOpenQuickMatch = async () => {
-    if (!user) {
-      toast.info("Signing in as Player…");
-      const loginRes = await guestLogin.mutateAsync({
-        name: "Player 1 (Guest)",
-      });
-      if (loginRes.token) {
-        sessionStorage.setItem(
-          "manus-cookie",
-          `manus-session=${loginRes.token}`
-        );
-      }
-      await utils.auth.me.invalidate();
-    }
-    setIsQuickMatchOpen(true);
-  };
-
   return (
     <div className="detail-page">
-      <QuickMatchModal
-        isOpen={isQuickMatchOpen}
-        onClose={() => setIsQuickMatchOpen(false)}
-        gameSlug="ludo-league"
-      />
       <PlayWithFriendModal
         isOpen={isPlayWithFriendOpen}
         onClose={() => setIsPlayWithFriendOpen(false)}
@@ -245,14 +221,6 @@ export default function LudoDetail() {
               </button>
               <button
                 className="secondary-chip"
-                onClick={handleOpenQuickMatch}
-                disabled={!game || game.status !== "active"}
-                style={{ padding: "12px 18px" }}
-              >
-                <Zap size={16} /> Quick Match
-              </button>
-              <button
-                className="secondary-chip"
                 onClick={() => setIsTournamentOpen(true)}
                 style={{
                   padding: "12px 18px",
@@ -271,7 +239,7 @@ export default function LudoDetail() {
             <div className="trust-line">
               <ShieldCheck size={15} />
               <span>
-                Quick Match automatically matches you with an online opponent of similar Elo rating.
+                Provably fair multiplayer matches on Nimiq PoS with on-chain escrow & instant replay.
               </span>
             </div>
           </div>

@@ -28,7 +28,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
@@ -141,7 +140,6 @@ export default function Home() {
   });
   const [mobileMenu, setMobileMenu] = useState(false);
   const [isGameLibraryOpen, setIsGameLibraryOpen] = useState(false);
-  const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const createSolo = trpc.match.createSoloMatch.useMutation();
@@ -302,11 +300,6 @@ export default function Home() {
 
   return (
     <div className="arena-app">
-      <QuickMatchModal
-        isOpen={isQuickMatchOpen}
-        onClose={() => setIsQuickMatchOpen(false)}
-        gameSlug="ludo-league"
-      />
       <LudoEntryFlowModal
         isOpen={isLudoFlowOpen}
         onClose={() => setIsLudoFlowOpen(false)}

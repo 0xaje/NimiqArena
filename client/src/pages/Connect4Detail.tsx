@@ -15,7 +15,6 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { QuickMatchModal } from "@/components/game/QuickMatchModal";
 import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
 
 export default function Connect4Detail() {
@@ -32,7 +31,6 @@ export default function Connect4Detail() {
     joinCode: string;
   } | null>(null);
   const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
-  const [isQuickMatchOpen, setIsQuickMatchOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const [selectedStake, setSelectedStake] = useState(50);
 
@@ -133,30 +131,8 @@ export default function Connect4Detail() {
     }
   }
 
-  const handleOpenQuickMatch = async () => {
-    if (!user) {
-      toast.info("Signing in as Player…");
-      const loginRes = await guestLogin.mutateAsync({
-        name: "Player 1 (Guest)",
-      });
-      if (loginRes.token) {
-        sessionStorage.setItem(
-          "manus-cookie",
-          `manus-session=${loginRes.token}`
-        );
-      }
-      await utils.auth.me.invalidate();
-    }
-    setIsQuickMatchOpen(true);
-  };
-
   return (
     <div className="detail-page">
-      <QuickMatchModal
-        isOpen={isQuickMatchOpen}
-        onClose={() => setIsQuickMatchOpen(false)}
-        gameSlug="connect-four"
-      />
       <PlayWithFriendModal
         isOpen={isPlayWithFriendOpen}
         onClose={() => setIsPlayWithFriendOpen(false)}
@@ -314,23 +290,20 @@ export default function Connect4Detail() {
             >
               <button
                 className="primary-action"
-                onClick={handleOpenQuickMatch}
-                disabled={!game || game.status !== "active"}
-                style={{ background: "var(--orange)" }}
-              >
-                <Zap size={16} /> Quick Match (Find Opponent)
-              </button>
-              <button
-                className="secondary-chip"
                 onClick={() => setIsStakeModalOpen(true)}
                 disabled={!game || game.status !== "active"}
                 style={{
-                  padding: "12px 16px",
-                  borderColor: "var(--orange)",
-                  color: "var(--orange)",
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
+                  padding: "14px 24px",
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
                 }}
               >
-                <Coins size={16} /> 💰 Wager NIM Match
+                <Coins size={16} /> PLAY WAGER MATCH
               </button>
               <button
                 className="secondary-chip"
