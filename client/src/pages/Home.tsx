@@ -641,17 +641,6 @@ export default function Home() {
               >
                 <Zap size={16} /> {createSolo.isPending ? "Launching…" : "Practice"}
               </button>
-              <button
-                type="button"
-                className="secondary-chip"
-                onClick={() => setIsIdentityModalOpen(true)}
-                style={{ padding: "12px 18px" }}
-              >
-                <Sparkles size={16} /> Claim Identity (+1,000 Pts)
-              </button>
-              <Link className="text-action" href="/join" style={{ padding: "12px 16px" }}>
-                <Coins size={16} /> Join by Match Code
-              </Link>
             </div>
             <div className="trust-line">
               <ShieldCheck size={15} />
