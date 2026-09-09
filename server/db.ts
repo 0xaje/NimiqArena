@@ -296,6 +296,10 @@ export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       let url = process.env.DATABASE_URL;
+      // If user specified the read-only MySQL system database /sys on TiDB, automatically redirect to /test
+      if (url.includes("tidbcloud.com") && /\/sys(\?|$)/.test(url)) {
+        url = url.replace(/\/sys(\?|$)/, "/test$1");
+      }
       if (url.includes("tidbcloud.com") && !url.includes("ssl=")) {
         url += (url.includes("?") ? "&" : "?") + 'ssl={"rejectUnauthorized":true}';
       }
