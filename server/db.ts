@@ -2996,7 +2996,7 @@ export async function settleMatchWinnerPayout(input: {
       payoutResult?.errorMessage ||
       (payoutResult?.status === "settled_on_chain"
         ? `Disbursed ${netPayoutNim} NIM directly on-chain to winner's Nimiq wallet.`
-        : "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Platform allocation: 5% Builder, 3% Ecosystem, 2% Charity. Automated on-chain disbursement worker is active."),
+        : "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Platform allocation: 8% Builder Pool (including Patron revenue share), 2% Referral. Automated on-chain disbursement worker is active."),
   };
 }
 

@@ -247,22 +247,22 @@ export function LudoEntryFlowModal({
                   <div className="dist-item">
                     <Trophy size={14} className="trophy-gold" />
                     <span className="dist-name">Winner:</span>
-                    <span className="dist-val">{formatNim(dist.winnerNim)} NIM (90%)</span>
+                    <span className="dist-val">{formatNim(dist.winnerNim)} NIM ({dist.percentages.winner}%)</span>
                   </div>
                   <div className="dist-item">
                     <Hammer size={14} className="icon-blue" />
                     <span className="dist-name">Builder:</span>
-                    <span className="dist-val">{formatNim(dist.builderNim)} NIM (5%)</span>
+                    <span className="dist-val">{formatNim(dist.builderNim)} NIM ({dist.percentages.builder}%)</span>
                   </div>
                   <div className="dist-item">
                     <Globe size={14} className="icon-teal" />
                     <span className="dist-name">Ecosystem:</span>
-                    <span className="dist-val">{formatNim(dist.ecosystemNim)} NIM (3%)</span>
+                    <span className="dist-val">{formatNim(dist.ecosystemNim)} NIM ({dist.percentages.ecosystem}%)</span>
                   </div>
                   <div className="dist-item">
                     <Heart size={14} className="icon-pink" />
                     <span className="dist-name">Charity:</span>
-                    <span className="dist-val">{formatNim(dist.charityNim)} NIM (2%)</span>
+                    <span className="dist-val">{formatNim(dist.charityNim)} NIM ({dist.percentages.charity}%)</span>
                   </div>
                 </div>
               </div>

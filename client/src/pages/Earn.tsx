@@ -17,6 +17,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { ReferralCard } from "@/components/referral/ReferralCard";
+import { ArenaPatronVault } from "@/components/staking/ArenaPatronVault";
 
 export default function Earn() {
   const utils = trpc.useUtils();
@@ -71,7 +72,7 @@ export default function Earn() {
             <em>Earn with the Arena.</em>
           </h1>
           <p className="detail-lede" style={{ maxWidth: "560px", margin: "0 auto" }}>
-            Claim your 1,000 Welcome Points, share your custom handle to earn 5% on all friend wins, and build your competitive bankroll.
+            Claim your 1,000 Welcome Points, share your custom handle to earn 2% on all friend wins, and build your competitive bankroll.
           </p>
         </section>
 
@@ -193,12 +194,17 @@ export default function Earn() {
           </div>
         </section>
 
-        {/* 2. Referral & 5% Winner Commission Hub */}
+        {/* 2. Arena Patron Vault & Staking Hub */}
+        <section style={{ marginBottom: "32px" }}>
+          <ArenaPatronVault />
+        </section>
+
+        {/* 3. Referral & 2% Winner Commission Hub */}
         <section style={{ marginBottom: "32px" }}>
           <ReferralCard />
         </section>
 
-        {/* 3. Ways to Earn Breakdown */}
+        {/* 4. Ways to Earn Breakdown */}
         <section
           style={{
             display: "grid",
@@ -232,12 +238,29 @@ export default function Earn() {
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
-            <Users size={24} color="#38bdf8" style={{ marginBottom: "8px" }} />
+            <Coins size={24} color="#fbbf24" style={{ marginBottom: "8px" }} />
             <strong style={{ color: "#fff", display: "block", fontSize: "15px", marginBottom: "4px" }}>
-              5% Lifetime Referral Cut
+              6% - 8% Staking Yield
             </strong>
             <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4 }}>
-              Whenever any player you referred wins a match, you earn 5% of the pot automatically in NIM!
+              Stake NIM in the Patron Vault to earn native Nimiq PoS rewards + monthly platform match fee revenue share.
+            </p>
+          </div>
+
+          <div
+            style={{
+              padding: "20px",
+              borderRadius: "16px",
+              backgroundColor: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+            }}
+          >
+            <Users size={24} color="#38bdf8" style={{ marginBottom: "8px" }} />
+            <strong style={{ color: "#fff", display: "block", fontSize: "15px", marginBottom: "4px" }}>
+              2% Lifetime Referral Cut
+            </strong>
+            <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4 }}>
+              Whenever any player you referred wins a match, you earn 2% of the pot automatically in NIM!
             </p>
           </div>
 

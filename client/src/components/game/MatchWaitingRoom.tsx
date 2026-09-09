@@ -259,21 +259,31 @@ export function MatchWaitingRoom({
           {showDistDetails && (
             <div className="dist-expanded-grid">
               <div className="dist-expanded-item">
-                <span className="role">Winner (90%)</span>
+                <span className="role">Winner ({dist.percentages.winner}%)</span>
                 <span className="val">{formatNim(dist.winnerNim)} NIM</span>
               </div>
+              {dist.referrerNim > 0 && (
+                <div className="dist-expanded-item">
+                  <span className="role">Referrer ({dist.percentages.referrer}%)</span>
+                  <span className="val">{formatNim(dist.referrerNim)} NIM</span>
+                </div>
+              )}
               <div className="dist-expanded-item">
-                <span className="role">Builder Fee (5%)</span>
+                <span className="role">Builder Pool ({dist.percentages.builder}%)</span>
                 <span className="val">{formatNim(dist.builderNim)} NIM</span>
               </div>
-              <div className="dist-expanded-item">
-                <span className="role">Nimiq Ecosystem (3%)</span>
-                <span className="val">{formatNim(dist.ecosystemNim)} NIM</span>
-              </div>
-              <div className="dist-expanded-item">
-                <span className="role">Charity Vault (2%)</span>
-                <span className="val">{formatNim(dist.charityNim)} NIM</span>
-              </div>
+              {dist.percentages.ecosystem > 0 && (
+                <div className="dist-expanded-item">
+                  <span className="role">Ecosystem ({dist.percentages.ecosystem}%)</span>
+                  <span className="val">{formatNim(dist.ecosystemNim)} NIM</span>
+                </div>
+              )}
+              {dist.percentages.charity > 0 && (
+                <div className="dist-expanded-item">
+                  <span className="role">Charity ({dist.percentages.charity}%)</span>
+                  <span className="val">{formatNim(dist.charityNim)} NIM</span>
+                </div>
+              )}
             </div>
           )}
         </div>

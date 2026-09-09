@@ -46,14 +46,12 @@ export function calculatePotDistribution(
   // Integer Luna calculations
   const winnerLuna = (totalPotLuna * BigInt(90)) / BigInt(100);
   const referrerLuna = hasReferrer
-    ? (totalPotLuna * BigInt(5)) / BigInt(100)
+    ? (totalPotLuna * BigInt(2)) / BigInt(100) // 2% referral commission
     : BigInt(0);
-  const builderLuna = hasReferrer
-    ? (totalPotLuna * BigInt(25)) / BigInt(1000) // 2.5%
-    : (totalPotLuna * BigInt(5)) / BigInt(100);   // 5%
+  const builderLuna = (totalPotLuna * BigInt(8)) / BigInt(100);  // 8% builder pool (funds ops + arena staker revenue share)
   const ecosystemLuna = hasReferrer
-    ? (totalPotLuna * BigInt(15)) / BigInt(1000) // 1.5%
-    : (totalPotLuna * BigInt(3)) / BigInt(100);   // 3%
+    ? BigInt(0)
+    : (totalPotLuna * BigInt(1)) / BigInt(100); // 1% ecosystem pool if no referrer
   
   // Charity receives remaining Luna to guarantee exact 100% balance with 0 rounding leakage
   const charityLuna = totalPotLuna - winnerLuna - referrerLuna - builderLuna - ecosystemLuna;
@@ -73,10 +71,10 @@ export function calculatePotDistribution(
     charityLuna: charityLuna.toString(),
     percentages: {
       winner: 90,
-      referrer: hasReferrer ? 5 : 0,
-      builder: hasReferrer ? 2.5 : 5,
-      ecosystem: hasReferrer ? 1.5 : 3,
-      charity: hasReferrer ? 1 : 2,
+      referrer: hasReferrer ? 2 : 0,
+      builder: 8,
+      ecosystem: hasReferrer ? 0 : 1,
+      charity: hasReferrer ? 0 : 1,
     },
   };
 }

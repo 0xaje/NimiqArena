@@ -16,7 +16,7 @@ export function ReferralCard() {
     void navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     toast.success("Referral Link Copied!", {
-      description: "Share it with friends to earn 5% of their match winnings + 500 Points!",
+      description: "Share it with friends to earn 2% of their match winnings + 500 Points!",
     });
     setTimeout(() => setCopied(false), 2000);
   };
@@ -73,10 +73,10 @@ export function ReferralCard() {
           </div>
           <div>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 800, margin: 0 }}>
-              INVITE & EARN (5% COMMISSION)
+              INVITE & EARN (2% COMMISSION)
             </h3>
             <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-              Earn 5% of all match winnings from friends you invite
+              Earn 2% of all match winnings from friends you invite
             </span>
           </div>
         </div>
