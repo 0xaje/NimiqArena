@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
+import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
 interface LudoEntryFlowModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export function LudoEntryFlowModal({
   onClose,
   defaultStake = 100,
 }: LudoEntryFlowModalProps) {
+  useModalBackHandler(isOpen, onClose);
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
@@ -63,6 +65,7 @@ export function LudoEntryFlowModal({
       const res = await guestLogin.mutateAsync({ name: "Player 1" });
       if (res.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
+        localStorage.setItem("manus-cookie", `manus-session=${res.token}`);
       }
       await utils.auth.me.invalidate();
     }
@@ -75,7 +78,7 @@ export function LudoEntryFlowModal({
       toast.info("Entering Practice Arena vs Nimiq AI…");
       const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
       onClose();
-      navigate(`/matches/${match.id}`);
+      window.location.href = `/matches/${match.id}`;
     } catch (err) {
       toast.error("Failed to start practice match", {
         description: err instanceof Error ? err.message : "Try again.",
@@ -94,7 +97,7 @@ export function LudoEntryFlowModal({
         toast.info("Entering Arena Table vs Nimiq AI Bot…");
         const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
         onClose();
-        navigate(`/matches/${match.id}`);
+        window.location.href = `/matches/${match.id}`;
         return;
       }
 
@@ -106,7 +109,7 @@ export function LudoEntryFlowModal({
       });
 
       onClose();
-      navigate(`/matches/${res.id}`);
+      window.location.href = `/matches/${res.id}`;
     } catch (err) {
       toast.error("Failed to create competitive match", {
         description: err instanceof Error ? err.message : "Please try again.",

@@ -34,7 +34,14 @@ export default function Connect4Detail() {
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const [selectedStake, setSelectedStake] = useState(50);
 
-  const game = gameQuery.data;
+  const game = gameQuery.data ?? {
+    id: "connect-four",
+    slug: "connect-four",
+    name: "Connect NIM",
+    kind: "connect4",
+    status: "active",
+    description: "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally.",
+  };
   const user = authQuery.data;
 
   const copyCode = async () => {
@@ -291,7 +298,6 @@ export default function Connect4Detail() {
               <button
                 className="primary-action"
                 onClick={() => setIsStakeModalOpen(true)}
-                disabled={!game || game.status !== "active"}
                 style={{
                   background: "linear-gradient(135deg, #f59e0b, #d97706)",
                   boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
@@ -301,6 +307,7 @@ export default function Connect4Detail() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "8px",
+                  cursor: "pointer",
                 }}
               >
                 <Coins size={16} /> PLAY WAGER MATCH
@@ -308,10 +315,8 @@ export default function Connect4Detail() {
               <button
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
-                disabled={
-                  createSolo.isPending || !game || game.status !== "active"
-                }
-                style={{ padding: "12px 16px" }}
+                disabled={createSolo.isPending}
+                style={{ padding: "12px 16px", cursor: "pointer" }}
               >
                 🤖{" "}
                 {createSolo.isPending
@@ -321,7 +326,6 @@ export default function Connect4Detail() {
               <button
                 className="secondary-chip"
                 onClick={() => setIsPlayWithFriendOpen(true)}
-                disabled={!game || game.status !== "active"}
                 style={{
                   padding: "12px 18px",
                   background: "rgba(34, 197, 94, 0.15)",
@@ -331,6 +335,7 @@ export default function Connect4Detail() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
+                  cursor: "pointer",
                 }}
               >
                 <Users size={16} /> Play with Friend

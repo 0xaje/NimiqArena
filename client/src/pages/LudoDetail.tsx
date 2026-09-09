@@ -39,7 +39,14 @@ export default function LudoDetail() {
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [selectedStake, setSelectedStake] = useState(50);
 
-  const game = gameQuery.data;
+  const game = gameQuery.data ?? {
+    id: "ludo-league",
+    slug: "ludo-league",
+    name: "Ludo League",
+    kind: "ludo",
+    status: "active",
+    description: "Classic 2-player authoritative board game",
+  };
   const user = authQuery.data;
 
   const copyCode = async () => {
@@ -180,7 +187,7 @@ export default function LudoDetail() {
               <button
                 className="primary-action"
                 onClick={() => setIsEntryFlowOpen(true)}
-                disabled={!game || game.status !== "active"}
+                disabled={createSolo.isPending}
                 style={{
                   background: "linear-gradient(135deg, #f59e0b, #d97706)",
                   boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
@@ -190,6 +197,7 @@ export default function LudoDetail() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "8px",
+                  cursor: "pointer",
                 }}
               >
                 <Gamepad2 size={18} /> PLAY LUDO LEAGUE
@@ -197,7 +205,6 @@ export default function LudoDetail() {
               <button
                 className="secondary-chip"
                 onClick={() => setIsPlayWithFriendOpen(true)}
-                disabled={!game || game.status !== "active"}
                 style={{
                   padding: "12px 18px",
                   background: "rgba(34, 197, 94, 0.15)",
@@ -207,6 +214,7 @@ export default function LudoDetail() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
+                  cursor: "pointer",
                 }}
               >
                 <Users size={16} /> Play with Friend
@@ -214,8 +222,8 @@ export default function LudoDetail() {
               <button
                 className="secondary-chip"
                 onClick={handleStartSoloPractice}
-                disabled={createSolo.isPending || !game || game.status !== "active"}
-                style={{ padding: "12px 18px" }}
+                disabled={createSolo.isPending}
+                style={{ padding: "12px 18px", cursor: "pointer" }}
               >
                 🤖 {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
               </button>

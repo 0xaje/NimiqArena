@@ -734,6 +734,14 @@ export default function Home() {
               <article
                 className={`game-card ${game.status === "FEATURED" ? "featured-card" : ""}`}
                 key={game.title}
+                onClick={() => {
+                  if (game.title.includes("Ludo")) {
+                    window.location.href = "/games/ludo-league";
+                  } else if (game.title.includes("Connect")) {
+                    window.location.href = "/games/connect-four";
+                  }
+                }}
+                style={{ cursor: "pointer" }}
               >
                 <div className={`game-card-art ${game.accent}`}>
                   <img src={game.image} alt="" />
