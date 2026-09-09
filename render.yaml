@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm run build
-    startCommand: pnpm start
+    startCommand: pnpm run db:push && pnpm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
