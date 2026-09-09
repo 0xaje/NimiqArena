@@ -244,7 +244,7 @@ BUILDER FEE ALLOCATION (5% of Total Pot)
   - **Ludo League**: Turn-based tactical dice rolling and token capture.
   - **Connect NIM**: Fast-paced 4-in-a-row disc alignment.
 - Select your mode:
-  - **Free Practice (vs AI)**: Zero stake, instant start against the heuristic bot.
+  - **Practice**: Zero stake, instant start to hone tactics without risk.
   - **Play with Friend**: Generate an 8-character invite code and share a direct link over Telegram, WhatsApp, or Twitter.
   - **Wager Match**: Select a stake (10 NIM, 50 NIM, 100 NIM, or 250 NIM) to enter the matchmaking queue.
 

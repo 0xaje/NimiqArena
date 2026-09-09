@@ -639,7 +639,7 @@ export default function Home() {
                   gap: "6px",
                 }}
               >
-                <Zap size={16} /> {createSolo.isPending ? "Launching…" : "Instant Demo vs AI"}
+                <Zap size={16} /> {createSolo.isPending ? "Launching…" : "Practice"}
               </button>
               <button
                 type="button"
@@ -691,7 +691,7 @@ export default function Home() {
                       gap: "6px",
                     }}
                   >
-                    <Zap size={14} /> {createSolo.isPending ? "Loading…" : "Instant Demo"}
+                    <Zap size={14} /> {createSolo.isPending ? "Loading…" : "Practice"}
                   </button>
                   <Link
                     className="stage-button"

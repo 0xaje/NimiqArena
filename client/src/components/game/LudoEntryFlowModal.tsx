@@ -159,7 +159,7 @@ export function LudoEntryFlowModal({
             onClick={() => setActiveTab("practice")}
           >
             <Bot size={18} />
-            <span>PRACTICE WITH BOT (FREE)</span>
+            <span>PRACTICE (FREE)</span>
           </button>
         </div>
 
@@ -170,7 +170,7 @@ export function LudoEntryFlowModal({
               <div className="practice-icon-halo">
                 <Bot size={44} />
               </div>
-              <h3>Free Practice Table</h3>
+              <h3>Practice Table</h3>
               <p>
                 Warm up your tactics against the authoritative Nimiq Ludo AI.
                 Instant play, no NIM stake, zero risk, full classic 2-dice rules.
@@ -197,7 +197,7 @@ export function LudoEntryFlowModal({
               onClick={handleStartPractice}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "ENTERING ARENA…" : "PLAY PRACTICE MATCH NOW"}
+              {isSubmitting ? "ENTERING ARENA…" : "START PRACTICE"}
             </button>
           </div>
         ) : (

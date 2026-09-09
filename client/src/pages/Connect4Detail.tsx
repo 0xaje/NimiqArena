@@ -330,7 +330,7 @@ export default function Connect4Detail() {
                 <Bot size={16} />
                 {createSolo.isPending
                   ? "Starting…"
-                  : "Solo Practice (vs AI)"}
+                  : "Practice"}
               </button>
               <button
                 className="secondary-chip"

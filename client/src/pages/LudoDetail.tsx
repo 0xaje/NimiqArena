@@ -233,7 +233,7 @@ export default function LudoDetail() {
                   gap: "6px",
                 }}
               >
-                <Bot size={16} /> {createSolo.isPending ? "Starting…" : "Free Practice (vs AI)"}
+                <Bot size={16} /> {createSolo.isPending ? "Starting…" : "Practice"}
               </button>
               <button
                 className="secondary-chip"

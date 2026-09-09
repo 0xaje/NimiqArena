@@ -45,7 +45,7 @@ export function ActiveTablesDirectory() {
             No live public matches at this second
           </h3>
           <p style={{ color: "#94a3b8", fontSize: "0.85rem", maxWidth: "420px", margin: "0 auto 16px" }}>
-            Be the first on the table! Create a match, practice vs AI, or invite a friend.
+            Be the first on the table! Create a match, practice, or invite a friend.
           </p>
           <Link
             href="/games/ludo-league"
