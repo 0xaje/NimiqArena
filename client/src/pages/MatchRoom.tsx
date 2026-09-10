@@ -61,16 +61,7 @@ export default function MatchRoom() {
     { id: matchId },
     {
       enabled: Boolean(matchId),
-      refetchInterval: query => {
-        const d = query.state.data;
-        const snap = d?.snapshot as any;
-        const isBotActive =
-          d?.status === "in_progress" &&
-          snap?.currentPlayer === 1 &&
-          snap?.winner === null &&
-          Boolean(d?.joinCode?.startsWith("BOT"));
-        return isBotActive ? 1_500 : isStreamConnected ? false : 3_000;
-      },
+      refetchInterval: () => (isStreamConnected ? false : 3_500),
     }
   );
   const escrowQuery = trpc.match.escrowDetails.useQuery(
@@ -192,24 +183,43 @@ export default function MatchRoom() {
     }
   }, [isBotTurn, snapshot?.lastRoll, isBotMatch, yourSeat]);
 
-  // Bot Turn Watchdog: Continuous recurring watchdog while it is the bot's turn
+  // Bot Turn Trigger: Single-flight event-driven execution when bot's turn begins
+  const isBotMutatingRef = useRef(false);
+
   useEffect(() => {
-    if (!isBotTurn || !matchId) return;
+    if (!isBotTurn || !matchId) {
+      isBotMutatingRef.current = false;
+      return;
+    }
 
-    const interval = window.setInterval(async () => {
+    let isMounted = true;
+    const triggerBot = async () => {
+      if (isBotMutatingRef.current || !isMounted) return;
+      isBotMutatingRef.current = true;
       try {
-        await utils.match.state.invalidate({ id: matchId });
-        await stateQuery.refetch();
-        // If bot turn persists, authoritatively trigger server bot turn mutation
         await botTurnMutation.mutateAsync({ matchId });
-        await utils.match.state.invalidate({ id: matchId });
-        await stateQuery.refetch();
-      } catch (err) {
-        // Watchdog failsafe catch
+      } catch {
+        // will retry on interval if turn persists
+      } finally {
+        if (isMounted) isBotMutatingRef.current = false;
       }
-    }, 1800);
+    };
 
-    return () => window.clearInterval(interval);
+    // Human-like 500ms delay before bot plays
+    const timer = window.setTimeout(triggerBot, 500);
+
+    // Watchdog fallback only if bot doesn't move after 4 seconds
+    const interval = window.setInterval(() => {
+      if (isBotTurn && !isBotMutatingRef.current) {
+        void triggerBot();
+      }
+    }, 4000);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
   }, [isBotTurn, matchId]);
 
   const toggleSound = () => {

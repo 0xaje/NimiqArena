@@ -53,19 +53,19 @@ export function Connect4Board2D({
         flexDirection: "column",
         alignItems: "center",
         width: "100%",
-        maxWidth: "580px",
+        maxWidth: "min(96vw, 540px)",
         margin: "0 auto",
       }}
     >
-      {/* Column Hover Trigger Strip */}
+      {/* Column Hover / Tap Drop Indicator Strip */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${CONNECT4_COLS}, 1fr)`,
           width: "100%",
-          gap: "8px",
-          height: "44px",
-          marginBottom: "8px",
+          gap: "clamp(3px, 1.2vw, 8px)",
+          height: "clamp(32px, 8vw, 42px)",
+          marginBottom: "6px",
         }}
       >
         {Array.from({ length: CONNECT4_COLS }).map((_, col) => {
@@ -81,6 +81,7 @@ export function Connect4Board2D({
               onMouseEnter={() => setHoveredCol(col)}
               onMouseLeave={() => setHoveredCol(null)}
               disabled={!canDrop}
+              aria-label={`Drop disc in column ${col + 1}`}
               style={{
                 background:
                   isHovered && canDrop
@@ -95,24 +96,25 @@ export function Connect4Board2D({
                       ? "var(--orange)"
                       : "#3498db"
                     : "transparent",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 cursor: canDrop ? "pointer" : "default",
                 display: "grid",
                 placeItems: "center",
                 transition: "all 0.15s ease",
+                padding: 0,
               }}
             >
               {isHovered && canDrop && (
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "clamp(16px, 4.5vw, 26px)",
+                    height: "clamp(16px, 4.5vw, 26px)",
                     borderRadius: "50%",
                     background:
                       yourSeat === 0
                         ? "radial-gradient(circle at 35% 35%, #ff8a50 0%, #e65d23 100%)"
                         : "radial-gradient(circle at 35% 35%, #5dade2 0%, #2980b9 100%)",
-                    boxShadow: "0 0 12px rgba(230, 93, 35, 0.6)",
+                    boxShadow: "0 0 10px rgba(230, 93, 35, 0.6)",
                   }}
                 />
               )}
@@ -126,14 +128,14 @@ export function Connect4Board2D({
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${CONNECT4_COLS}, 1fr)`,
-          gap: "8px",
+          gap: "clamp(3px, 1.2vw, 8px)",
           width: "100%",
-          padding: "16px",
+          padding: "clamp(6px, 2vw, 14px)",
           background: "linear-gradient(180deg, #102438 0%, #0a1724 100%)",
-          border: "3px solid #1a3854",
-          borderRadius: "16px",
+          border: "2px solid #1a3854",
+          borderRadius: "clamp(10px, 3vw, 16px)",
           boxShadow:
-            "0 18px 36px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.1)",
+            "0 14px 28px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.1)",
         }}
       >
         {Array.from({ length: CONNECT4_COLS }).map((_, col) => (
@@ -145,7 +147,7 @@ export function Connect4Board2D({
             style={{
               display: "flex",
               flexDirection: "column-reverse", // row 0 at bottom, row 5 at top
-              gap: "8px",
+              gap: "clamp(3px, 1.2vw, 8px)",
               cursor:
                 isYourTurn &&
                 getLowestEmptyRow(board, col) !== -1 &&
@@ -205,12 +207,12 @@ export function Connect4Board2D({
           display: "flex",
           justifyContent: "space-between",
           width: "100%",
-          marginTop: "16px",
-          padding: "10px 16px",
+          marginTop: "clamp(8px, 2vw, 14px)",
+          padding: "clamp(6px, 1.5vw, 10px) clamp(8px, 2vw, 14px)",
           background: "rgba(0, 0, 0, 0.2)",
           borderRadius: "8px",
           fontFamily: "IBM Plex Mono, monospace",
-          fontSize: "12px",
+          fontSize: "clamp(10px, 2.5vw, 12px)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

@@ -53,6 +53,16 @@ export function createRateLimiter(options: {
   message?: string;
 }) {
   return (req: Request, res: Response, next: NextFunction) => {
+    // Exempt long-lived streaming connections and health checks from rate limiting
+    const path = req.path || (req as any).url || "";
+    if (
+      path === "/health" ||
+      path === "/api/health" ||
+      (typeof path === "string" && path.includes("/matches/") && path.includes("/events"))
+    ) {
+      return next();
+    }
+
     const key = getClientKey(req);
     const now = Date.now();
     let record = ipStore.get(key);
@@ -118,16 +128,16 @@ export function rateLimiterSize() {
   return ipStore.size;
 }
 
-// Global API rate limiter: 120 requests per minute
+// Global API rate limiter: 600 requests per minute (10 req/sec)
 export const apiRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  maxRequests: 120,
+  maxRequests: 600,
   message: "API rate limit exceeded. Please wait a minute.",
 });
 
-// Stricter Match Command & Payment rate limiter: 60 requests per minute
+// Stricter Match Command & Payment rate limiter: 180 requests per minute (3 req/sec)
 export const commandRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  maxRequests: 60,
+  maxRequests: 180,
   message: "Match command rate limit exceeded. Please slow down.",
 });
