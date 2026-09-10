@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Users,
@@ -46,6 +46,26 @@ export function PlayWithFriendModal({
   } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const matchStatusQuery = trpc.match.getById.useQuery(
+    { id: createdMatch?.id || "" },
+    {
+      enabled: Boolean(createdMatch?.id && isOpen),
+      refetchInterval: 1_200,
+    }
+  );
+
+  useEffect(() => {
+    if (createdMatch && matchStatusQuery.data) {
+      if (matchStatusQuery.data.status === "in_progress") {
+        toast.success("Opponent joined the table!", {
+          description: "Launching live game arena now…",
+        });
+        onClose();
+        navigate(`/matches/${createdMatch.id}`);
+      }
+    }
+  }, [createdMatch, matchStatusQuery.data, navigate, onClose]);
 
   if (!isOpen) return null;
 

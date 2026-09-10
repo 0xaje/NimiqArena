@@ -32,6 +32,25 @@ export default function JoinMatch() {
     joinCode: string;
   } | null>(null);
 
+  const matchStatusQuery = trpc.match.getById.useQuery(
+    { id: createdMatch?.id || "" },
+    {
+      enabled: Boolean(createdMatch?.id),
+      refetchInterval: 1_200,
+    }
+  );
+
+  useEffect(() => {
+    if (createdMatch && matchStatusQuery.data) {
+      if (matchStatusQuery.data.status === "in_progress") {
+        toast.success("Opponent joined the table!", {
+          description: "Entering game arena now…",
+        });
+        navigate(`/matches/${createdMatch.id}`);
+      }
+    }
+  }, [createdMatch, matchStatusQuery.data, navigate]);
+
   const user = authQuery.data;
 
   // Auto-fill from URL query param if present (?code=ABC123XYZ)

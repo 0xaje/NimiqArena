@@ -61,7 +61,8 @@ export default function MatchRoom() {
     { id: matchId },
     {
       enabled: Boolean(matchId),
-      refetchInterval: () => (isStreamConnected ? false : 1_500),
+      refetchInterval: (query: any): number | false =>
+        query?.state?.data?.status === "waiting" ? 1_000 : isStreamConnected ? false : 1_500,
     }
   );
   const isWagered = Boolean(stateQuery.data?.joinCode?.startsWith("WAG"));
@@ -481,7 +482,7 @@ export default function MatchRoom() {
   // 3. Waiting Room State
   if (state.status === "waiting") {
     const hostName = yourSeat === 0 ? (authQuery.data?.name || "Player 1 (Host)") : "Player 1 (Host)";
-    const guestPlayer = state.players.find(p => p.seat === 1);
+    const guestPlayer = state.players.find((p: any) => p.seat === 1);
     const guestName = guestPlayer
       ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : "Challenger Joined")
       : null;
@@ -507,6 +508,10 @@ export default function MatchRoom() {
           }}
           isDepositNeeded={isDepositNeeded}
           onDepositPrompt={() => setIsDepositModalOpen(true)}
+          onStartMatch={() => {
+            void utils.match.state.invalidate({ id: matchId });
+            void stateQuery.refetch();
+          }}
         />
         {escrow && (
           <EscrowDepositModal

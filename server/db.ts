@@ -720,7 +720,6 @@ export async function findOrCreateQuickMatch(input: {
           .set({ status: "in_progress", expiresAt: playExpiresAt })
           .where(eq(matches.id, candidate.id));
 
-        notifyMatchUpdated(candidate.id);
         return {
           matchId: candidate.id,
           status: "in_progress" as const,
@@ -729,7 +728,10 @@ export async function findOrCreateQuickMatch(input: {
         };
       });
 
-      if (joined) return joined;
+      if (joined) {
+        notifyMatchUpdated(joined.matchId);
+        return joined;
+      }
     } catch {
       // Continue to next candidate
     }
@@ -777,7 +779,7 @@ export async function cancelWaitingMatch(input: {
 }): Promise<{ ok: boolean; reason?: string }> {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
-  return db.transaction(async tx => {
+  const res = await db.transaction(async tx => {
     const match = (
       await tx
         .select()
@@ -800,9 +802,13 @@ export async function cancelWaitingMatch(input: {
       .set({ status: "cancelled" })
       .where(eq(matches.id, input.matchId));
 
-    notifyMatchUpdated(input.matchId);
     return { ok: true };
   });
+
+  if (res.ok) {
+    notifyMatchUpdated(input.matchId);
+  }
+  return res;
 }
 
 export async function getMatchQueueStatus(input: {
@@ -1036,9 +1042,9 @@ async function passBotTurnToOpponent(
         stateJson: JSON.stringify(nextSnapshot),
       })
       .where(eq(matches.id, matchId));
-
-    notifyMatchUpdated(matchId);
   });
+
+  notifyMatchUpdated(matchId);
 }
 
 async function executeAuthoritativeBotTurnCore(matchId: string) {
@@ -1464,6 +1470,18 @@ export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
         .where(eq(matches.id, matchId));
       return { ...match, status: "cancelled" as const };
     }
+
+    // Self-healing: if a non-wagered match has 2 joined players but remains stuck in "waiting", transition to in_progress
+    if (match.status === "waiting" && joinedPlayers.length >= 2 && !isWageredMatch(match)) {
+      const playExpiresAt = matchPlayWindowExpiry();
+      await tx
+        .update(matches)
+        .set({ status: "in_progress", expiresAt: playExpiresAt })
+        .where(eq(matches.id, matchId));
+      notifyMatchUpdated(matchId);
+      return { ...match, status: "in_progress" as const, expiresAt: playExpiresAt };
+    }
+
     return match;
   });
 }
@@ -1505,7 +1523,7 @@ export async function joinMatchByCode(input: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
-  return db.transaction(async tx => {
+  const result = await db.transaction(async tx => {
     const found = await tx
       .select()
       .from(matches)
@@ -1535,11 +1553,11 @@ export async function joinMatchByCode(input: {
         )
       )
       .limit(1);
-    if (existing[0]) return { match, player: existing[0] };
     const seats = await tx
       .select()
       .from(matchPlayers)
       .where(eq(matchPlayers.matchId, match.id));
+    if (existing[0]) return { match, player: existing[0], allPlayers: seats };
     if (seats.length >= 2)
       throw new Error("This match already has two players.");
     await tx.insert(matchPlayers).values({
@@ -1556,12 +1574,15 @@ export async function joinMatchByCode(input: {
       ? ("waiting" as const)
       : ("in_progress" as const);
 
+    const playExpiresAt =
+      nextStatus === "in_progress" ? matchPlayWindowExpiry() : match.expiresAt;
+
     if (nextStatus !== match.status) {
       await tx
         .update(matches)
         .set(
           nextStatus === "in_progress"
-            ? { status: nextStatus, expiresAt: matchPlayWindowExpiry() }
+            ? { status: nextStatus, expiresAt: playExpiresAt }
             : { status: nextStatus }
         )
         .where(eq(matches.id, match.id));
@@ -1579,12 +1600,41 @@ export async function joinMatchByCode(input: {
         .limit(1)
     )[0];
     if (!player) throw new Error("Player could not be joined.");
-    notifyMatchUpdated(match.id);
+
+    const allPlayers = await tx
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.matchId, match.id));
+
     return {
-      match: { ...match, status: nextStatus },
+      match: { ...match, status: nextStatus, expiresAt: playExpiresAt },
       player,
+      allPlayers,
     };
   });
+
+  // Real-time broadcast AFTER transaction has committed
+  try {
+    notifyMatchUpdated(result.match.id, {
+      id: result.match.id,
+      status: result.match.status,
+      engineVersion: result.match.engineVersion,
+      stateVersion: result.match.stateVersion,
+      snapshot: JSON.parse(result.match.stateJson),
+      players: (result.allPlayers || []).map((item: any) => ({
+        seat: item.seat,
+        status: item.status,
+        lastSeenAt: item.lastSeenAt,
+      })),
+    });
+  } catch (notifyErr) {
+    console.warn("[joinMatchByCode] notifyMatchUpdated error:", notifyErr);
+  }
+
+  return {
+    match: result.match,
+    player: result.player,
+  };
 }
 
 export async function getMatchPlayers(matchId: string) {

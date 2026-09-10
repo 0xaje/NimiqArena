@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Bot,
@@ -7,6 +7,7 @@ import {
   Coins,
   Copy,
   ExternalLink,
+  Gamepad2,
   ShieldCheck,
   Trophy,
   Users,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { soundEngine } from "@/lib/audio";
 import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
 
 interface MatchWaitingRoomProps {
@@ -27,6 +29,7 @@ interface MatchWaitingRoomProps {
   onLeave: () => void;
   onDepositPrompt?: () => void;
   isDepositNeeded?: boolean;
+  onStartMatch?: () => void;
 }
 
 export function MatchWaitingRoom({
@@ -40,11 +43,35 @@ export function MatchWaitingRoom({
   onLeave,
   onDepositPrompt,
   isDepositNeeded = false,
+  onStartMatch,
 }: MatchWaitingRoomProps) {
   const [copied, setCopied] = useState(false);
   const [showDistDetails, setShowDistDetails] = useState(false);
+  const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
+
+  // Auto-launch countdown when guest joins
+  useEffect(() => {
+    if (guestName && !isDepositNeeded) {
+      soundEngine.playBonusTurn();
+      setAutoCountdown(2);
+      const interval = setInterval(() => {
+        setAutoCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(interval);
+            onStartMatch?.();
+            void utils.match.state.invalidate({ id: matchId });
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setAutoCountdown(null);
+    }
+  }, [guestName, isDepositNeeded, matchId]);
   const addBot = trpc.match.addBotToMatch.useMutation({
     onSuccess: () => {
       toast.success("Arena AI Bot Joined!", {
@@ -215,6 +242,49 @@ export function MatchWaitingRoom({
             </button>
             <span className="waiting-bot-subtext">
               Don't want to wait? Start playing immediately against the Nimiq AI!
+            </span>
+          </div>
+        )}
+
+        {guestName && !isDepositNeeded && (
+          <div
+            className="waiting-bot-cta"
+            style={{
+              background: "linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(236, 153, 24, 0.12))",
+              border: "1px solid rgba(74, 222, 128, 0.35)",
+              padding: "16px",
+              borderRadius: "14px",
+            }}
+          >
+            <button
+              type="button"
+              className="start-with-bot-btn"
+              onClick={() => {
+                onStartMatch?.();
+                void utils.match.state.invalidate({ id: matchId });
+              }}
+              style={{
+                background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                color: "#ffffff",
+                boxShadow: "0 6px 22px rgba(34, 197, 94, 0.45)",
+                fontWeight: 800,
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                cursor: "pointer",
+              }}
+            >
+              <Gamepad2 size={20} />
+              <span>
+                {autoCountdown !== null && autoCountdown > 0
+                  ? `LAUNCHING TABLE (${autoCountdown}s)… TAP TO ENTER NOW`
+                  : "ENTER LIVE GAME TABLE NOW"}
+              </span>
+            </button>
+            <span className="waiting-bot-subtext" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
+              Opponent connected! Entering match table automatically.
             </span>
           </div>
         )}
