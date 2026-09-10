@@ -27,12 +27,23 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
   playerSeat,
   size = "md",
 }) => {
+  const [isLocalRolling, setIsLocalRolling] = React.useState(false);
+
+  React.useEffect(() => {
+    if (value !== null || !isRolling) {
+      setIsLocalRolling(false);
+    }
+  }, [value, isRolling]);
+
   const handleRollClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!canRoll || isRolling) return;
+    if (!canRoll || isRolling || isLocalRolling) return;
+    setIsLocalRolling(true);
     soundEngine.playDiceRoll();
     onRoll();
   };
+
+  const rollingActive = isRolling || isLocalRolling;
 
   // Derive individual die values: [die1, die2]
   const [val1, val2] = React.useMemo<[number | null, number | null]>(() => {
@@ -131,21 +142,21 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
         <button
           type="button"
           className={`dual-dice-button p${playerSeat}-dice-btn active-roll-btn`}
-          disabled={isRolling}
+          disabled={rollingActive}
           onClick={handleRollClick}
           title="Tap to roll the two dice"
         >
           <div className="dual-dice-pair">
             <div
               className={`ludo-dice-cube dice-one p${playerSeat}-dice ${
-                isRolling ? "is-rolling tumble-left" : ""
+                rollingActive ? "is-rolling tumble-left" : ""
               }`}
             >
               {renderPips(val1)}
             </div>
             <div
               className={`ludo-dice-cube dice-two p${playerSeat}-dice ${
-                isRolling ? "is-rolling tumble-right" : ""
+                rollingActive ? "is-rolling tumble-right" : ""
               }`}
             >
               {renderPips(val2)}

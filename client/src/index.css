@@ -2643,8 +2643,9 @@ h1 em,
 /* Classic Track Cells (15x15 grid) */
 .classic-track-cell {
   background: #ffffff;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   transition: background 0.15s ease;
   min-width: 0;
@@ -2675,8 +2676,13 @@ h1 em,
 }
 
 .start-arrow {
+  position: absolute;
+  inset: 0;
+  margin: auto;
   color: #ffffff;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  pointer-events: none;
+  z-index: 1;
 }
 
 .cell-star {
@@ -2684,9 +2690,14 @@ h1 em,
 }
 
 .safe-star-icon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
   color: #d97706;
   fill: #f59e0b;
   filter: drop-shadow(0 1px 2px rgba(217, 119, 6, 0.4));
+  pointer-events: none;
+  z-index: 1;
 }
 
 .cell-target-highlight {
@@ -2810,22 +2821,24 @@ h1 em,
    ========================================================================== */
 
 .cell-pawns-stack {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: visible;
+  z-index: 5;
 }
 
 .ludo-3d-pawn {
-  width: clamp(18px, 4.2vw, 28px);
-  height: clamp(18px, 4.2vw, 28px);
-  max-width: 90%;
-  max-height: 90%;
+  width: clamp(17px, 4vw, 26px);
+  height: clamp(17px, 4vw, 26px);
+  max-width: 88%;
+  max-height: 88%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: none;
@@ -2877,27 +2890,65 @@ h1 em,
   }
 }
 
-/* Multi-pawn cell scaling for star / overlapping track positions */
-.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) {
-  width: clamp(13px, 3.2vw, 19px);
-  height: clamp(13px, 3.2vw, 19px);
-  margin: -3px;
+/* 2 Pawns on Same Cell (Start Square, Safe Star, or Regular Track) */
+.cell-pawns-stack.pawns-count-2 {
+  flex-direction: row;
+  gap: 1.5px;
 }
-.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-head {
-  width: 48%;
-  height: 48%;
+.cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn {
+  width: clamp(11px, 2.5vw, 15px);
+  height: clamp(11px, 2.5vw, 15px);
+  max-width: 48%;
+  max-height: 85%;
+  margin: 0;
 }
-.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-ring {
-  width: 70%;
+.cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-head {
+  width: 46%;
+  height: 46%;
+}
+.cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-ring {
+  width: 68%;
   height: 20%;
   top: 42%;
 }
-.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-body {
-  width: 86%;
-  height: 86%;
+.cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-body {
+  width: 84%;
+  height: 84%;
 }
-.cell-pawns-stack > .ludo-3d-pawn:not(:only-child) .pawn-number {
-  font-size: clamp(6px, 1.6vw, 8px);
+.cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-number {
+  font-size: clamp(5px, 1.3vw, 7px);
+}
+
+/* 3 or 4 Pawns on Safe Star or Start Cell - 2x2 Clean Cluster */
+.cell-pawns-stack.has-multiple-pawns:not(.pawns-count-2) {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  place-items: center;
+  padding: 1px;
+}
+.cell-pawns-stack.has-multiple-pawns:not(.pawns-count-2) > .ludo-3d-pawn {
+  width: clamp(9px, 2vw, 12px);
+  height: clamp(9px, 2vw, 12px);
+  max-width: 90%;
+  max-height: 90%;
+  margin: 0;
+}
+.cell-pawns-stack.has-multiple-pawns:not(.pawns-count-2) > .ludo-3d-pawn .pawn-head {
+  width: 44%;
+  height: 44%;
+}
+.cell-pawns-stack.has-multiple-pawns:not(.pawns-count-2) > .ludo-3d-pawn .pawn-ring {
+  width: 66%;
+  height: 18%;
+  top: 42%;
+}
+.cell-pawns-stack.has-multiple-pawns:not(.pawns-count-2) > .ludo-3d-pawn .pawn-body {
+  width: 82%;
+  height: 82%;
+}
+.cell-pawns-stack.has-multiple-pawns:not(.pawns-count-2) > .ludo-3d-pawn .pawn-number {
+  font-size: clamp(4.5px, 1.1vw, 6px);
 }
 
 .pawn-head {
@@ -3250,25 +3301,25 @@ h1 em,
   height: 7px;
 }
 
-/* Synchronized Tumbling Animations for Dual Dice */
+/* Synchronized Tumbling Animations for Dual Dice - Fast & Snappy (0.18s) */
 .ludo-dice-cube.is-rolling.tumble-left {
-  animation: diceTumbleLeft 0.35s ease-in-out infinite alternate;
+  animation: diceTumbleLeft 0.18s ease-in-out infinite alternate;
 }
 
 .ludo-dice-cube.is-rolling.tumble-right {
-  animation: diceTumbleRight 0.35s ease-in-out infinite alternate-reverse;
+  animation: diceTumbleRight 0.18s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes diceTumbleLeft {
-  0% { transform: rotate(-14deg) scale(0.96); }
-  50% { transform: rotate(18deg) scale(1.08); }
-  100% { transform: rotate(-10deg) scale(1); }
+  0% { transform: rotate(-20deg) scale(0.92); }
+  50% { transform: rotate(24deg) scale(1.12); }
+  100% { transform: rotate(-12deg) scale(1); }
 }
 
 @keyframes diceTumbleRight {
-  0% { transform: rotate(16deg) scale(1.06); }
-  50% { transform: rotate(-16deg) scale(0.95); }
-  100% { transform: rotate(10deg) scale(1.02); }
+  0% { transform: rotate(22deg) scale(1.10); }
+  50% { transform: rotate(-22deg) scale(0.92); }
+  100% { transform: rotate(14deg) scale(1.04); }
 }
 
 .dual-dice-badge {
@@ -3334,25 +3385,43 @@ h1 em,
 
 @media (max-width: 520px) {
   .center-dice-arena {
-    width: 80px;
-    height: 42px;
+    width: clamp(56px, 16vw, 68px);
+    height: clamp(30px, 8.5vw, 36px);
+  }
+  .dice-size-sm .ludo-dice-cube {
+    width: clamp(23px, 6vw, 28px);
+    height: clamp(23px, 6vw, 28px);
+    border-radius: 6px;
+    border-width: 1.2px;
+  }
+  .dice-size-sm .dice-face {
+    width: 18px;
+    height: 18px;
+    padding: 1px;
+  }
+  .dice-size-sm .pip {
+    width: 3.8px;
+    height: 3.8px;
+  }
+  .dual-dice-pair {
+    gap: 3px;
   }
   .center-dice-arena .ludo-dice-floating-panel {
     top: calc(100% + 1px);
-    max-width: 120px;
+    max-width: 105px;
   }
   .dual-dice-badge {
-    font-size: 7.5px;
-    padding: 1px 5px;
-    max-width: 110px;
+    font-size: 7px;
+    padding: 1px 4px;
+    max-width: 95px;
   }
   .dice-choice-pill {
-    font-size: 7.5px;
-    padding: 1.5px 5px;
+    font-size: 7px;
+    padding: 1px 4px;
   }
   .dice-choice-single {
-    font-size: 7.5px;
-    padding: 1px 5px;
+    font-size: 7px;
+    padding: 1px 4px;
   }
 }
 

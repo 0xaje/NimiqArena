@@ -4,8 +4,6 @@ import { formatNim } from "@shared/game/pot-distribution";
 import { EmoteWheel } from "@/components/game/EmoteWheel";
 import { ProvablyFairModal } from "@/components/game/ProvablyFairModal";
 
-import { useNimiqWallet } from "@/lib/useNimiqWallet";
-
 interface MatchHeaderProps {
   matchId: string;
   isWagered?: boolean;
@@ -30,7 +28,6 @@ export function MatchHeader({
   dice = null,
 }: MatchHeaderProps) {
   const [showProvablyFair, setShowProvablyFair] = useState(false);
-  const { address, balanceNim, isConnected } = useNimiqWallet();
 
   return (
     <>
@@ -52,31 +49,6 @@ export function MatchHeader({
           <div className="gameplay-pot-badge">
             <Coins size={15} className="trophy-gold" />
             <span>MATCH POT: {formatNim(totalPotNim)} NIM</span>
-          </div>
-        ) : null}
-
-        {isConnected && address ? (
-          <div
-            className="gameplay-wallet-pill"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "rgba(255, 199, 44, 0.12)",
-              border: "1px solid rgba(255, 199, 44, 0.3)",
-              borderRadius: "20px",
-              padding: "4px 10px",
-              fontFamily: "IBM Plex Mono, monospace",
-              fontSize: "12px",
-              color: "#fbbf24",
-              fontWeight: 600,
-            }}
-            title={`Connected Nimiq Wallet: ${address}`}
-          >
-            <Coins size={13} style={{ color: "#eab308" }} />
-            <span>{balanceNim.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })} NIM</span>
-            <span style={{ opacity: 0.5 }}>|</span>
-            <span style={{ opacity: 0.85 }}>{address.slice(0, 4)}…{address.slice(-4)}</span>
           </div>
         ) : null}
 

@@ -633,19 +633,27 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                   gridColumn: coord.col + 1,
                 }}
               >
-                {/* Directional Exit Arrows */}
-                {isRedStart && <ArrowRight size={14} className="start-arrow" />}
-                {isGreenStart && <ArrowDown size={14} className="start-arrow" />}
-                {isYellowStart && <ArrowLeft size={14} className="start-arrow" />}
-                {isBlueStart && <ArrowUp size={14} className="start-arrow" />}
+                {/* Directional Exit Arrows - only rendered when cell has no pawns, preventing compression */}
+                {piecesOnCell.length === 0 && (
+                  <>
+                    {isRedStart && <ArrowRight size={14} className="start-arrow" />}
+                    {isGreenStart && <ArrowDown size={14} className="start-arrow" />}
+                    {isYellowStart && <ArrowLeft size={14} className="start-arrow" />}
+                    {isBlueStart && <ArrowUp size={14} className="start-arrow" />}
+                  </>
+                )}
 
-                {/* Star Icon */}
-                {isStar && !isRedStart && !isGreenStart && !isYellowStart && !isBlueStart && (
+                {/* Star Icon - only rendered when cell has no pawns, preventing compression */}
+                {piecesOnCell.length === 0 && isStar && !isRedStart && !isGreenStart && !isYellowStart && !isBlueStart && (
                   <Star size={13} className="safe-star-icon" />
                 )}
 
                 {/* Pawns on Track Cell */}
-                <div className="cell-pawns-stack">
+                <div
+                  className={`cell-pawns-stack pawns-count-${piecesOnCell.length} ${
+                    piecesOnCell.length > 1 ? "has-multiple-pawns" : ""
+                  }`}
+                >
                   {piecesOnCell.map(({ player, pieceIndex, piece, isStepping, stepNum, color }) => {
                     const isMovable = canMovePiece(player, piece);
                     return renderPawn(
@@ -684,7 +692,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                 className={`classic-track-cell home-stretch-red ${isTargeted ? "cell-target-highlight" : ""}`}
                 style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
               >
-                <div className="cell-pawns-stack">
+                <div
+                  className={`cell-pawns-stack pawns-count-${pieces.length} ${
+                    pieces.length > 1 ? "has-multiple-pawns" : ""
+                  }`}
+                >
                   {pieces.map(({ piece, pieceIndex }) => {
                     const isMovable = canMovePiece(0, piece);
                     return renderPawn(0, pieceIndex, isMovable, "red");
@@ -712,7 +724,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                 className="classic-track-cell home-stretch-green"
                 style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
               >
-                <div className="cell-pawns-stack">
+                <div
+                  className={`cell-pawns-stack pawns-count-${pieces.length} ${
+                    pieces.length > 1 ? "has-multiple-pawns" : ""
+                  }`}
+                >
                   {pieces.map(({ piece, pieceIndex }) => {
                     const isMovable = canMovePiece(1, piece);
                     return renderPawn(1, pieceIndex, isMovable, "green");
@@ -744,7 +760,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                 className={`classic-track-cell home-stretch-yellow ${isTargeted ? "cell-target-highlight" : ""}`}
                 style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
               >
-                <div className="cell-pawns-stack">
+                <div
+                  className={`cell-pawns-stack pawns-count-${pieces.length} ${
+                    pieces.length > 1 ? "has-multiple-pawns" : ""
+                  }`}
+                >
                   {pieces.map(({ piece, pieceIndex }) => {
                     const isMovable = canMovePiece(targetPlayer, piece);
                     return renderPawn(targetPlayer, pieceIndex, isMovable, "yellow");
@@ -772,7 +792,11 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                 className="classic-track-cell home-stretch-blue"
                 style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
               >
-                <div className="cell-pawns-stack">
+                <div
+                  className={`cell-pawns-stack pawns-count-${pieces.length} ${
+                    pieces.length > 1 ? "has-multiple-pawns" : ""
+                  }`}
+                >
                   {pieces.map(({ piece, pieceIndex }) => {
                     const isMovable = canMovePiece(1, piece);
                     return renderPawn(1, pieceIndex, isMovable, "blue");
