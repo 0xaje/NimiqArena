@@ -109,12 +109,16 @@ export async function connectViaMiniApp(): Promise<string> {
   if (!list || list.length === 0) {
     throw new Error("No accounts were returned by Nimiq Pay.");
   }
-  const addr = list[0];
-  _activeAddress = addr;
+  const rawAddr = typeof list[0] === "string" ? list[0] : (list[0] as any)?.address;
+  if (!rawAddr) {
+    throw new Error("Invalid account data returned by Nimiq Pay.");
+  }
+  const formatted = formatNimiqAddress(rawAddr);
+  _activeAddress = formatted;
   _connectionMode = "mini-app";
-  localStorage.setItem("nimiq_arena_wallet_address", addr);
+  localStorage.setItem("nimiq_arena_wallet_address", formatted);
   localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
-  return addr;
+  return formatted;
 }
 
 /**
@@ -284,12 +288,13 @@ export async function signIdentityMessage(message: string, signerAddress?: strin
  * Queries high-performance server proxy first, then falls back to direct JSON-RPC.
  */
 export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccountInfo> {
+  const inApp = isRunningInNimiqPay();
   const defaultInfo: NimiqAccountInfo = {
     balanceNim: 0,
     balanceLuna: 0,
     usdValue: 0,
     usdPrice: 0.0004,
-    network: "testnet",
+    network: inApp ? "mainnet" : "testnet",
   };
 
   if (!address || !isValidNimiqAddress(address)) return defaultInfo;
@@ -298,7 +303,7 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
   // 1. Primary: Server Proxy (/api/nimiq/account/:address) with fast multi-RPC fallback & price
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4500);
+    const timeout = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(`/api/nimiq/account/${encodeURIComponent(clean)}`, {
       signal: controller.signal,
     });
@@ -311,7 +316,7 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
           balanceLuna: Number(json.balanceLuna) || 0,
           usdValue: Number(json.usdValue) || 0,
           usdPrice: Number(json.usdPrice) || 0.0004,
-          network: json.network || "testnet",
+          network: json.network || (inApp ? "mainnet" : "testnet"),
         };
       }
     }
@@ -319,13 +324,12 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
     // Server proxy fetch failed, fall through to client RPC
   }
 
-  // 2. Direct Fallback: Client-side JSON-RPC (Multi-Network Testnet & Mainnet)
-  const rpcUrls = [NIMIQ_TESTNET_RPC_URL, NIMIQ_MAINNET_RPC_URL];
-  for (const rpcUrl of rpcUrls) {
+  // 2. Direct Fallback: Client-side JSON-RPC (Parallel Mainnet & Testnet)
+  const queryEndpoint = async (url: string, net: "mainnet" | "testnet") => {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(rpcUrl, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -337,24 +341,39 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
         signal: controller.signal,
       });
       clearTimeout(timeout);
-      if (res.ok) {
-        const json = await res.json();
-        const balanceLuna = json?.result?.data?.balance ?? json?.result?.balance;
-        if (balanceLuna !== undefined && balanceLuna !== null && Number(balanceLuna) > 0) {
-          const numLuna = Number(balanceLuna);
-          const balanceNim = numLuna / 100_000;
-          return {
-            ...defaultInfo,
-            balanceNim,
-            balanceLuna: numLuna,
-            usdValue: Number((balanceNim * 0.0004).toFixed(4)),
-            network: rpcUrl.includes("testnet") ? "testnet" : "mainnet",
-          };
-        }
+      if (!res.ok) return null;
+      const json = await res.json();
+      const balanceLuna = json?.result?.data?.balance ?? json?.result?.balance;
+      if (balanceLuna !== undefined && balanceLuna !== null) {
+        return { balanceLuna: Number(balanceLuna), network: net };
       }
     } catch {
-      // Continue to next RPC
+      // Endpoint error or timeout
     }
+    return null;
+  };
+
+  const [mainnetResult, testnetResult] = await Promise.all([
+    queryEndpoint(NIMIQ_MAINNET_RPC_URL, "mainnet"),
+    queryEndpoint(NIMIQ_TESTNET_RPC_URL, "testnet"),
+  ]);
+
+  const bestResult =
+    (mainnetResult && mainnetResult.balanceLuna > 0 ? mainnetResult : null) ||
+    (testnetResult && testnetResult.balanceLuna > 0 ? testnetResult : null) ||
+    (inApp ? mainnetResult : null) ||
+    testnetResult ||
+    mainnetResult;
+
+  if (bestResult) {
+    const balanceNim = bestResult.balanceLuna / 100_000;
+    return {
+      balanceNim,
+      balanceLuna: bestResult.balanceLuna,
+      usdValue: Number((balanceNim * 0.0004).toFixed(4)),
+      usdPrice: 0.0004,
+      network: bestResult.network,
+    };
   }
 
   return defaultInfo;

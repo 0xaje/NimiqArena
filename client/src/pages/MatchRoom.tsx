@@ -3,7 +3,7 @@ import {
   LockKeyhole,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";

@@ -188,8 +188,8 @@ export function registerMatchStream(app: Express) {
     // for having tabbed away. The client's own beat still drives presence when
     // the stream is unavailable.
     const presenceSync = setInterval(() => {
-      if (closed || !player) return;
-      void touchMatchPlayerPresence(matchId, context.user!.id).catch(
+      if (closed || !initialPlayer) return;
+      void touchMatchPlayerPresence(matchId, user.id).catch(
         () => undefined
       );
     }, PLAYER_HEARTBEAT_INTERVAL_MS);

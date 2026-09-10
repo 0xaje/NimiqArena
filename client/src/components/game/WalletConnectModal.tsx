@@ -49,8 +49,9 @@ export function WalletConnectModal({
   onDisconnected,
 }: WalletConnectModalProps) {
   useModalBackHandler(isOpen, onClose);
+  const inApp = isRunningInNimiqPay();
   const [isConnectingHub, setIsConnectingHub] = useState(false);
-  const [useTestnet, setUseTestnet] = useState(true);
+  const [useTestnet, setUseTestnet] = useState(!inApp);
   const [balance, setBalance] = useState<number | null>(null);
   const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
@@ -62,6 +63,11 @@ export function WalletConnectModal({
       const info = await fetchNimiqAccountInfo(connectedAddress);
       setAccountInfo(info);
       setBalance(info.balanceNim);
+      if (info.network === "mainnet") {
+        setUseTestnet(false);
+      } else if (info.network === "testnet") {
+        setUseTestnet(true);
+      }
     } catch {
       // transient network catch
     } finally {
@@ -76,8 +82,6 @@ export function WalletConnectModal({
   }, [connectedAddress, useTestnet, isOpen]);
 
   if (!isOpen) return null;
-
-  const inApp = isRunningInNimiqPay();
 
   const handleConnectHub = async (targetEndpoint?: string) => {
     setIsConnectingHub(true);
@@ -269,27 +273,42 @@ export function WalletConnectModal({
               <div
                 style={{
                   display: "flex",
+                  flexWrap: "wrap",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: "8px",
                   backgroundColor: "#0d1117",
-                  padding: "10px 14px",
+                  padding: "10px 12px",
                   borderRadius: "10px",
                   border: "1px solid rgba(236, 153, 24, 0.25)",
+                  boxSizing: "border-box",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                   <Sparkles size={14} style={{ color: "#EC9918" }} />
                   <span style={{ fontSize: "12px", color: "#8b949e", fontWeight: 600 }}>
-                    {useTestnet ? "Testnet Balance" : "Mainnet Balance"}:
+                    {accountInfo?.network === "mainnet" || (!useTestnet && !accountInfo)
+                      ? "Mainnet Balance:"
+                      : "Testnet Balance:"}
                   </span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    flexWrap: "wrap",
+                    justifyContent: "flex-end",
+                    minWidth: 0,
+                  }}
+                >
                   <span
                     style={{
                       fontFamily: "IBM Plex Mono, monospace",
-                      fontSize: "14px",
+                      fontSize: "13px",
                       fontWeight: 700,
                       color: "#EC9918",
+                      wordBreak: "break-word",
                     }}
                   >
                     {isLoadingBalance ? (
@@ -298,7 +317,7 @@ export function WalletConnectModal({
                       <span>
                         {accountInfo.balanceNim.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} NIM
                         {accountInfo.usdValue > 0 && (
-                          <span style={{ fontSize: "12px", color: "#8b949e", marginLeft: "6px", fontWeight: 400 }}>
+                          <span style={{ fontSize: "11px", color: "#8b949e", marginLeft: "4px", fontWeight: 400 }}>
                             (~${accountInfo.usdValue < 0.01 ? accountInfo.usdValue.toFixed(4) : accountInfo.usdValue.toFixed(2)} USD)
                           </span>
                         )}
@@ -317,9 +336,10 @@ export function WalletConnectModal({
                       border: "none",
                       color: "#8b949e",
                       cursor: "pointer",
-                      padding: "2px",
+                      padding: "3px",
                       display: "grid",
                       placeItems: "center",
+                      flexShrink: 0,
                     }}
                   >
                     <RotateCw size={12} className={isLoadingBalance ? "animate-spin" : ""} />
@@ -327,19 +347,22 @@ export function WalletConnectModal({
                 </div>
               </div>
 
-              {/* Faucet Callout if on Testnet */}
-              {useTestnet && (
+              {/* Faucet Callout only if on Testnet */}
+              {accountInfo?.network !== "mainnet" && useTestnet && !inApp && (
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "6px",
                     padding: "8px 12px",
                     borderRadius: "8px",
                     backgroundColor: "rgba(31, 111, 235, 0.1)",
                     border: "1px solid rgba(56, 139, 253, 0.25)",
                     fontSize: "11px",
                     color: "#58a6ff",
+                    boxSizing: "border-box",
                   }}
                 >
                   <span>Need free Testnet NIM for wagers?</span>
@@ -354,6 +377,7 @@ export function WalletConnectModal({
                       display: "flex",
                       alignItems: "center",
                       gap: "3px",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Get Free NIM <ExternalLink size={10} />
@@ -361,7 +385,16 @@ export function WalletConnectModal({
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "6px",
+                  marginTop: "4px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -369,28 +402,30 @@ export function WalletConnectModal({
                     toast.success("Nimiq address copied to clipboard");
                   }}
                   style={{
-                    flex: 1,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "6px",
-                    padding: "10px 14px",
-                    fontSize: "12px",
+                    gap: "4px",
+                    padding: "8px 4px",
+                    fontSize: "11px",
                     fontWeight: 600,
                     color: "#c9d1d9",
                     backgroundColor: "#21262d",
                     border: "1px solid #30363d",
                     borderRadius: "8px",
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
-                  <Copy size={14} /> Copy
+                  <Copy size={13} /> Copy
                 </button>
                 <a
                   href={
-                    useTestnet
-                      ? `https://testnet.nimiqwatch.com/#${cleanAddress}`
-                      : `https://nimiqwatch.com/#${cleanAddress}`
+                    (accountInfo?.network === "mainnet" || (!useTestnet && !accountInfo))
+                      ? `https://nimiqwatch.com/#${cleanAddress}`
+                      : `https://testnet.nimiqwatch.com/#${cleanAddress}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
@@ -398,18 +433,21 @@ export function WalletConnectModal({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "6px",
-                    padding: "10px 14px",
-                    fontSize: "12px",
+                    gap: "4px",
+                    padding: "8px 4px",
+                    fontSize: "11px",
                     fontWeight: 600,
                     color: "#EC9918",
                     backgroundColor: "rgba(236, 153, 24, 0.1)",
                     border: "1px solid rgba(236, 153, 24, 0.3)",
                     borderRadius: "8px",
                     textDecoration: "none",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
-                  Explorer <ExternalLink size={13} />
+                  Explorer <ExternalLink size={11} />
                 </a>
                 <button
                   type="button"
@@ -418,18 +456,21 @@ export function WalletConnectModal({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "6px",
-                    padding: "10px 14px",
-                    fontSize: "12px",
+                    gap: "4px",
+                    padding: "8px 4px",
+                    fontSize: "11px",
                     fontWeight: 600,
                     color: "#f85149",
                     backgroundColor: "rgba(248, 81, 73, 0.1)",
                     border: "1px solid rgba(248, 81, 73, 0.3)",
                     borderRadius: "8px",
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
-                  <LogOut size={14} /> Disconnect
+                  <LogOut size={13} /> Disconnect
                 </button>
               </div>
             </div>

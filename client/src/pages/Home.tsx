@@ -130,6 +130,7 @@ export default function Home() {
     isConnected,
     isInsideNimiqPay: insidePay,
     refreshBalance: refreshAccountBalance,
+    setAddress,
   } = useNimiqWallet();
 
   const [language, setLanguage] = useState(() =>
@@ -321,7 +322,7 @@ export default function Home() {
         onConnected={async (addr, mode) => {
           setAddress(addr);
           setConnectionMode(mode);
-          void refreshAccountBalance(addr);
+          void refreshAccountBalance();
           try {
             const challengeRes = await utils.client.auth.requestChallenge.query();
             const loginRes = await loginWithNimiq.mutateAsync({
@@ -334,6 +335,7 @@ export default function Home() {
             }
             await utils.auth.me.invalidate();
 
+            const isCustom = Boolean(user?.name && !user.name.toLowerCase().startsWith("guest"));
             const isCompleted =
               localStorage.getItem(`onboarding_completed_${addr}`) === "true" ||
               localStorage.getItem("dismissed_identity_modal") === "true";

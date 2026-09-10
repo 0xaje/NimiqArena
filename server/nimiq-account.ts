@@ -87,22 +87,27 @@ export async function getLiveAccountBalance(rawAddress: string) {
 
   const usdPrice = await fetchNimiqUsdPrice();
 
-  // 1. Try Testnet RPC Primary
-  let balanceLuna = await queryRpcAccount("https://rpc.testnet.nimiqwatch.com", clean, 4000);
-  let network: "testnet" | "mainnet" = "testnet";
+  // Query Mainnet and Testnet in parallel (Nimiq Pay mobile wallets hold Mainnet NIM)
+  const [mainnetLuna, testnetLuna] = await Promise.all([
+    queryRpcAccount("https://rpc.nimiqwatch.com", clean, 3500),
+    queryRpcAccount("https://rpc.testnet.nimiqwatch.com", clean, 3500),
+  ]);
 
-  // 2. Fallback to secondary testnet node
-  if (balanceLuna === null) {
-    balanceLuna = await queryRpcAccount("https://testnet.nimiq.network:8443", clean, 4000);
-  }
+  let balanceLuna = 0;
+  let network: "testnet" | "mainnet" = "mainnet";
 
-  // 3. If balance is 0 or query failed, check mainnet in case user wallet is on Mainnet
-  if (!balanceLuna || balanceLuna === 0) {
-    const mainnetLuna = await queryRpcAccount("https://rpc.nimiqwatch.com", clean, 4000);
-    if (mainnetLuna !== null && mainnetLuna > 0) {
-      balanceLuna = mainnetLuna;
-      network = "mainnet";
-    }
+  if (mainnetLuna !== null && mainnetLuna > 0) {
+    balanceLuna = mainnetLuna;
+    network = "mainnet";
+  } else if (testnetLuna !== null && testnetLuna > 0) {
+    balanceLuna = testnetLuna;
+    network = "testnet";
+  } else if (mainnetLuna !== null) {
+    balanceLuna = mainnetLuna;
+    network = "mainnet";
+  } else if (testnetLuna !== null) {
+    balanceLuna = testnetLuna;
+    network = "testnet";
   }
 
   const finalLuna = balanceLuna ?? 0;
