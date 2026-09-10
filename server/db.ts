@@ -1793,16 +1793,13 @@ export async function applyLudoMatchCommand(input: {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
   const result = await db.transaction(async tx => {
-    const match = (
-      await tx
+    const [[match], [playerFound], [previousEvent]] = await Promise.all([
+      tx
         .select()
         .from(matches)
         .where(eq(matches.id, input.matchId))
-        .limit(1)
-    )[0];
-    if (!match) throw new Error("Match not found.");
-    let player = (
-      await tx
+        .limit(1),
+      tx
         .select()
         .from(matchPlayers)
         .where(
@@ -1811,19 +1808,8 @@ export async function applyLudoMatchCommand(input: {
             eq(matchPlayers.userId, input.userId)
           )
         )
-        .limit(1)
-    )[0];
-    if (!player) throw new Error("You are not a joined player in this match.");
-    if (player.status !== "joined") {
-      await tx
-        .update(matchPlayers)
-        .set({ status: "joined", lastSeenAt: new Date() })
-        .where(eq(matchPlayers.id, player.id));
-      player = { ...player, status: "joined" };
-    }
-
-    const previousEvent = (
-      await tx
+        .limit(1),
+      tx
         .select()
         .from(matchEvents)
         .where(
@@ -1832,8 +1818,20 @@ export async function applyLudoMatchCommand(input: {
             eq(matchEvents.commandNonce, input.command.nonce)
           )
         )
-        .limit(1)
-    )[0];
+        .limit(1),
+    ]);
+
+    if (!match) throw new Error("Match not found.");
+    if (!playerFound) throw new Error("You are not a joined player in this match.");
+    let player = playerFound;
+    if (player.status !== "joined") {
+      await tx
+        .update(matchPlayers)
+        .set({ status: "joined", lastSeenAt: new Date() })
+        .where(eq(matchPlayers.id, player.id));
+      player = { ...player, status: "joined" };
+    }
+
     if (previousEvent)
       return replayStoredMatchEvent<LudoSnapshot, LudoEvent>(previousEvent);
 
@@ -1928,7 +1926,13 @@ export async function applyLudoMatchCommand(input: {
     };
   });
   if (!result.idempotent) {
-    notifyMatchUpdated(input.matchId);
+    notifyMatchUpdated(input.matchId, {
+      id: input.matchId,
+      status: result.status,
+      engineVersion: "ludo-v1",
+      stateVersion: result.snapshot.version,
+      snapshot: result.snapshot,
+    });
     if (result.status === "in_progress") {
       void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
     } else {
@@ -1951,16 +1955,13 @@ export async function applyConnect4MatchCommand(input: {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
   const result = await db.transaction(async tx => {
-    const match = (
-      await tx
+    const [[match], [playerFound], [previousEvent]] = await Promise.all([
+      tx
         .select()
         .from(matches)
         .where(eq(matches.id, input.matchId))
-        .limit(1)
-    )[0];
-    if (!match) throw new Error("Match not found.");
-    let player = (
-      await tx
+        .limit(1),
+      tx
         .select()
         .from(matchPlayers)
         .where(
@@ -1969,19 +1970,8 @@ export async function applyConnect4MatchCommand(input: {
             eq(matchPlayers.userId, input.userId)
           )
         )
-        .limit(1)
-    )[0];
-    if (!player) throw new Error("You are not a joined player in this match.");
-    if (player.status !== "joined") {
-      await tx
-        .update(matchPlayers)
-        .set({ status: "joined", lastSeenAt: new Date() })
-        .where(eq(matchPlayers.id, player.id));
-      player = { ...player, status: "joined" };
-    }
-
-    const previousEvent = (
-      await tx
+        .limit(1),
+      tx
         .select()
         .from(matchEvents)
         .where(
@@ -1990,8 +1980,20 @@ export async function applyConnect4MatchCommand(input: {
             eq(matchEvents.commandNonce, input.command.nonce)
           )
         )
-        .limit(1)
-    )[0];
+        .limit(1),
+    ]);
+
+    if (!match) throw new Error("Match not found.");
+    if (!playerFound) throw new Error("You are not a joined player in this match.");
+    let player = playerFound;
+    if (player.status !== "joined") {
+      await tx
+        .update(matchPlayers)
+        .set({ status: "joined", lastSeenAt: new Date() })
+        .where(eq(matchPlayers.id, player.id));
+      player = { ...player, status: "joined" };
+    }
+
     if (previousEvent) {
       return replayStoredMatchEvent<Connect4Snapshot, Connect4Event>(
         previousEvent
@@ -2076,7 +2078,13 @@ export async function applyConnect4MatchCommand(input: {
   });
 
   if (!result.idempotent) {
-    notifyMatchUpdated(input.matchId);
+    notifyMatchUpdated(input.matchId, {
+      id: input.matchId,
+      status: result.status,
+      engineVersion: "connect4-v1",
+      stateVersion: result.snapshot.version,
+      snapshot: result.snapshot,
+    });
     if (result.status === "in_progress") {
       void maybeScheduleBotTurn(input.matchId, result.snapshot.currentPlayer);
     } else {
@@ -3184,7 +3192,7 @@ export async function settleMatchWinnerPayout(input: {
 
 let matchHeartbeatTimer: NodeJS.Timeout | null = null;
 
-export function startMatchHeartbeatDaemon(intervalMs = 1500): NodeJS.Timeout | null {
+export function startMatchHeartbeatDaemon(intervalMs = 10000): NodeJS.Timeout | null {
   if (process.env.NODE_ENV === "test" || process.env.VITEST) {
     return null; // Keep unit tests isolated and deterministic
   }

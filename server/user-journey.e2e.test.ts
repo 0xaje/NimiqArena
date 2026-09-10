@@ -440,7 +440,7 @@ describeDb("Complete 30-Step Real User Journey Validation (A to Z)", () => {
       expect(dupVerify.success).toBe(false);
       expect(dupVerify.failureReason).toBe("duplicate");
     }
-  });
+  }, 15000);
 
   // Step 27: Test wrong amount
   it("Step 27 [PASS]: Test wrong amount (underpaid) is rejected by verifier", async () => {

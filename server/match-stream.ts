@@ -33,8 +33,17 @@ export interface QuickChatPayload {
   timestamp: number;
 }
 
-export function notifyMatchUpdated(matchId: string) {
-  matchEventsEmitter.emit(`match:${matchId}`);
+export interface DirectStatePayload {
+  id: string;
+  status: string;
+  engineVersion: string;
+  stateVersion: number;
+  snapshot: any;
+  players?: Array<{ seat: number; status: string; lastSeenAt: Date }>;
+}
+
+export function notifyMatchUpdated(matchId: string, payload?: DirectStatePayload) {
+  matchEventsEmitter.emit(`match:${matchId}`, payload);
 }
 
 export function broadcastEmote(matchId: string, payload: EmotePayload) {
@@ -121,8 +130,28 @@ export function registerMatchStream(app: Express) {
       }
     };
 
-    const onMatchUpdate = () => {
-      void sendState().catch(() => undefined);
+    const onMatchUpdate = (payload?: DirectStatePayload) => {
+      if (closed) return;
+      if (payload && payload.snapshot) {
+        try {
+          const resolvedSeat = initialPlayer ? initialPlayer.seat : -1;
+          res.write(
+            `event: state\ndata: ${JSON.stringify({
+              id: payload.id,
+              status: payload.status,
+              engineVersion: payload.engineVersion,
+              stateVersion: payload.stateVersion,
+              snapshot: payload.snapshot,
+              players: payload.players ?? [],
+              yourSeat: resolvedSeat,
+            })}\n\n`
+          );
+        } catch {
+          // write failed; socket closed
+        }
+      } else {
+        void sendState().catch(() => undefined);
+      }
     };
 
     const onEmote = (payload: EmotePayload) => {

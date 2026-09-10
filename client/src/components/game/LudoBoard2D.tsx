@@ -183,7 +183,7 @@ interface ActiveSteppingState {
   totalSteps: number;
 }
 
-export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
+export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
   players,
   currentPlayer,
   dice,
@@ -819,4 +819,4 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
       </div>
     </div>
   );
-};
+});

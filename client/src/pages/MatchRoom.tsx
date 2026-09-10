@@ -64,9 +64,17 @@ export default function MatchRoom() {
       refetchInterval: () => (isStreamConnected ? false : 1_500),
     }
   );
+  const isWagered = Boolean(stateQuery.data?.joinCode?.startsWith("WAG"));
   const escrowQuery = trpc.match.escrowDetails.useQuery(
     { matchId },
-    { enabled: Boolean(matchId), refetchInterval: 5_000 }
+    {
+      enabled: Boolean(matchId && (isWagered || !stateQuery.data)),
+      refetchInterval: () => {
+        if (!isWagered) return false;
+        if (stateQuery.data?.status === "in_progress" && !isDepositModalOpen) return false;
+        return 5_000;
+      },
+    }
   );
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
@@ -77,11 +85,35 @@ export default function MatchRoom() {
   const escrow = escrowQuery.data;
 
   const command = trpc.match.command.useMutation({
-    onSuccess: () => utils.match.state.invalidate({ id: matchId }),
+    onSuccess: (res: any) => {
+      if (res?.snapshot) {
+        utils.match.state.setData({ id: matchId }, (prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            stateVersion: res.snapshot.version,
+            snapshot: res.snapshot,
+            status: (res.status as any) ?? prev.status,
+          };
+        });
+      }
+    },
   });
 
   const c4Command = trpc.match.connect4Command.useMutation({
-    onSuccess: () => utils.match.state.invalidate({ id: matchId }),
+    onSuccess: (res: any) => {
+      if (res?.snapshot) {
+        utils.match.state.setData({ id: matchId }, (prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            stateVersion: res.snapshot.version,
+            snapshot: res.snapshot,
+            status: (res.status as any) ?? prev.status,
+          };
+        });
+      }
+    },
   });
 
   const heartbeat = trpc.match.heartbeat.useMutation();
@@ -95,17 +127,16 @@ export default function MatchRoom() {
             ...prev,
             stateVersion: res.snapshot.version,
             snapshot: res.snapshot,
+            status: (res.status as any) ?? prev.status,
           };
         });
       }
-      utils.match.state.invalidate({ id: matchId });
     },
   });
   const emoteMutation = trpc.match.sendEmote.useMutation();
 
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
-  const [turnSecondsLeft, setTurnSecondsLeft] = useState(30);
 
   const prevTurnRef = useRef<number | null>(null);
   const prevDiceRef = useRef<number | null>(null);
@@ -136,15 +167,6 @@ export default function MatchRoom() {
       snapshot.winner === null
   );
 
-  // Turn timer countdown effect
-  useEffect(() => {
-    if (!state || state.status !== "in_progress") return;
-    setTurnSecondsLeft(30);
-    const interval = setInterval(() => {
-      setTurnSecondsLeft(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [snapshot?.currentPlayer, state?.stateVersion, state?.status]);
 
   // Periodic heartbeat
   useEffect(() => {
@@ -499,7 +521,7 @@ export default function MatchRoom() {
         p1Name={p1Name}
         p2Name={p2Name}
         activeSeat={activeSeat}
-        turnSecondsLeft={turnSecondsLeft}
+        stateVersion={state?.stateVersion}
         isBotMatch={isBotMatch}
         gameKind={isC4 ? "connect4" : "ludo"}
         p1Score={

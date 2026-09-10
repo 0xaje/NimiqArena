@@ -20,7 +20,7 @@ interface Connect4Board2DProps {
   disabled?: boolean;
 }
 
-export function Connect4Board2D({
+export const Connect4Board2D = React.memo(function Connect4Board2D({
   board,
   currentPlayer,
   winner,
@@ -244,4 +244,4 @@ export function Connect4Board2D({
       </div>
     </div>
   );
-}
+});

@@ -1,10 +1,12 @@
+import React, { useState, useEffect } from "react";
 import { Clock, Target } from "lucide-react";
 
 interface BattlePlayersStripProps {
   p1Name: string;
   p2Name: string;
   activeSeat: number;
-  turnSecondsLeft: number;
+  turnSecondsLeft?: number;
+  stateVersion?: number;
   isBotMatch: boolean;
   gameKind?: "ludo" | "connect4";
   p1Score?: number;
@@ -12,11 +14,12 @@ interface BattlePlayersStripProps {
   totalTarget?: number;
 }
 
-export function BattlePlayersStrip({
+export const BattlePlayersStrip = React.memo(function BattlePlayersStrip({
   p1Name,
   p2Name,
   activeSeat,
   turnSecondsLeft,
+  stateVersion,
   isBotMatch,
   gameKind = "ludo",
   p1Score,
@@ -24,6 +27,17 @@ export function BattlePlayersStrip({
   totalTarget,
 }: BattlePlayersStripProps) {
   const isC4 = gameKind === "connect4";
+  const [internalSeconds, setInternalSeconds] = useState(30);
+
+  useEffect(() => {
+    setInternalSeconds(30);
+    const interval = setInterval(() => {
+      setInternalSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSeat, stateVersion]);
+
+  const displaySeconds = turnSecondsLeft ?? internalSeconds;
 
   return (
     <section className="battle-players-strip">
@@ -69,13 +83,13 @@ export function BattlePlayersStrip({
         <span
           style={{
             font: "800 11px 'IBM Plex Mono', monospace",
-            color: turnSecondsLeft <= 8 ? "#ef4444" : "#fbbf24",
+            color: displaySeconds <= 8 ? "#ef4444" : "#fbbf24",
             display: "inline-flex",
             alignItems: "center",
             gap: "4px",
           }}
         >
-          <Clock size={12} /> {turnSecondsLeft}s
+          <Clock size={12} /> {displaySeconds}s
         </span>
       </div>
 
@@ -120,4 +134,4 @@ export function BattlePlayersStrip({
       </div>
     </section>
   );
-}
+});
