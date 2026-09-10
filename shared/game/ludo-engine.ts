@@ -368,21 +368,29 @@ export function applyCommand(
     return false;
   });
   const isMultiDice = remaining.length === 2;
+  const remainingSum = remaining.reduce((a, b) => a + b, 0);
 
-  // Determine die to use
+  // Determine die to use (or combined sum of both remaining dice)
   let dieToUse: number;
+  let isCombinedMove = false;
+
   if (command.dieValue !== undefined) {
-    if (!remaining.includes(command.dieValue)) {
+    if (isMultiDice && command.dieValue === remainingSum) {
+      isCombinedMove = true;
+      dieToUse = remainingSum;
+    } else if (!remaining.includes(command.dieValue)) {
       return reject("INVALID_DICE", "The specified die value is not available in remaining dice.");
+    } else {
+      dieToUse = command.dieValue;
     }
+
     if (from === -1) {
-      if (command.dieValue !== 6) {
+      if (dieToUse !== 6) {
         return reject("ILLEGAL_MOVE", "A piece can only leave base on a six.");
       }
-    } else if (from + command.dieValue > LUDO_HOME_ENTRY) {
+    } else if (from + dieToUse > LUDO_HOME_ENTRY) {
       return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
     }
-    dieToUse = command.dieValue;
   } else {
     // Auto-select valid die for this piece from remaining
     const validDice = remaining.filter(d =>
@@ -396,8 +404,33 @@ export function applyCommand(
           : "The move overshoots the home entry."
       );
     }
-    // If piece in base, must use 6; otherwise pick first matching die
-    dieToUse = validDice[0];
+
+    // Prioritize die that captures an opponent piece
+    let chosenDie = validDice[0];
+    if (validDice.length > 1 && from >= 0) {
+      for (const d of validDice) {
+        const testTo = from + d;
+        if (testTo < TRACK_CELLS_BEFORE_HOME) {
+          const testLanding = globalTrackPosition(command.playerId, testTo, command.pieceIndex, mode);
+          if (!LUDO_SAFE_SQUARES.has(testLanding)) {
+            const wouldCapture = snapshot.players.some(opp =>
+              opp.id !== command.playerId &&
+              opp.pieces.some(
+                (oppP, oppIdx) =>
+                  oppP.position >= 0 &&
+                  oppP.position < TRACK_CELLS_BEFORE_HOME &&
+                  globalTrackPosition(opp.id, oppP.position, oppIdx, mode) === testLanding
+              )
+            );
+            if (wouldCapture) {
+              chosenDie = d;
+              break;
+            }
+          }
+        }
+      }
+    }
+    dieToUse = chosenDie;
   }
 
   const to = from === -1 ? 0 : from + dieToUse;
@@ -407,35 +440,63 @@ export function applyCommand(
   nextPiece.position = to;
 
   let capturedPiece: { playerId: LudoPlayerId; pieceIndex: number } | undefined;
-  if (to < TRACK_CELLS_BEFORE_HOME) {
-    const landing = globalTrackPosition(command.playerId, to, command.pieceIndex, mode);
 
-    if (!LUDO_SAFE_SQUARES.has(landing)) {
-      // Check for capture of any opponent piece on this cell
-      for (const opponent of next.players) {
-        if (opponent.id === command.playerId) continue;
-        const opponentIndex = opponent.pieces.findIndex(
-          (oppPiece, oppIdx) =>
-            oppPiece.position >= 0 &&
-            oppPiece.position < TRACK_CELLS_BEFORE_HOME &&
-            globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === landing
-        );
-        if (opponentIndex >= 0) {
-          opponent.pieces[opponentIndex].position = -1;
-          capturedPiece = { playerId: opponent.id, pieceIndex: opponentIndex };
-          break;
+  // Intermediate capture check for combined 2-dice move (e.g. 6 + 5: capture on 6, continue to 11)
+  if (isCombinedMove && from >= 0 && remaining.length === 2) {
+    const d1 = remaining[0];
+    const interTo = from + d1;
+    if (interTo < TRACK_CELLS_BEFORE_HOME) {
+      const interLanding = globalTrackPosition(command.playerId, interTo, command.pieceIndex, mode);
+      if (!LUDO_SAFE_SQUARES.has(interLanding)) {
+        for (const opponent of next.players) {
+          if (opponent.id === command.playerId) continue;
+          opponent.pieces.forEach((oppPiece, oppIdx) => {
+            if (
+              oppPiece.position >= 0 &&
+              oppPiece.position < TRACK_CELLS_BEFORE_HOME &&
+              globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === interLanding
+            ) {
+              oppPiece.position = -1;
+              capturedPiece = { playerId: opponent.id, pieceIndex: oppIdx };
+            }
+          });
         }
       }
     }
   }
 
-  // Splice used die from next.remainingDice
+  // Final landing capture check
+  if (to < TRACK_CELLS_BEFORE_HOME) {
+    const landing = globalTrackPosition(command.playerId, to, command.pieceIndex, mode);
+
+    if (!LUDO_SAFE_SQUARES.has(landing)) {
+      for (const opponent of next.players) {
+        if (opponent.id === command.playerId) continue;
+        opponent.pieces.forEach((oppPiece, oppIdx) => {
+          if (
+            oppPiece.position >= 0 &&
+            oppPiece.position < TRACK_CELLS_BEFORE_HOME &&
+            globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === landing
+          ) {
+            oppPiece.position = -1;
+            capturedPiece = { playerId: opponent.id, pieceIndex: oppIdx };
+          }
+        });
+      }
+    }
+  }
+
+  // Splice used die / dice from next.remainingDice
   if (!next.remainingDice || next.remainingDice.length === 0) {
     next.remainingDice = remaining;
   }
-  const dieIdx = next.remainingDice.indexOf(dieToUse);
-  if (dieIdx !== -1) {
-    next.remainingDice.splice(dieIdx, 1);
+  if (isCombinedMove) {
+    next.remainingDice = [];
+  } else {
+    const dieIdx = next.remainingDice.indexOf(dieToUse);
+    if (dieIdx !== -1) {
+      next.remainingDice.splice(dieIdx, 1);
+    }
   }
   next.dice = next.remainingDice.length > 0 ? next.remainingDice.reduce((a, b) => a + b, 0) : null;
 

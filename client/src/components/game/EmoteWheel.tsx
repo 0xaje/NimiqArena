@@ -7,6 +7,7 @@ import { toast } from "sonner";
 interface EmoteWheelProps {
   matchId: string;
   disabled?: boolean;
+  direction?: "up" | "down";
 }
 
 const EMOTE_LIST = [
@@ -29,7 +30,7 @@ const QUICK_CHATS = [
   "Well played, GG! 👏",
 ];
 
-export function EmoteWheel({ matchId, disabled = false }: EmoteWheelProps) {
+export function EmoteWheel({ matchId, disabled = false, direction = "up" }: EmoteWheelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<"emotes" | "chat">("emotes");
   const sendEmote = trpc.match.sendEmote.useMutation();
@@ -98,21 +99,28 @@ export function EmoteWheel({ matchId, disabled = false }: EmoteWheelProps) {
 
       {/* Popover Wheel / Dock */}
       {isOpen && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "45px",
-            right: "0",
-            width: "280px",
-            background: "linear-gradient(180deg, #102438 0%, #0a1724 100%)",
-            border: "2px solid #1a3854",
-            borderRadius: "14px",
-            boxShadow: "0 14px 32px rgba(0, 0, 0, 0.8)",
-            padding: "12px",
-            zIndex: 100,
-            animation: "fadeIn 0.15s ease-out",
-          }}
-        >
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 98 }}
+            onClick={() => setIsOpen(false)}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: direction === "up" ? "calc(100% + 10px)" : undefined,
+              top: direction === "down" ? "calc(100% + 10px)" : undefined,
+              right: "0",
+              width: "280px",
+              maxWidth: "88vw",
+              background: "linear-gradient(180deg, #102438 0%, #0a1724 100%)",
+              border: "2px solid #1a3854",
+              borderRadius: "14px",
+              boxShadow: "0 14px 32px rgba(0, 0, 0, 0.85)",
+              padding: "12px",
+              zIndex: 99,
+              animation: "fadeIn 0.15s ease-out",
+            }}
+          >
           {/* Header Switcher */}
           <div
             style={{
@@ -257,7 +265,8 @@ export function EmoteWheel({ matchId, disabled = false }: EmoteWheelProps) {
             </div>
           )}
         </div>
-      )}
-    </div>
+      </>
+    )}
+  </div>
   );
 }

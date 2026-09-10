@@ -14,6 +14,7 @@ import { EscrowDepositModal } from "@/components/game/EscrowDepositModal";
 import { VictoryPayoutBanner } from "@/components/game/VictoryPayoutBanner";
 import { MatchWaitingRoom } from "@/components/game/MatchWaitingRoom";
 import { EmoteOverlay } from "@/components/game/EmoteOverlay";
+import { EmoteWheel } from "@/components/game/EmoteWheel";
 import { useMatchStream } from "@/lib/useMatchStream";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import { BattlePlayersStrip } from "@/components/match/BattlePlayersStrip";
@@ -735,6 +736,67 @@ export default function MatchRoom() {
             />
           ))}
       </div>
+
+      {/* Active Player Reactions Dock (Bottom Bar - easily accessible while playing) */}
+      {yourSeat !== -1 && (
+        <div
+          className="active-reactions-dock"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            padding: "8px 14px",
+            background: "rgba(10, 18, 30, 0.75)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "16px",
+            margin: "8px auto 14px",
+            maxWidth: "min(96vw, 520px)",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+          }}
+        >
+          <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+            {[
+              { id: "fire", emoji: "🔥" },
+              { id: "gg", emoji: "👏" },
+              { id: "bullseye", emoji: "🎯" },
+              { id: "crown", emoji: "👑" },
+              { id: "shock", emoji: "😱" },
+            ].map(({ id, emoji }) => (
+              <button
+                key={id}
+                type="button"
+                className="active-reaction-chip"
+                style={{
+                  fontSize: "18px",
+                  padding: "6px 10px",
+                  borderRadius: "8px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "transform 0.15s ease",
+                }}
+                onClick={async () => {
+                  try {
+                    soundEngine.playCapture();
+                    await emoteMutation.mutateAsync({
+                      matchId,
+                      emote: id as any,
+                    });
+                  } catch {}
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <EmoteWheel matchId={matchId} direction="up" />
+        </div>
+      )}
 
       {/* Spectator Interactive Cheer Bar */}
       {yourSeat === -1 && (

@@ -48,10 +48,16 @@ class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
 
+  private isMusicEnabled: boolean = false;
+  private musicInterval: number | null = null;
+  private currentChordIndex = 0;
+
   constructor() {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("nimiq_arena_muted");
       this.isMuted = stored === "true";
+      const musicStored = localStorage.getItem("nimiq_arena_music_enabled");
+      this.isMusicEnabled = musicStored === "true";
     }
   }
 
@@ -369,6 +375,87 @@ class SoundEngine {
       osc.start(time);
       osc.stop(time + 0.28);
     });
+  }
+
+  public getMusicEnabled(): boolean {
+    return this.isMusicEnabled;
+  }
+
+  public setMusicEnabled(enabled: boolean) {
+    this.isMusicEnabled = enabled;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("nimiq_arena_music_enabled", String(enabled));
+    }
+    if (enabled) {
+      this.startAmbientMusic();
+    } else {
+      this.stopAmbientMusic();
+    }
+  }
+
+  public toggleAmbientMusic(): boolean {
+    this.setMusicEnabled(!this.isMusicEnabled);
+    return this.isMusicEnabled;
+  }
+
+  public startAmbientMusic() {
+    if (this.isMuted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    if (this.musicInterval !== null) return;
+
+    // Warm pentatonic / lofi progression: Cmaj9 -> Am9 -> Fmaj7 -> Gsus4
+    const chords = [
+      [261.63, 329.63, 392.00, 493.88], // C, E, G, B
+      [220.00, 261.63, 329.63, 392.00], // A, C, E, G
+      [174.61, 220.00, 261.63, 329.63], // F, A, C, E
+      [196.00, 246.94, 293.66, 392.00], // G, B, D, G
+    ];
+
+    const playNextChord = () => {
+      if (!this.isMusicEnabled || this.isMuted) return;
+      const audioCtx = this.getContext();
+      if (!audioCtx) return;
+
+      const chord = chords[this.currentChordIndex % chords.length];
+      this.currentChordIndex++;
+      const now = audioCtx.currentTime;
+
+      chord.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(700, now);
+        filter.frequency.exponentialRampToValueAtTime(420, now + 3.0);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.02, now + 0.6);
+        gain.gain.exponentialRampToValueAtTime(0.0005, now + 3.2);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now + idx * 0.08);
+        osc.stop(now + 3.4);
+      });
+    };
+
+    playNextChord();
+    this.musicInterval = window.setInterval(playNextChord, 3500);
+  }
+
+  public stopAmbientMusic() {
+    if (this.musicInterval !== null) {
+      window.clearInterval(this.musicInterval);
+      this.musicInterval = null;
+    }
   }
 }
 

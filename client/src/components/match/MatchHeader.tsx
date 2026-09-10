@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ArrowLeft, Bot, Coins, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Bot, Coins, Music, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import { formatNim } from "@shared/game/pot-distribution";
-import { EmoteWheel } from "@/components/game/EmoteWheel";
+import { soundEngine } from "@/lib/audio";
 import { ProvablyFairModal } from "@/components/game/ProvablyFairModal";
 
 interface MatchHeaderProps {
@@ -28,6 +28,12 @@ export function MatchHeader({
   dice = null,
 }: MatchHeaderProps) {
   const [showProvablyFair, setShowProvablyFair] = useState(false);
+  const [isMusicOn, setIsMusicOn] = useState(soundEngine.getMusicEnabled());
+
+  const handleToggleMusic = () => {
+    const next = soundEngine.toggleAmbientMusic();
+    setIsMusicOn(next);
+  };
 
   return (
     <>
@@ -62,7 +68,15 @@ export function MatchHeader({
           >
             <ShieldCheck size={16} />
           </button>
-          <EmoteWheel matchId={matchId} />
+          <button
+            type="button"
+            className="gameplay-sound-btn"
+            onClick={handleToggleMusic}
+            title={isMusicOn ? "Turn ambient music off" : "Turn ambient music on"}
+            style={{ color: isMusicOn ? "#4ade80" : "rgba(255,255,255,0.4)" }}
+          >
+            <Music size={15} />
+          </button>
           <button
             type="button"
             className="gameplay-sound-btn"

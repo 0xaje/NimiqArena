@@ -156,16 +156,17 @@ export default function Connect4Detail() {
           <div
             className="quickmatch-modal-card"
             onClick={e => e.stopPropagation()}
-            style={{ maxWidth: "440px" }}
+            style={{ maxWidth: "420px", width: "94vw", borderRadius: "18px" }}
           >
-            <div className="quickmatch-modal-header">
+            <div className="quickmatch-modal-header" style={{ height: "52px", padding: "0 16px" }}>
               <div className="quickmatch-header-left">
-                <Coins className="radar-header-icon" size={20} />
+                <Coins className="radar-header-icon" size={18} />
                 <span
                   style={{
                     fontFamily: "IBM Plex Mono, monospace",
-                    fontWeight: 600,
-                    fontSize: "13px",
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    letterSpacing: "0.06em",
                   }}
                 >
                   SELECT WAGER STAKE
@@ -181,19 +182,20 @@ export default function Connect4Detail() {
             </div>
             <div
               className="quickmatch-modal-body"
-              style={{ textAlign: "center", padding: "20px 24px" }}
+              style={{ textAlign: "center", padding: "16px 18px" }}
             >
-              <h2 style={{ margin: "0 0 8px", fontSize: "22px" }}>
+              <h2 style={{ margin: "0 0 6px", fontSize: "19px", fontWeight: 800 }}>
                 Choose Your Entry Stake
               </h2>
               <p
                 style={{
-                  color: "rgba(251, 248, 241, 0.7)",
+                  color: "rgba(251, 248, 241, 0.65)",
                   fontSize: "12px",
-                  margin: "0 0 16px",
+                  margin: "0 0 14px",
+                  lineHeight: 1.4,
                 }}
               >
-                Set a custom NIM or USD dollar stake. Both players deposit matching stakes into table escrow. Winner receives 90% of the total match pot!
+                Both players deposit matching stakes into table escrow. Winner receives 90% of the total match pot!
               </p>
 
               <StakeSelector
@@ -211,9 +213,10 @@ export default function Connect4Detail() {
                   width: "100%",
                   justifyContent: "center",
                   background: "var(--orange)",
-                  padding: "14px",
-                  fontSize: "14px",
-                  marginTop: "16px",
+                  padding: "13px",
+                  fontSize: "13px",
+                  marginTop: "14px",
+                  borderRadius: "10px",
                   cursor: "pointer",
                 }}
               >

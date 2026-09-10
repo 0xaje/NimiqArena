@@ -6032,6 +6032,57 @@ h1 em,
   .dist-row {
     grid-template-columns: 1fr;
   }
+  .ludo-flow-modal {
+    padding: 16px 14px;
+    border-radius: 18px;
+    max-height: 94vh;
+  }
+  .ludo-flow-header {
+    margin-bottom: 12px;
+  }
+  .ludo-flow-title-group h2 {
+    font-size: 20px;
+  }
+  .ludo-flow-tabs {
+    margin-bottom: 14px;
+  }
+  .ludo-step-section {
+    margin-bottom: 14px;
+  }
+  .ludo-summary-card {
+    padding: 12px 10px;
+    margin-bottom: 14px;
+  }
+  .summary-stakes-row {
+    margin-bottom: 10px;
+  }
+  .sub-amount {
+    font-size: 13px;
+  }
+  .sub-amount.pot {
+    font-size: 14px;
+  }
+  .winner-take-badge {
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .ludo-flow-primary-btn {
+    padding: 14px;
+    font-size: 13px;
+  }
+  .quickmatch-modal-card {
+    width: 95vw;
+    max-width: 420px;
+    border-radius: 18px;
+  }
+  .quickmatch-modal-header {
+    height: 52px;
+    padding: 0 16px;
+  }
+  .quickmatch-modal-body {
+    padding: 16px 16px !important;
+  }
 }
 
 @media (max-width: 380px) {

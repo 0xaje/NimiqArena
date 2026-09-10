@@ -11,11 +11,10 @@ export function EmoteOverlay({ emotes, chats, yourSeat }: EmoteOverlayProps) {
   return (
     <div
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
         pointerEvents: "none",
-        zIndex: 50,
-        overflow: "hidden",
+        zIndex: 9999,
       }}
     >
       {/* Active Floating Emotes */}
@@ -25,19 +24,20 @@ export function EmoteOverlay({ emotes, chats, yourSeat }: EmoteOverlayProps) {
           <div
             key={item.id}
             style={{
-              position: "absolute",
-              bottom: isSelf ? "15%" : "65%",
-              left: isSelf ? "20%" : "70%",
+              position: "fixed",
+              bottom: isSelf ? "32%" : "65%",
+              left: isSelf ? "22%" : "68%",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               animation: "floatUpFade 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards",
+              zIndex: 9999,
             }}
           >
             <div
               style={{
-                fontSize: "42px",
-                filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.6))",
+                fontSize: "46px",
+                filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.8))",
                 animation: "pulse 0.5s ease-in-out infinite alternate",
               }}
             >
@@ -47,12 +47,13 @@ export function EmoteOverlay({ emotes, chats, yourSeat }: EmoteOverlayProps) {
               style={{
                 fontSize: "11px",
                 fontFamily: "IBM Plex Mono, monospace",
-                background: "rgba(0, 0, 0, 0.75)",
+                fontWeight: 700,
+                background: "rgba(0, 0, 0, 0.85)",
                 color: "#fff",
-                padding: "2px 6px",
+                padding: "2px 8px",
                 borderRadius: "4px",
                 marginTop: "4px",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
               }}
             >
               {item.userName}
@@ -68,9 +69,9 @@ export function EmoteOverlay({ emotes, chats, yourSeat }: EmoteOverlayProps) {
           <div
             key={chat.id}
             style={{
-              position: "absolute",
-              bottom: isSelf ? "25%" : "70%",
-              left: isSelf ? "25%" : "65%",
+              position: "fixed",
+              bottom: isSelf ? "38%" : "70%",
+              left: isSelf ? "24%" : "60%",
               background: isSelf
                 ? "linear-gradient(135deg, #e65d23 0%, #d35400 100%)"
                 : "linear-gradient(135deg, #2980b9 0%, #1f618d 100%)",

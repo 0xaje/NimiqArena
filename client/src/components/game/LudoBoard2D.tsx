@@ -306,10 +306,24 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
     const validDice = dicePool.filter(d => piece.position + d <= 56);
     if (validDice.length === 0) return;
 
-    // Use selectedDie if legal for this pawn, otherwise use first valid die
-    const dieToUse = selectedDie && validDice.includes(selectedDie)
-      ? selectedDie
-      : validDice[0];
+    // Prioritize die that captures an opponent piece
+    let dieToUse = selectedDie && validDice.includes(selectedDie) ? selectedDie : null;
+    if (!dieToUse) {
+      const capturingDie = validDice.find(d => {
+        const target = getTargetTrackIndex(yourSeat, pieceIndex, piece.position, d);
+        if (!target || target.type !== "track") return false;
+        return players.some((opp, oppSeat) => {
+          if (oppSeat === yourSeat) return false;
+          return opp.pieces.some((oppP, oppIdx) => {
+            if (oppP.position < 0 || oppP.position >= 51) return false;
+            const oppInfo = getPieceInfo(oppSeat, oppIdx, hasEightPieces);
+            const oppGlobal = (oppInfo.start + oppP.position) % 52;
+            return oppGlobal === target.index;
+          });
+        });
+      });
+      dieToUse = capturingDie ?? validDice[0];
+    }
 
     onMovePiece(pieceIndex, dieToUse);
   };

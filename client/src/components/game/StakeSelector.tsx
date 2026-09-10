@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Coins, DollarSign, ArrowRightLeft, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { Coins, DollarSign } from "lucide-react";
 import { formatNim } from "@shared/game/pot-distribution";
 import { useNimiqPrice } from "@/lib/nimiq-price";
 
@@ -11,8 +11,8 @@ interface StakeSelectorProps {
   hideSummary?: boolean;
 }
 
-const NIM_PRESETS = [50, 100, 250, 500, 1_000];
-const USD_PRESETS = [10, 20, 50, 100, 250];
+const NIM_PRESETS = [25, 50, 100, 250, 500];
+const USD_PRESETS = [5, 10, 25, 50, 100];
 
 export function StakeSelector({
   stakeNim,
@@ -80,14 +80,15 @@ export function StakeSelector({
   const winnerPayoutUsd = nimToUsd(winnerPayoutNim);
 
   return (
-    <div className="custom-stake-selector" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "14px" }}>
-      {/* Dual-Currency Mode Segmented Switcher */}
+    <div className="mobile-stake-card" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
+      {/* Dual-Currency Segmented Toggle */}
       <div
         style={{
-          display: "flex",
-          background: "rgba(0, 0, 0, 0.35)",
-          border: "1px solid rgba(251, 248, 241, 0.12)",
-          borderRadius: "8px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          background: "rgba(0, 0, 0, 0.4)",
+          border: "1px solid rgba(251, 248, 241, 0.1)",
+          borderRadius: "10px",
           padding: "3px",
           gap: "4px",
         }}
@@ -96,18 +97,17 @@ export function StakeSelector({
           type="button"
           onClick={() => handleModeChange("NIM")}
           style={{
-            flex: 1,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
             padding: "8px 12px",
-            borderRadius: "6px",
+            borderRadius: "8px",
             border: "none",
             cursor: "pointer",
-            background: mode === "NIM" ? "rgba(230, 93, 35, 0.25)" : "transparent",
-            color: mode === "NIM" ? "var(--orange)" : "var(--paper-bright)",
-            boxShadow: mode === "NIM" ? "0 0 10px rgba(230, 93, 35, 0.3)" : "none",
+            background: mode === "NIM" ? "linear-gradient(135deg, rgba(230, 93, 35, 0.35), rgba(245, 158, 11, 0.25))" : "transparent",
+            color: mode === "NIM" ? "#fbbf24" : "rgba(251, 248, 241, 0.6)",
+            boxShadow: mode === "NIM" ? "0 2px 8px rgba(245, 158, 11, 0.2)" : "none",
             fontWeight: mode === "NIM" ? 700 : 500,
             fontSize: "12px",
             fontFamily: "'IBM Plex Mono', monospace",
@@ -115,25 +115,24 @@ export function StakeSelector({
           }}
         >
           <Coins size={14} />
-          <span>NIM (NIMIQ)</span>
+          <span>NIMIQ (NIM)</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleModeChange("USD")}
           style={{
-            flex: 1,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
             padding: "8px 12px",
-            borderRadius: "6px",
+            borderRadius: "8px",
             border: "none",
             cursor: "pointer",
-            background: mode === "USD" ? "rgba(34, 197, 94, 0.22)" : "transparent",
-            color: mode === "USD" ? "#4ade80" : "var(--paper-bright)",
-            boxShadow: mode === "USD" ? "0 0 10px rgba(34, 197, 94, 0.3)" : "none",
+            background: mode === "USD" ? "linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2))" : "transparent",
+            color: mode === "USD" ? "#4ade80" : "rgba(251, 248, 241, 0.6)",
+            boxShadow: mode === "USD" ? "0 2px 8px rgba(34, 197, 94, 0.2)" : "none",
             fontWeight: mode === "USD" ? 700 : 500,
             fontSize: "12px",
             fontFamily: "'IBM Plex Mono', monospace",
@@ -141,20 +140,21 @@ export function StakeSelector({
           }}
         >
           <DollarSign size={14} />
-          <span>USD ($ DOLLAR)</span>
+          <span>USD ($)</span>
         </button>
       </div>
 
-      {/* Main Custom Stake Input Box */}
+      {/* Main Stake Input Container */}
       <div
         style={{
-          background: "linear-gradient(145deg, rgba(18, 40, 63, 0.6), rgba(10, 20, 32, 0.8))",
-          border: "1px solid rgba(251, 248, 241, 0.15)",
-          borderRadius: "10px",
-          padding: "16px",
+          background: "linear-gradient(145deg, rgba(15, 23, 42, 0.8), rgba(10, 15, 30, 0.95))",
+          border: `1px solid ${mode === "NIM" ? "rgba(245, 158, 11, 0.35)" : "rgba(34, 197, 94, 0.35)"}`,
+          borderRadius: "14px",
+          padding: "14px 16px",
           display: "flex",
           flexDirection: "column",
           gap: "10px",
+          boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.4)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -162,19 +162,20 @@ export function StakeSelector({
             style={{
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: "11px",
-              color: "var(--muted)",
-              letterSpacing: "0.08em",
+              color: "rgba(251, 248, 241, 0.6)",
+              fontWeight: 600,
+              letterSpacing: "0.06em",
               textTransform: "uppercase",
             }}
           >
-            {mode === "NIM" ? "CUSTOM NIM COMMITMENT" : "CUSTOM USD COMMITMENT"}
+            {mode === "NIM" ? "YOUR ENTRY STAKE" : "YOUR ENTRY STAKE (USD)"}
           </span>
           <span
             style={{
               fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: "11px",
-              color: mode === "NIM" ? "var(--orange)" : "#4ade80",
-              fontWeight: 600,
+              fontSize: "11.5px",
+              color: mode === "NIM" ? "#fbbf24" : "#4ade80",
+              fontWeight: 700,
             }}
           >
             {mode === "NIM"
@@ -183,19 +184,36 @@ export function StakeSelector({
           </span>
         </div>
 
-        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <span
+        {/* Large Prominent Amount Input */}
+        <div
+          style={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            background: "rgba(0, 0, 0, 0.5)",
+            border: "1px solid rgba(251, 248, 241, 0.14)",
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <div
             style={{
-              position: "absolute",
-              left: "14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 12px",
+              background: mode === "NIM" ? "rgba(245, 158, 11, 0.15)" : "rgba(34, 197, 94, 0.15)",
+              color: mode === "NIM" ? "#fbbf24" : "#4ade80",
               fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: "18px",
-              fontWeight: 700,
-              color: mode === "NIM" ? "var(--orange)" : "#4ade80",
+              fontWeight: 800,
+              fontSize: "14px",
+              height: "48px",
+              borderRight: "1px solid rgba(251, 248, 241, 0.1)",
             }}
           >
             {mode === "NIM" ? "NIM" : "$"}
-          </span>
+          </div>
+
           <input
             type="number"
             min={mode === "NIM" ? minNim : 0.1}
@@ -203,17 +221,17 @@ export function StakeSelector({
             step={mode === "NIM" ? 1 : 1}
             value={inputValue}
             onChange={e => handleInputChange(e.target.value)}
-            placeholder={mode === "NIM" ? "e.g. 50, 100, 500" : "e.g. 10, 20, 50"}
+            placeholder={mode === "NIM" ? "e.g. 50" : "e.g. 10"}
             style={{
               width: "100%",
-              background: "rgba(0, 0, 0, 0.4)",
-              border: "1px solid rgba(251, 248, 241, 0.2)",
-              borderRadius: "8px",
-              padding: "12px 14px 12px 64px",
+              height: "48px",
+              background: "transparent",
+              border: "none",
+              padding: "0 14px",
               color: "#ffffff",
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: "20px",
-              fontWeight: 700,
+              fontWeight: 800,
               outline: "none",
               boxSizing: "border-box",
             }}
@@ -221,10 +239,7 @@ export function StakeSelector({
         </div>
 
         {/* Quick Amount Preset Chips */}
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
-          <span style={{ fontSize: "11px", color: "var(--muted)", alignSelf: "center", marginRight: "4px" }}>
-            Quick:
-          </span>
+        <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
           {(mode === "NIM" ? NIM_PRESETS : USD_PRESETS).map(preset => {
             const isSelected =
               mode === "NIM"
@@ -237,42 +252,50 @@ export function StakeSelector({
                 type="button"
                 onClick={() => handlePresetClick(preset)}
                 style={{
-                  padding: "5px 10px",
-                  borderRadius: "6px",
-                  border: `1px solid ${isSelected ? (mode === "NIM" ? "var(--orange)" : "#4ade80") : "rgba(251, 248, 241, 0.12)"}`,
+                  flex: "1 0 auto",
+                  padding: "6px 10px",
+                  borderRadius: "8px",
+                  border: `1px solid ${
+                    isSelected
+                      ? mode === "NIM"
+                        ? "#f59e0b"
+                        : "#22c55e"
+                      : "rgba(251, 248, 241, 0.12)"
+                  }`,
                   background: isSelected
                     ? mode === "NIM"
-                      ? "rgba(230, 93, 35, 0.25)"
-                      : "rgba(34, 197, 94, 0.25)"
+                      ? "rgba(245, 158, 11, 0.2)"
+                      : "rgba(34, 197, 94, 0.2)"
                     : "rgba(255, 255, 255, 0.04)",
-                  color: isSelected ? "#ffffff" : "rgba(251, 248, 241, 0.8)",
+                  color: isSelected ? "#ffffff" : "rgba(251, 248, 241, 0.75)",
                   fontSize: "11px",
                   fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                   transition: "all 0.15s ease",
                 }}
               >
-                {mode === "NIM" ? `${formatNim(preset)} NIM` : `$${preset}`}
+                {mode === "NIM" ? `${formatNim(preset)}` : `$${preset}`}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Real-Time Exchange Rate Indicator */}
+      {/* Compact Live Exchange Rate Strip */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "8px 12px",
-          background: "rgba(0, 0, 0, 0.2)",
-          border: "1px solid rgba(251, 248, 241, 0.08)",
-          borderRadius: "6px",
-          fontSize: "11px",
+          padding: "6px 10px",
+          background: "rgba(0, 0, 0, 0.25)",
+          border: "1px solid rgba(251, 248, 241, 0.06)",
+          borderRadius: "8px",
+          fontSize: "10.5px",
           fontFamily: "'IBM Plex Mono', monospace",
-          color: "var(--muted)",
+          color: "rgba(251, 248, 241, 0.6)",
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -285,9 +308,9 @@ export function StakeSelector({
               boxShadow: `0 0 6px ${isLive ? "#22c55e" : "#eab308"}`,
             }}
           />
-          {isLive ? "LIVE COINGECKO RATE" : "BENCHMARK RATE"}
+          {isLive ? "CoinGecko Live" : "Benchmark Rate"}
         </span>
-        <span style={{ color: "rgba(251, 248, 241, 0.9)" }}>
+        <span style={{ color: "rgba(251, 248, 241, 0.85)", fontWeight: 600 }}>
           1 NIM ≈ ${priceUsd.toFixed(6)} USD
         </span>
       </div>
@@ -296,35 +319,35 @@ export function StakeSelector({
       {!hideSummary && (
         <div
           style={{
-            background: "rgba(0, 0, 0, 0.3)",
+            background: "rgba(0, 0, 0, 0.35)",
             border: "1px solid rgba(251, 248, 241, 0.1)",
-            borderRadius: "8px",
-            padding: "12px 14px",
+            borderRadius: "10px",
+            padding: "10px 12px",
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "10px",
+            gap: "8px",
           }}
         >
           <div>
-            <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", fontFamily: "'IBM Plex Mono', monospace" }}>
-              TOTAL MATCH POT (2X)
+            <span style={{ display: "block", fontSize: "9.5px", color: "rgba(251, 248, 241, 0.5)", fontFamily: "'IBM Plex Mono', monospace" }}>
+              MATCH POT (2X)
             </span>
-            <strong style={{ fontSize: "15px", color: "#ffffff", fontFamily: "'IBM Plex Mono', monospace" }}>
+            <strong style={{ fontSize: "14px", color: "#ffffff", fontFamily: "'IBM Plex Mono', monospace" }}>
               {formatNim(totalPotNim)} NIM
             </strong>
-            <span style={{ display: "block", fontSize: "10px", color: "var(--muted)" }}>
+            <span style={{ display: "block", fontSize: "9.5px", color: "rgba(251, 248, 241, 0.5)" }}>
               ≈ {formatUsd(nimToUsd(totalPotNim))}
             </span>
           </div>
 
           <div>
-            <span style={{ display: "block", fontSize: "10px", color: "var(--muted)", fontFamily: "'IBM Plex Mono', monospace" }}>
-              WINNER RECEIVES (90%)
+            <span style={{ display: "block", fontSize: "9.5px", color: "rgba(251, 248, 241, 0.5)", fontFamily: "'IBM Plex Mono', monospace" }}>
+              WINNER TAKES (90%)
             </span>
-            <strong style={{ fontSize: "15px", color: "#4ade80", fontFamily: "'IBM Plex Mono', monospace" }}>
+            <strong style={{ fontSize: "14px", color: "#4ade80", fontFamily: "'IBM Plex Mono', monospace" }}>
               {formatNim(winnerPayoutNim)} NIM
             </strong>
-            <span style={{ display: "block", fontSize: "10px", color: "#86efac" }}>
+            <span style={{ display: "block", fontSize: "9.5px", color: "#86efac" }}>
               ≈ {formatUsd(winnerPayoutUsd)}
             </span>
           </div>
