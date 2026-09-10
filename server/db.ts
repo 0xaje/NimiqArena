@@ -1641,8 +1641,21 @@ export async function getMatchPlayers(matchId: string) {
   const db = await getDb();
   if (!db) throw new Error("Match service is unavailable.");
   return db
-    .select()
+    .select({
+      id: matchPlayers.id,
+      matchId: matchPlayers.matchId,
+      userId: matchPlayers.userId,
+      seat: matchPlayers.seat,
+      paymentIntentId: matchPlayers.paymentIntentId,
+      status: matchPlayers.status,
+      joinedAt: matchPlayers.joinedAt,
+      updatedAt: matchPlayers.updatedAt,
+      lastSeenAt: matchPlayers.lastSeenAt,
+      name: users.name,
+      address: users.address,
+    })
     .from(matchPlayers)
+    .leftJoin(users, eq(matchPlayers.userId, users.id))
     .where(eq(matchPlayers.matchId, matchId));
 }
 

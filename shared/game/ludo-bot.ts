@@ -150,9 +150,9 @@ export function selectBestBotMove(
           score += 40;
         }
       }
-      // 3. Home Stretch progress (progress 52..56)
-      else if (to >= 52 && to < LUDO_HOME_ENTRY) {
-        score += 250 + (to - 52) * 20;
+      // 3. Home Stretch progress (progress 51..55)
+      else if (to >= 51 && to < LUDO_HOME_ENTRY) {
+        score += 250 + (to - 51) * 20;
         reason = "Advance deeper into home corridor";
       }
 

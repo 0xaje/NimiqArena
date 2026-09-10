@@ -531,12 +531,16 @@ export default function MatchRoom() {
 
   // 4. Live / In-Progress / Finished Gameplay
   const isC4 = state.engineVersion === "connect4-v1";
-  const p1Name = yourSeat === 0 ? (authQuery.data?.name || "Player 1") : "Player 1";
+  const p1Player = state.players?.find((p: any) => p.seat === 0);
+  const p2Player = state.players?.find((p: any) => p.seat === 1);
+  const p1Name = yourSeat === 0
+    ? (authQuery.data?.name || p1Player?.name || "Player 1")
+    : (p1Player?.name || "Player 1");
   const p2Name = isBotMatch
     ? "Nimiq AI"
     : yourSeat === 1
-      ? (authQuery.data?.name || "Player 2")
-      : "Player 2";
+      ? (authQuery.data?.name || p2Player?.name || "Player 2")
+      : (p2Player?.name || "Player 2");
   const activeSeat = snapshot?.currentPlayer ?? 0;
   const isFinished = snapshot?.winner !== null && snapshot?.winner !== undefined;
   const returnRoute = isC4 ? "/games/connect-four" : "/games/ludo-league";
@@ -600,12 +604,12 @@ export default function MatchRoom() {
         gameKind={isC4 ? "connect4" : "ludo"}
         p1Score={
           !isC4 && (snapshot as any)?.players?.[0]?.pieces
-            ? (snapshot as any).players[0].pieces.filter((p: any) => p.position === 57).length
+            ? (snapshot as any).players[0].pieces.filter((p: any) => p.position === 56).length
             : undefined
         }
         p2Score={
           !isC4 && (snapshot as any)?.players?.[1]?.pieces
-            ? (snapshot as any).players[1].pieces.filter((p: any) => p.position === 57).length
+            ? (snapshot as any).players[1].pieces.filter((p: any) => p.position === 56).length
             : undefined
         }
         totalTarget={

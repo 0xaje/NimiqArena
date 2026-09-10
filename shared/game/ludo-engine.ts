@@ -1,7 +1,8 @@
 export const LUDO_PLAYER_COUNT = 2;
 export const LUDO_PIECES_PER_PLAYER = 4;
 export const LUDO_TRACK_LENGTH = 52;
-export const LUDO_HOME_ENTRY = 57;
+export const TRACK_CELLS_BEFORE_HOME = 51;
+export const LUDO_HOME_ENTRY = 56;
 export const LUDO_SAFE_SQUARES = new Set<number>([]);
 
 export type LudoMode = "2p_double" | "4p" | "2p_single";
@@ -253,7 +254,7 @@ export function applyCommand(
       next.usedNonces.push(command.nonce);
       next.diceValues = [d1, d2];
       next.remainingDice = [d1, d2];
-      next.rolledDoubles = d1 === d2;
+      next.rolledDoubles = d1 === 6 && d2 === 6;
       const combined = d1 + d2;
       next.dice = combined;
 
@@ -366,20 +367,11 @@ export function applyCommand(
     if (p.position === -1 && remaining.includes(6)) return true;
     return false;
   });
-
   const isMultiDice = remaining.length === 2;
-  const combinedDice = remaining.reduce((a, b) => a + b, 0);
-  const canMoveCombined = isMultiDice && from >= 0 && (from + combinedDice <= LUDO_HOME_ENTRY);
-
-  // If player has only this single piece on the track, no other piece can move with the dice,
-  // and the single piece can take the combined sum, it must move the combined total:
-  const mustUseCombined = isMultiDice && !otherPiecesCanMove && canMoveCombined;
 
   // Determine die to use
   let dieToUse: number;
-  if (mustUseCombined) {
-    dieToUse = combinedDice;
-  } else if (command.dieValue !== undefined) {
+  if (command.dieValue !== undefined) {
     if (!remaining.includes(command.dieValue)) {
       return reject("INVALID_DICE", "The specified die value is not available in remaining dice.");
     }
@@ -415,7 +407,7 @@ export function applyCommand(
   nextPiece.position = to;
 
   let capturedPiece: { playerId: LudoPlayerId; pieceIndex: number } | undefined;
-  if (to < LUDO_TRACK_LENGTH) {
+  if (to < TRACK_CELLS_BEFORE_HOME) {
     const landing = globalTrackPosition(command.playerId, to, command.pieceIndex, mode);
 
     if (!LUDO_SAFE_SQUARES.has(landing)) {
@@ -425,56 +417,56 @@ export function applyCommand(
         const opponentIndex = opponent.pieces.findIndex(
           (oppPiece, oppIdx) =>
             oppPiece.position >= 0 &&
-            oppPiece.position < LUDO_TRACK_LENGTH &&
+            oppPiece.position < TRACK_CELLS_BEFORE_HOME &&
             globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === landing
         );
         if (opponentIndex >= 0) {
           opponent.pieces[opponentIndex].position = -1;
           capturedPiece = { playerId: opponent.id, pieceIndex: opponentIndex };
-          // Instant capture-to-center: capturing piece scores immediately into center circle!
-          nextPiece.position = LUDO_HOME_ENTRY;
           break;
         }
       }
     }
   }
 
-  // Splice used die or dice from next.remainingDice
+  // Splice used die from next.remainingDice
   if (!next.remainingDice || next.remainingDice.length === 0) {
     next.remainingDice = remaining;
   }
-  if (mustUseCombined) {
-    next.remainingDice = [];
-  } else {
-    const dieIdx = next.remainingDice.indexOf(dieToUse);
-    if (dieIdx !== -1) {
-      next.remainingDice.splice(dieIdx, 1);
-    }
+  const dieIdx = next.remainingDice.indexOf(dieToUse);
+  if (dieIdx !== -1) {
+    next.remainingDice.splice(dieIdx, 1);
   }
   next.dice = next.remainingDice.length > 0 ? next.remainingDice.reduce((a, b) => a + b, 0) : null;
 
   next.version += 1;
   next.usedNonces.push(command.nonce);
 
-  // Win check: all pieces in home goal
-  const requiredWins = next.players[command.playerId].pieces.length;
-  const homeCount = next.players[command.playerId].pieces.filter(
+  // Check victory condition: all pieces reached home goal
+  const hasWon = next.players[command.playerId].pieces.every(
     p => p.position === LUDO_HOME_ENTRY
-  ).length;
-
-  if (homeCount >= requiredWins) {
+  );
+  if (hasWon) {
     next.winner = command.playerId;
+    next.dice = null;
+    next.remainingDice = [];
     return {
       ok: true,
       snapshot: next,
-      event: { type: "won", playerId: command.playerId },
+      event: {
+        type: "won",
+        playerId: command.playerId,
+      },
     };
   }
 
-  // Multi-die move continuation:
-  // If there are remaining dice from this roll, check if any piece can move
-  if (next.remainingDice.length > 0) {
-    const canContinue = hasLegalMovesForDice(next, command.playerId, next.remainingDice);
+  // If there are still remaining dice from the roll, check if the current player can make legal moves
+  if (next.remainingDice && next.remainingDice.length > 0) {
+    const canContinue = hasLegalMovesForDice(
+      next,
+      command.playerId,
+      next.remainingDice
+    );
     if (canContinue) {
       // Player continues their turn to spend remaining dice!
       next.currentPlayer = command.playerId;
@@ -486,7 +478,7 @@ export function applyCommand(
           playerId: command.playerId,
           pieceIndex: command.pieceIndex,
           from,
-          to: capturedPiece ? LUDO_HOME_ENTRY : to,
+          to,
           dieUsed: dieToUse,
           remainingDice: [...next.remainingDice],
           ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),
@@ -501,12 +493,13 @@ export function applyCommand(
 
   // All dice in this turn's roll have been played (or forfeited):
   // Check bonus turn:
-  // In 2-dice mode: doubles (e.g. [6, 6], [4, 4]) OR a piece capture grants a bonus roll!
-  // In single-die mode: rolling a 6 OR a piece capture grants a bonus roll!
+  // In 2-dice mode: ONLY double 6 ([6, 6]) grants a bonus roll!
+  // In single-die mode: rolling a 6 grants a bonus roll!
+  // Capturing an opponent or scoring home does NOT grant a bonus turn.
   const isTwoDice = snapshot.diceCount === 2 && Boolean(snapshot.diceValues);
   const earnedBonus = isTwoDice
-    ? Boolean(snapshot.rolledDoubles || capturedPiece)
-    : (dieToUse === 6 || Boolean(capturedPiece));
+    ? Boolean(snapshot.rolledDoubles)
+    : (dieToUse === 6);
 
   if (!earnedBonus) {
     next.currentPlayer = ((command.playerId + 1) % totalPlayers) as LudoPlayerId;
@@ -525,7 +518,7 @@ export function applyCommand(
       playerId: command.playerId,
       pieceIndex: command.pieceIndex,
       from,
-      to: capturedPiece ? LUDO_HOME_ENTRY : to,
+      to,
       dieUsed: dieToUse,
       remainingDice: [],
       ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),

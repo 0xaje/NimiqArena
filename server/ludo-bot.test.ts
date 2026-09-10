@@ -78,10 +78,10 @@ describe("Ludo AI Bot Heuristic Engine", () => {
     expect(move).toBeNull();
   });
 
-  it("prioritizes scoring into Home Goal (57) above general movement", () => {
+  it("prioritizes scoring into Home Goal (56) above general movement", () => {
     const snapshot = createLudoSnapshot("match-bot-1");
-    // Piece 0 at position 53 (needs 4 to reach 57)
-    snapshot.players[1].pieces[0].position = 53;
+    // Piece 0 at position 52 (needs 4 to reach 56)
+    snapshot.players[1].pieces[0].position = 52;
     // Piece 1 at position 10 on track
     snapshot.players[1].pieces[1].position = 10;
 

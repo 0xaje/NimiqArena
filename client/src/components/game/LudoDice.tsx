@@ -277,9 +277,9 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
               {remainingDice && remainingDice.length === 1 ? (
                 `Move: [${remainingDice[0]}]`
               ) : val1 === 6 && val2 === 6 ? (
-                "Double 6! Take 2!"
+                "Double 6! Roll Again!"
               ) : val1 === val2 ? (
-                `Double ${val1} (Bonus)`
+                `Double ${val1}`
               ) : (
                 `${val1} & ${val2}`
               )}

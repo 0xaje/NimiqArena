@@ -716,8 +716,11 @@ export const appRouter = router({
           snapshot: JSON.parse(match.stateJson),
           players: players.map(current => ({
             seat: current.seat,
+            userId: current.userId,
             status: current.status,
             lastSeenAt: current.lastSeenAt,
+            name: current.name,
+            address: current.address,
           })),
           yourSeat: player ? player.seat : -1,
           isSpectator: !player,

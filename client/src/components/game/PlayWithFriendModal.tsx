@@ -10,6 +10,8 @@ import {
   Share2,
   KeyRound,
   Gamepad2,
+  Coins,
+  ShieldCheck,
   MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -36,13 +38,18 @@ export function PlayWithFriendModal({
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
   const createChallenge = trpc.match.createChallenge.useMutation();
+  const createWageredMatch = trpc.match.createWageredMatch.useMutation();
   const joinByCode = trpc.match.joinByCode.useMutation();
 
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
+  const [matchMode, setMatchMode] = useState<"free" | "wager">("free");
+  const [selectedStake, setSelectedStake] = useState<number>(10);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [createdMatch, setCreatedMatch] = useState<{
     id: string;
     joinCode: string;
+    isWagered?: boolean;
+    stakeNim?: number;
   } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -87,12 +94,34 @@ export function PlayWithFriendModal({
     try {
       await ensureSession("Player 1 (Host)");
       toast.loading("Generating private arena room…", { id: "create-room" });
-      const res = await createChallenge.mutateAsync({ gameSlug });
-      setCreatedMatch({ id: res.id, joinCode: res.joinCode });
-      toast.success("Private Room Created!", {
-        id: "create-room",
-        description: `Invite code: ${res.joinCode}`,
-      });
+      if (matchMode === "wager") {
+        const res = await createWageredMatch.mutateAsync({
+          gameSlug,
+          stakeNim: selectedStake,
+        });
+        setCreatedMatch({
+          id: res.id,
+          joinCode: res.joinCode,
+          isWagered: true,
+          stakeNim: res.stakeNim,
+        });
+        toast.success("Wager Room Created!", {
+          id: "create-room",
+          description: `Invite code: ${res.joinCode} (${res.stakeNim} NIM stake)`,
+        });
+      } else {
+        const res = await createChallenge.mutateAsync({ gameSlug });
+        setCreatedMatch({
+          id: res.id,
+          joinCode: res.joinCode,
+          isWagered: false,
+          stakeNim: 0,
+        });
+        toast.success("Private Room Created!", {
+          id: "create-room",
+          description: `Invite code: ${res.joinCode}`,
+        });
+      }
     } catch (err) {
       toast.error("Failed to create room", {
         id: "create-room",
@@ -302,23 +331,119 @@ export function PlayWithFriendModal({
           <div>
             {!createdMatch ? (
               <div style={{ textAlign: "center", padding: "12px 0" }}>
-                <p style={{ fontSize: "14px", color: "#94a3b8", lineHeight: "1.6", marginBottom: "20px" }}>
-                  Generate an exclusive private room code. Share it with your friend via Telegram, WhatsApp, or link to start a 1v1 match instantly with zero waiting time.
-                </p>
+                {/* Mode Selector: Free Friendly vs Wager NIM */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setMatchMode("free")}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: "10px",
+                      border: `1.5px solid ${matchMode === "free" ? "#22c55e" : "rgba(255, 255, 255, 0.1)"}`,
+                      background: matchMode === "free" ? "rgba(34, 197, 94, 0.15)" : "rgba(0, 0, 0, 0.25)",
+                      color: matchMode === "free" ? "#4ade80" : "#94a3b8",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "13px" }}>
+                      <Gamepad2 size={16} /> Free Friendly
+                    </div>
+                    <span style={{ fontSize: "11px", opacity: 0.8 }}>0 NIM · Casual Play</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMatchMode("wager")}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: "10px",
+                      border: `1.5px solid ${matchMode === "wager" ? "#EC9918" : "rgba(255, 255, 255, 0.1)"}`,
+                      background: matchMode === "wager" ? "rgba(236, 153, 24, 0.15)" : "rgba(0, 0, 0, 0.25)",
+                      color: matchMode === "wager" ? "#EC9918" : "#94a3b8",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "13px" }}>
+                      <Coins size={16} /> Wager NIM
+                    </div>
+                    <span style={{ fontSize: "11px", opacity: 0.8 }}>90% Payout to Winner</span>
+                  </button>
+                </div>
+
+                {matchMode === "wager" ? (
+                  <div
+                    style={{
+                      padding: "14px",
+                      borderRadius: "10px",
+                      background: "rgba(236, 153, 24, 0.08)",
+                      border: "1px solid rgba(236, 153, 24, 0.25)",
+                      marginBottom: "16px",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#EC9918", marginBottom: "8px", display: "flex", justifyContent: "space-between", letterSpacing: "0.05em" }}>
+                      <span>STAKE PER PLAYER</span>
+                      <span>POT: {selectedStake * 2} NIM</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+                      {[5, 10, 25, 50, 100].map(amt => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setSelectedStake(amt)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            border: `1px solid ${selectedStake === amt ? "#EC9918" : "rgba(255, 255, 255, 0.12)"}`,
+                            background: selectedStake === amt ? "rgba(236, 153, 24, 0.25)" : "rgba(0, 0, 0, 0.3)",
+                            color: selectedStake === amt ? "#ffffff" : "#94a3b8",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {amt} NIM
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", lineHeight: "1.5", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "8px" }}>
+                      🏆 <strong>Winner receives 90%</strong> ({(selectedStake * 2 * 0.9).toFixed(1)} NIM) on-chain directly to Nimiq wallet.
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: "13px", color: "#94a3b8", lineHeight: "1.5", marginBottom: "18px", textAlign: "left" }}>
+                    Share an invite code to challenge a friend for a 1v1 match with zero stakes. Both players jump straight into the arena!
+                  </p>
+                )}
+
                 <button
                   onClick={handleCreateRoom}
-                  disabled={createChallenge.isPending}
+                  disabled={createChallenge.isPending || createWageredMatch.isPending}
                   style={{
                     width: "100%",
                     padding: "14px 20px",
                     borderRadius: "10px",
-                    background: "linear-gradient(135deg, #EC9918, #f59e0b)",
+                    background: matchMode === "wager"
+                      ? "linear-gradient(135deg, #EC9918, #f59e0b)"
+                      : "linear-gradient(135deg, #22c55e, #16a34a)",
                     border: "none",
-                    color: "#05070d",
+                    color: matchMode === "wager" ? "#05070d" : "#ffffff",
                     fontSize: "14px",
                     fontWeight: 800,
                     cursor: "pointer",
-                    boxShadow: "0 6px 20px rgba(236, 153, 24, 0.35)",
+                    boxShadow: matchMode === "wager"
+                      ? "0 6px 20px rgba(236, 153, 24, 0.35)"
+                      : "0 6px 20px rgba(34, 197, 94, 0.35)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -326,7 +451,11 @@ export function PlayWithFriendModal({
                   }}
                 >
                   <Sparkles size={16} />
-                  {createChallenge.isPending ? "Generating Room…" : "Generate Private Room Code"}
+                  {createChallenge.isPending || createWageredMatch.isPending
+                    ? "Generating Room…"
+                    : matchMode === "wager"
+                    ? `Create ${selectedStake} NIM Wager Room`
+                    : "Generate Free Room Code"}
                 </button>
               </div>
             ) : (
@@ -359,11 +488,16 @@ export function PlayWithFriendModal({
                       fontWeight: 800,
                       color: "#EC9918",
                       letterSpacing: "0.15em",
-                      margin: "8px 0 12px 0",
+                      margin: "8px 0 6px 0",
                     }}
                   >
                     {createdMatch.joinCode}
                   </div>
+                  {createdMatch.isWagered && (
+                    <div style={{ margin: "4px 0 12px 0", fontSize: "12px", color: "#EC9918", fontWeight: 700 }}>
+                      ⚡ Wager: {createdMatch.stakeNim} NIM (Pot: {(createdMatch.stakeNim || 0) * 2} NIM · 90% Winner Payout)
+                    </div>
+                  )}
                   <button
                     onClick={copyCodeToClipboard}
                     style={{

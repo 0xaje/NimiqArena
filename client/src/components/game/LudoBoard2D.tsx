@@ -302,18 +302,8 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
       return false;
     });
 
-    const isMultiDice = dicePool.length === 2;
-    const combinedDice = dicePool.reduce((a, b) => a + b, 0);
-    const canMoveCombined = isMultiDice && piece.position >= 0 && (piece.position + combinedDice <= 57);
-    const mustUseCombined = isMultiDice && !otherPiecesCanMove && canMoveCombined;
-
-    if (mustUseCombined) {
-      onMovePiece(pieceIndex, combinedDice);
-      return;
-    }
-
     // On track: filter valid dice from pool
-    const validDice = dicePool.filter(d => piece.position + d <= 57);
+    const validDice = dicePool.filter(d => piece.position + d <= 56);
     if (validDice.length === 0) return;
 
     // Use selectedDie if legal for this pawn, otherwise use first valid die
@@ -334,10 +324,10 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
       // STRICT 6-TO-EXIT: A piece can ONLY leave the yard if at least one die physically shows 6!
       return hasSixFace;
     }
-    if (piece.position >= 57) {
+    if (piece.position >= 56) {
       return false;
     }
-    return dicePool.some(d => piece.position + d <= 57);
+    return dicePool.some(d => piece.position + d <= 56);
   };
 
   const getTargetTrackIndex = (
@@ -349,35 +339,30 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
     const { start } = getPieceInfo(playerSeat, pieceIndex, hasEightPieces);
     if (currentPos === -1) {
       if (!hasSixFace) return null;
-      if (diceValues && diceValues.length === 2) {
-        const otherDie = diceValues[0] === 6 ? diceValues[1] : diceValues[0];
-        const initialPos = otherDie === 6 ? 0 : otherDie;
-        return { type: "track", index: (start + initialPos) % 52 };
-      }
       return { type: "track", index: start };
     }
     const nextPos = currentPos + diceVal;
-    if (nextPos > 57) {
+    if (nextPos > 56) {
       if (diceValues && diceValues.length === 2) {
         const [d1, d2] = diceValues;
-        if (currentPos + d1 <= 57) {
+        if (currentPos + d1 <= 56) {
           const p = currentPos + d1;
-          if (p === 57) return { type: "goal", index: 57 };
-          if (p >= 52) return { type: "home", index: p - 52 };
+          if (p === 56) return { type: "goal", index: 56 };
+          if (p >= 51) return { type: "home", index: p - 51 };
           return { type: "track", index: (start + p) % 52 };
         }
-        if (currentPos + d2 <= 57) {
+        if (currentPos + d2 <= 56) {
           const p = currentPos + d2;
-          if (p === 57) return { type: "goal", index: 57 };
-          if (p >= 52) return { type: "home", index: p - 52 };
+          if (p === 56) return { type: "goal", index: 56 };
+          if (p >= 51) return { type: "home", index: p - 51 };
           return { type: "track", index: (start + p) % 52 };
         }
       }
       return null;
     }
-    if (nextPos === 57) return { type: "goal", index: 57 };
-    if (nextPos >= 52) {
-      return { type: "home", index: nextPos - 52 };
+    if (nextPos === 56) return { type: "goal", index: 56 };
+    if (nextPos >= 51) {
+      return { type: "home", index: nextPos - 51 };
     }
     const globalTrack = (start + nextPos) % 52;
     return { type: "track", index: globalTrack };
@@ -397,8 +382,8 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
   }
 
   // Count finished pieces
-  const p0Finished = players[0]?.pieces.filter(p => p.position === 57).length ?? 0;
-  const p1Finished = players[1]?.pieces.filter(p => p.position === 57).length ?? 0;
+  const p0Finished = players[0]?.pieces.filter(p => p.position === 56).length ?? 0;
+  const p1Finished = players[1]?.pieces.filter(p => p.position === 56).length ?? 0;
   const targetGoal = hasEightPieces ? 8 : 4;
 
   // Helper to render pawn button with step counter if actively animating
@@ -602,7 +587,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                   ? steppingPiece.currentProgress
                   : piece.position;
 
-                if (effectivePos >= 0 && effectivePos < 52) {
+                if (effectivePos >= 0 && effectivePos < 51) {
                   const globalPos = (start + effectivePos) % 52;
                   if (globalPos === trackIdx) {
                     piecesOnCell.push({
@@ -675,7 +660,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
              ======================================================== */}
           {/* Red Home Stretch */}
           {ALL_HOME_COLUMNS.red.map((coord, idx) => {
-            const stepPos = 52 + idx;
+            const stepPos = 51 + idx;
             const isTargeted = previewTarget?.type === "home" && previewTarget.index === idx;
 
             // Find Red pieces on this home cell
@@ -708,7 +693,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
 
           {/* Green Home Stretch */}
           {ALL_HOME_COLUMNS.green.map((coord, idx) => {
-            const stepPos = 52 + idx;
+            const stepPos = 51 + idx;
             const pieces = hasEightPieces
               ? players[1]?.pieces
                   .map((piece, pieceIndex) => ({ piece, pieceIndex }))
@@ -740,7 +725,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
 
           {/* Yellow Home Stretch */}
           {ALL_HOME_COLUMNS.yellow.map((coord, idx) => {
-            const stepPos = 52 + idx;
+            const stepPos = 51 + idx;
             const targetPlayer = hasEightPieces ? 0 : 1;
             const isTargeted =
               previewTarget?.type === "home" &&
@@ -776,7 +761,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
 
           {/* Blue Home Stretch */}
           {ALL_HOME_COLUMNS.blue.map((coord, idx) => {
-            const stepPos = 52 + idx;
+            const stepPos = 51 + idx;
             const pieces = hasEightPieces
               ? players[1]?.pieces
                   .map((piece, pieceIndex) => ({ piece, pieceIndex }))
