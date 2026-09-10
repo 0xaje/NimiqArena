@@ -35,6 +35,7 @@ import {
   getPaymentIntentForUser,
   getPaymentIntentWithAudit,
   joinMatchByCode,
+  forceStartMatch,
   refreshMatchLifecycle,
   settleMatchWinnerPayout,
   updatePaymentIntent,
@@ -746,6 +747,22 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await disconnectMatchPlayer(input.id, ctx.user.id);
         return { ok: true as const };
+      }),
+    startMatch: protectedProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await forceStartMatch({
+            matchId: input.matchId,
+            userId: ctx.user.id,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error ? error.message : "Could not start match.",
+          });
+        }
       }),
     command: protectedProcedure
       .input(z.object({ id: matchIdSchema, command: ludoCommandSchema }))

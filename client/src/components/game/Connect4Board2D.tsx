@@ -148,6 +148,8 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
               display: "flex",
               flexDirection: "column-reverse", // row 0 at bottom, row 5 at top
               gap: "clamp(3px, 1.2vw, 8px)",
+              touchAction: "manipulation",
+              userSelect: "none",
               cursor:
                 isYourTurn &&
                 getLowestEmptyRow(board, col) !== -1 &&

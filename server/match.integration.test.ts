@@ -10,6 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   getMatchPlayer: vi.fn(),
   getMatchPlayers: vi.fn(),
   joinMatchByCode: vi.fn(),
+  forceStartMatch: vi.fn(),
 }));
 
 vi.mock("./db", () => dbMocks);
@@ -270,5 +271,32 @@ describe("authoritative match command integration", () => {
           request.status === "rejected" && request.reason.code === "CONFLICT"
       )
     ).toBe(true);
+  });
+
+  it("authoritatively transitions a waiting match to in_progress via startMatch mutation", async () => {
+    dbMocks.forceStartMatch.mockResolvedValue({
+      success: true,
+      match: { ...match, status: "in_progress" },
+    });
+    const caller = appRouter.createCaller(createContext(7));
+    const result = await caller.match.startMatch({
+      matchId: match.id,
+    });
+    expect(result.success).toBe(true);
+    expect(result.match.status).toBe("in_progress");
+    expect(dbMocks.forceStartMatch).toHaveBeenCalledWith({
+      matchId: match.id,
+      userId: 7,
+    });
+  });
+
+  it("rejects startMatch when forceStartMatch throws an error", async () => {
+    dbMocks.forceStartMatch.mockRejectedValue(
+      new Error("Waiting for opponent to lock their wager stake into escrow.")
+    );
+    const caller = appRouter.createCaller(createContext(7));
+    await expect(
+      caller.match.startMatch({ matchId: match.id })
+    ).rejects.toThrow("Waiting for opponent to lock their wager stake into escrow.");
   });
 });

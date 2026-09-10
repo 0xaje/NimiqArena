@@ -1471,15 +1471,35 @@ export async function refreshMatchLifecycle(matchId: string, now = new Date()) {
       return { ...match, status: "cancelled" as const };
     }
 
-    // Self-healing: if a non-wagered match has 2 joined players but remains stuck in "waiting", transition to in_progress
-    if (match.status === "waiting" && joinedPlayers.length >= 2 && !isWageredMatch(match)) {
-      const playExpiresAt = matchPlayWindowExpiry();
-      await tx
-        .update(matches)
-        .set({ status: "in_progress", expiresAt: playExpiresAt })
-        .where(eq(matches.id, matchId));
-      notifyMatchUpdated(matchId);
-      return { ...match, status: "in_progress" as const, expiresAt: playExpiresAt };
+    // Self-healing: if a match has 2 players in waiting room, transition to in_progress
+    if (match.status === "waiting" && players.length >= 2) {
+      let canStart = false;
+      if (!isWageredMatch(match)) {
+        canStart = true;
+      } else {
+        const playerIntents = players.map(p => p.paymentIntentId).filter(Boolean);
+        if (playerIntents.length === 2) {
+          const intents = await tx
+            .select()
+            .from(paymentIntents)
+            .where(inArray(paymentIntents.id, playerIntents as string[]));
+          canStart = intents.length === 2 && intents.every(pi => pi.status === "verified");
+        }
+      }
+
+      if (canStart) {
+        const playExpiresAt = matchPlayWindowExpiry();
+        await tx
+          .update(matchPlayers)
+          .set({ status: "joined", lastSeenAt: now })
+          .where(eq(matchPlayers.matchId, matchId));
+        await tx
+          .update(matches)
+          .set({ status: "in_progress", expiresAt: playExpiresAt })
+          .where(eq(matches.id, matchId));
+        notifyMatchUpdated(matchId);
+        return { ...match, status: "in_progress" as const, expiresAt: playExpiresAt };
+      }
     }
 
     return match;
@@ -1557,7 +1577,18 @@ export async function joinMatchByCode(input: {
       .select()
       .from(matchPlayers)
       .where(eq(matchPlayers.matchId, match.id));
-    if (existing[0]) return { match, player: existing[0], allPlayers: seats };
+    if (existing[0]) {
+      let currentMatch = match;
+      if (seats.length >= 2 && !isWageredMatch(match) && match.status === "waiting") {
+        const playExpiresAt = matchPlayWindowExpiry();
+        await tx
+          .update(matches)
+          .set({ status: "in_progress", expiresAt: playExpiresAt })
+          .where(eq(matches.id, match.id));
+        currentMatch = { ...match, status: "in_progress" as const, expiresAt: playExpiresAt };
+      }
+      return { match: currentMatch, player: existing[0], allPlayers: seats };
+    }
     if (seats.length >= 2)
       throw new Error("This match already has two players.");
     await tx.insert(matchPlayers).values({
@@ -1635,6 +1666,101 @@ export async function joinMatchByCode(input: {
     match: result.match,
     player: result.player,
   };
+}
+
+export async function forceStartMatch(input: {
+  matchId: string;
+  userId: number;
+}): Promise<{ success: boolean; match: Match }> {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+
+  const result = await db.transaction(async tx => {
+    const match = (
+      await tx.select().from(matches).where(eq(matches.id, input.matchId)).limit(1)
+    )[0];
+    if (!match) throw new Error("Match not found.");
+
+    if (match.status === "in_progress") {
+      return { match, alreadyStarted: true };
+    }
+
+    if (["finished", "cancelled", "expired"].includes(match.status)) {
+      throw new Error(`Match has already ${match.status}.`);
+    }
+
+    const players = await tx
+      .select()
+      .from(matchPlayers)
+      .where(eq(matchPlayers.matchId, input.matchId));
+
+    const callerSeat = players.find(p => p.userId === input.userId);
+    if (!callerSeat) {
+      throw new Error("You are not a participant in this match.");
+    }
+
+    if (players.length < 2) {
+      throw new Error("Waiting for an opponent to connect before starting.");
+    }
+
+    // Check wager escrow requirements
+    if (isWageredMatch(match)) {
+      const escrowDetails = await getMatchEscrowDetails(input.matchId);
+      if (escrowDetails.isWagered && !escrowDetails.allVerified) {
+        const callerStatus = escrowDetails.playerStatuses.find(p => p.userId === input.userId);
+        if (!callerStatus?.verified) {
+          throw new Error("Please lock your NIM stake into escrow before starting.");
+        }
+        throw new Error("Waiting for opponent to lock their wager stake into escrow.");
+      }
+    }
+
+    const now = new Date();
+    const playExpiresAt = matchPlayWindowExpiry();
+
+    // Touch all players' lastSeenAt and ensure joined
+    await tx
+      .update(matchPlayers)
+      .set({ status: "joined", lastSeenAt: now })
+      .where(eq(matchPlayers.matchId, input.matchId));
+
+    await tx
+      .update(matches)
+      .set({
+        status: "in_progress",
+        expiresAt: playExpiresAt,
+        updatedAt: now,
+      })
+      .where(eq(matches.id, input.matchId));
+
+    const updatedMatch: Match = {
+      ...match,
+      status: "in_progress" as const,
+      expiresAt: playExpiresAt,
+      updatedAt: now,
+    };
+
+    return { match: updatedMatch, alreadyStarted: false, players };
+  });
+
+  try {
+    notifyMatchUpdated(result.match.id, {
+      id: result.match.id,
+      status: result.match.status,
+      engineVersion: result.match.engineVersion,
+      stateVersion: result.match.stateVersion,
+      snapshot: JSON.parse(result.match.stateJson),
+      players: (result.players || []).map((item: any) => ({
+        seat: item.seat,
+        status: "joined",
+        lastSeenAt: new Date(),
+      })),
+    });
+  } catch (notifyErr) {
+    console.warn("[forceStartMatch] notifyMatchUpdated error:", notifyErr);
+  }
+
+  return { success: true, match: result.match };
 }
 
 export async function getMatchPlayers(matchId: string) {
@@ -2866,7 +2992,7 @@ export async function claimVerifiedPaymentForMatch(input: {
   const db = await getDb();
   if (!db) throw new Error("Match payment service is unavailable.");
 
-  return db.transaction(async tx => {
+  const result = await db.transaction(async tx => {
     const match = (
       await tx.select().from(matches).where(eq(matches.id, input.matchId)).limit(1)
     )[0];
@@ -2991,6 +3117,16 @@ export async function claimVerifiedPaymentForMatch(input: {
       escrowFunded,
     };
   });
+
+  if (result.escrowFunded) {
+    try {
+      notifyMatchUpdated(input.matchId);
+    } catch (e) {
+      console.warn("[confirmEscrowDeposit] notifyMatchUpdated error:", e);
+    }
+  }
+
+  return result;
 }
 
 export async function createWageredChallengeMatch(input: {

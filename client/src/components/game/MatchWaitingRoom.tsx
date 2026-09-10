@@ -8,6 +8,7 @@ import {
   Copy,
   ExternalLink,
   Gamepad2,
+  RefreshCw,
   ShieldCheck,
   Trophy,
   Users,
@@ -29,6 +30,9 @@ interface MatchWaitingRoomProps {
   onLeave: () => void;
   onDepositPrompt?: () => void;
   isDepositNeeded?: boolean;
+  isWagered?: boolean;
+  allVerified?: boolean;
+  isStarting?: boolean;
   onStartMatch?: () => void;
 }
 
@@ -43,6 +47,9 @@ export function MatchWaitingRoom({
   onLeave,
   onDepositPrompt,
   isDepositNeeded = false,
+  isWagered = false,
+  allVerified = true,
+  isStarting = false,
   onStartMatch,
 }: MatchWaitingRoomProps) {
   const [copied, setCopied] = useState(false);
@@ -51,9 +58,11 @@ export function MatchWaitingRoom({
 
   const utils = trpc.useUtils();
 
-  // Auto-launch countdown when guest joins
+  const isReadyToStart = Boolean(guestName && (!isWagered || allVerified));
+
+  // Auto-launch countdown when opponent has joined and ready to play
   useEffect(() => {
-    if (guestName && !isDepositNeeded) {
+    if (isReadyToStart && !isStarting) {
       soundEngine.playBonusTurn();
       setAutoCountdown(2);
       const interval = setInterval(() => {
@@ -61,7 +70,6 @@ export function MatchWaitingRoom({
           if (prev === null || prev <= 1) {
             clearInterval(interval);
             onStartMatch?.();
-            void utils.match.state.invalidate({ id: matchId });
             return 0;
           }
           return prev - 1;
@@ -71,7 +79,7 @@ export function MatchWaitingRoom({
     } else {
       setAutoCountdown(null);
     }
-  }, [guestName, isDepositNeeded, matchId]);
+  }, [isReadyToStart, isStarting, onStartMatch]);
   const addBot = trpc.match.addBotToMatch.useMutation({
     onSuccess: () => {
       toast.success("Arena AI Bot Joined!", {
@@ -246,7 +254,43 @@ export function MatchWaitingRoom({
           </div>
         )}
 
-        {guestName && !isDepositNeeded && (
+        {/* 1. If wager match and current player needs deposit */}
+        {isWagered && isDepositNeeded && onDepositPrompt && (
+          <div className="waiting-deposit-alert">
+            <ShieldCheck size={18} className="icon-gold" />
+            <div className="deposit-alert-text">
+              <strong>Deposit Verification Required</strong>
+              <p>Lock your {formatNim(stakeNim || 0)} NIM stake into table escrow to ready up.</p>
+            </div>
+            <button
+              type="button"
+              className="deposit-action-btn"
+              onClick={onDepositPrompt}
+            >
+              Verify Stake
+            </button>
+          </div>
+        )}
+
+        {/* 2. If wager match, current player deposited, but waiting for opponent to deposit */}
+        {isWagered && !isDepositNeeded && !allVerified && guestName && (
+          <div
+            className="waiting-deposit-alert"
+            style={{
+              background: "rgba(236, 153, 24, 0.12)",
+              border: "1px solid rgba(236, 153, 24, 0.35)",
+            }}
+          >
+            <Clock size={18} className="icon-gold" />
+            <div className="deposit-alert-text">
+              <strong style={{ color: "#EC9918" }}>Your Stake is Locked in Escrow</strong>
+              <p>Waiting for {guestName || "opponent"} to verify their {formatNim(stakeNim || 0)} NIM stake…</p>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Ready to start: Both players connected and escrow verified (or free match) */}
+        {isReadyToStart && (
           <div
             className="waiting-bot-cta"
             style={{
@@ -259,12 +303,14 @@ export function MatchWaitingRoom({
             <button
               type="button"
               className="start-with-bot-btn"
+              disabled={isStarting}
               onClick={() => {
                 onStartMatch?.();
-                void utils.match.state.invalidate({ id: matchId });
               }}
               style={{
-                background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                background: isStarting
+                  ? "rgba(34, 197, 94, 0.6)"
+                  : "linear-gradient(135deg, #22c55e, #16a34a)",
                 color: "#ffffff",
                 boxShadow: "0 6px 22px rgba(34, 197, 94, 0.45)",
                 fontWeight: 800,
@@ -273,36 +319,27 @@ export function MatchWaitingRoom({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "8px",
-                cursor: "pointer",
+                cursor: isStarting ? "not-allowed" : "pointer",
               }}
             >
-              <Gamepad2 size={20} />
+              {isStarting ? (
+                <RefreshCw size={20} className="spin" />
+              ) : (
+                <Gamepad2 size={20} />
+              )}
               <span>
-                {autoCountdown !== null && autoCountdown > 0
+                {isStarting
+                  ? "LAUNCHING LIVE GAME TABLE…"
+                  : autoCountdown !== null && autoCountdown > 0
                   ? `LAUNCHING TABLE (${autoCountdown}s)… TAP TO ENTER NOW`
                   : "ENTER LIVE GAME TABLE NOW"}
               </span>
             </button>
             <span className="waiting-bot-subtext" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
-              Opponent connected! Entering match table automatically.
+              {isWagered
+                ? "Both stakes locked in escrow! Table is ready to play."
+                : "Opponent connected! Entering match table automatically."}
             </span>
-          </div>
-        )}
-
-        {isDepositNeeded && onDepositPrompt && (
-          <div className="waiting-deposit-alert">
-            <ShieldCheck size={18} className="icon-gold" />
-            <div className="deposit-alert-text">
-              <strong>Deposit Verification Required</strong>
-              <p>Lock your {formatNim(stakeNim || 0)} NIM stake into escrow to ready up.</p>
-            </div>
-            <button
-              type="button"
-              className="deposit-action-btn"
-              onClick={onDepositPrompt}
-            >
-              Verify Stake
-            </button>
           </div>
         )}
       </div>

@@ -138,6 +138,18 @@ export default function MatchRoom() {
     },
   });
   const emoteMutation = trpc.match.sendEmote.useMutation();
+  const startMatchMutation = trpc.match.startMatch.useMutation({
+    onSuccess: () => {
+      toast.success("Game Started!", { description: "Entering arena…" });
+      void utils.match.state.invalidate({ id: matchId });
+      void stateQuery.refetch();
+    },
+    onError: (err) => {
+      toast.error("Could not start match", {
+        description: err.message,
+      });
+    },
+  });
 
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
@@ -484,12 +496,15 @@ export default function MatchRoom() {
     const hostName = yourSeat === 0 ? (authQuery.data?.name || "Player 1 (Host)") : "Player 1 (Host)";
     const guestPlayer = state.players.find((p: any) => p.seat === 1);
     const guestName = guestPlayer
-      ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : "Challenger Joined")
+      ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : (guestPlayer.name || "Challenger Joined"))
       : null;
-    const isDepositNeeded = Boolean(
-      escrow?.isWagered &&
-      !escrow.playerStatuses.find(p => p.seat === yourSeat)?.verified
+    const isWageredMatchTable = Boolean(escrow?.isWagered || state.joinCode?.startsWith("WAG"));
+    const allVerified = !isWageredMatchTable || Boolean(escrow?.allVerified);
+    const myDepositVerified = Boolean(
+      !isWageredMatchTable ||
+      escrow?.playerStatuses.find(p => p.seat === yourSeat)?.verified
     );
+    const isDepositNeeded = Boolean(isWageredMatchTable && !myDepositVerified);
 
     return (
       <div className="pure-gameplay-page">
@@ -507,10 +522,12 @@ export default function MatchRoom() {
             }
           }}
           isDepositNeeded={isDepositNeeded}
+          isWagered={isWageredMatchTable}
+          allVerified={allVerified}
+          isStarting={startMatchMutation.isPending}
           onDepositPrompt={() => setIsDepositModalOpen(true)}
           onStartMatch={() => {
-            void utils.match.state.invalidate({ id: matchId });
-            void stateQuery.refetch();
+            startMatchMutation.mutate({ matchId });
           }}
         />
         {escrow && (
