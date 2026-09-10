@@ -73,7 +73,7 @@ export function registerMatchStream(app: Express) {
       res.status(404).json({ message: "Match not found." });
       return;
     }
-    const player = await getMatchPlayer(matchId, user.id);
+    let initialPlayer = await getMatchPlayer(matchId, user.id);
 
     res.status(200);
     res.setHeader("Content-Type", "text/event-stream");
@@ -89,6 +89,15 @@ export function registerMatchStream(app: Express) {
         if (!current || closed) return;
         const players = await getMatchPlayers(matchId);
         if (closed) return;
+
+        let activePlayer = initialPlayer;
+        if (!activePlayer) {
+          activePlayer = await getMatchPlayer(matchId, user.id);
+          if (activePlayer) initialPlayer = activePlayer;
+        }
+
+        const resolvedSeat = activePlayer ? activePlayer.seat : -1;
+
         res.write(
           `event: state\ndata: ${JSON.stringify({
             id: current.id,
@@ -104,7 +113,7 @@ export function registerMatchStream(app: Express) {
               // update left it undefined and the two disagreed.
               lastSeenAt: item.lastSeenAt,
             })),
-            yourSeat: player.seat,
+            yourSeat: resolvedSeat,
           })}\n\n`
         );
       } catch {

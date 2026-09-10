@@ -113,13 +113,21 @@ export default function MatchRoom() {
 
   const state = stateQuery.data;
   const snapshot = state?.snapshot;
-  const yourSeat = state?.yourSeat ?? (authQuery.data ? 0 : -1);
+  const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
+  const rawSeat = state?.yourSeat;
+  const yourSeat =
+    rawSeat !== undefined && rawSeat !== -1
+      ? rawSeat
+      : isBotMatch
+      ? 0
+      : authQuery.data
+      ? 0
+      : -1;
   const isYourTurn = Boolean(
     snapshot &&
       state?.status === "in_progress" &&
       snapshot.currentPlayer === yourSeat
   );
-  const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
   const isBotTurn = Boolean(
     isBotMatch &&
       state?.status === "in_progress" &&

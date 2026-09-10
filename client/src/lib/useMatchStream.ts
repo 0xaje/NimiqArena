@@ -3,24 +3,36 @@ import { reconnectDelayMs } from "./reconnect-policy";
 import { COOKIE_NAME } from "@shared/const";
 
 function getSessionToken(): string | null {
+  const extractToken = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const parts = raw.split(";");
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed.startsWith(`${COOKIE_NAME}=`)) {
+        return trimmed.slice(`${COOKIE_NAME}=`.length);
+      }
+      if (trimmed.startsWith("manus-session=")) {
+        return trimmed.slice("manus-session=".length);
+      }
+    }
+    if (!raw.includes("=")) {
+      return raw.trim();
+    }
+    return null;
+  };
+
   try {
     const raw =
       sessionStorage.getItem("manus-cookie") ||
       localStorage.getItem("manus-cookie");
-    if (raw) {
-      const prefix = `${COOKIE_NAME}=`;
-      const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
-      const token = pair?.trim().slice(prefix.length);
-      if (token) return token;
-    }
+    const token = extractToken(raw);
+    if (token) return token;
   } catch {
     // storage blocked
   }
   try {
     if (typeof document !== "undefined" && document.cookie) {
-      const prefix = `${COOKIE_NAME}=`;
-      const pair = document.cookie.split(";").find(s => s.trim().startsWith(prefix));
-      const token = pair?.trim().slice(prefix.length);
+      const token = extractToken(document.cookie);
       if (token) return token;
     }
   } catch {
