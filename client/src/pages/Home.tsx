@@ -34,6 +34,7 @@ import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
+import { useNimiqWallet } from "@/lib/useNimiqWallet";
 import {
   restoreSavedWallet,
   getWalletConnectionMode,
@@ -121,33 +122,15 @@ export default function Home() {
   const [connectionMode, setConnectionMode] = useState<WalletConnectionMode>(() =>
     getWalletConnectionMode()
   );
-  const [address, setAddress] = useState<string | null>(() =>
-    restoreSavedWallet()
-  );
-  const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
-
-  const refreshAccountBalance = useCallback(async (targetAddr?: string | null) => {
-    const addr = targetAddr || address;
-    if (!addr) {
-      setAccountInfo(null);
-      return;
-    }
-    try {
-      const info = await fetchNimiqAccountInfo(addr);
-      setAccountInfo(info);
-    } catch {
-      // transient balance catch
-    }
-  }, [address]);
-
-  useEffect(() => {
-    void refreshAccountBalance(address);
-    if (!address) return;
-    const interval = setInterval(() => {
-      void refreshAccountBalance(address);
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [address, refreshAccountBalance]);
+  const {
+    address,
+    accountInfo,
+    balanceNim,
+    usdValue,
+    isConnected,
+    isInsideNimiqPay: insidePay,
+    refreshBalance: refreshAccountBalance,
+  } = useNimiqWallet();
 
   const [language, setLanguage] = useState(() =>
     getHostLanguage() || (typeof navigator !== "undefined" ? navigator.language?.split("-")[0] : "en") || "en"
@@ -167,9 +150,9 @@ export default function Home() {
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
 
-  // Auto-sync wallet session on mount if wallet is connected but current session is guest
+  // Auto-sync wallet session on mount if wallet is connected but current session is unauthenticated or guest
   useEffect(() => {
-    if (address && user && user.loginMethod === "guest") {
+    if (address && (!user || user.loginMethod === "guest")) {
       utils.client.auth.requestChallenge.query().then(challengeRes => {
         return loginWithNimiq.mutateAsync({
           address,
@@ -192,35 +175,30 @@ export default function Home() {
     }
   }, [address, user?.id, user?.loginMethod]);
 
-  // Auto-onboarding for newly connected wallets: prompt identity registration ONLY if no custom nickname set
+  // Auto-onboarding for newly connected wallets: prompt identity registration ONLY if never dismissed/completed
   useEffect(() => {
     if (!address || !user) return;
 
     // Check if dismissed or already completed
     try {
-      const isDismissed = sessionStorage.getItem("dismissed_identity_modal") === "true";
-      const isCompleted = localStorage.getItem(`onboarding_completed_${address}`) === "true";
+      const isDismissed =
+        sessionStorage.getItem("dismissed_identity_modal") === "true" ||
+        localStorage.getItem("dismissed_identity_modal") === "true";
+      const isCompleted =
+        localStorage.getItem(`onboarding_completed_${address}`) === "true";
       if (isDismissed || isCompleted) return;
     } catch {}
 
     const name = user.name?.trim() || "";
-    // Check if user already has a custom name
-    const isGenericName =
+    // Only prompt if completely generic or anonymous guest
+    const isGenericGuest =
       !name ||
-      name.startsWith("Player 1") ||
-      name.startsWith("Player 2") ||
       name.startsWith("guest-") ||
-      name.startsWith("0x") ||
-      name.startsWith("NQ") ||
-      name.startsWith("Nimiq (");
+      name.startsWith("Player 1") ||
+      name.startsWith("Player 2");
 
-    if (isGenericName && !isIdentityModalOpen) {
+    if (isGenericGuest && !isIdentityModalOpen) {
       setIsIdentityModalOpen(true);
-    } else if (!isGenericName) {
-      // User already has a custom name registered. Mark complete so we never bother them again.
-      try {
-        localStorage.setItem(`onboarding_completed_${address}`, "true");
-      } catch {}
     }
   }, [address, user, isIdentityModalOpen]);
 
@@ -232,10 +210,8 @@ export default function Home() {
           name: "Player 1 (Solo)",
         });
         if (loginRes.token) {
-          sessionStorage.setItem(
-            "manus-cookie",
-            `manus-session=${loginRes.token}`
-          );
+          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
         }
         await utils.auth.me.invalidate();
       }
@@ -254,6 +230,7 @@ export default function Home() {
       const res = await guestLogin.mutateAsync({ name, newIdentity: true });
       if (res.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
+        localStorage.setItem("manus-cookie", `manus-session=${res.token}`);
       }
       await utils.auth.me.invalidate();
       toast.success(`Signed in as ${name}`);
@@ -357,18 +334,11 @@ export default function Home() {
             }
             await utils.auth.me.invalidate();
 
-            const currentName = loginRes?.user?.name || "";
-            const isCustom =
-              currentName &&
-              !currentName.startsWith("Nimiq (") &&
-              !currentName.startsWith("NQ") &&
-              !currentName.startsWith("Player ") &&
-              !currentName.startsWith("guest-");
+            const isCompleted =
+              localStorage.getItem(`onboarding_completed_${addr}`) === "true" ||
+              localStorage.getItem("dismissed_identity_modal") === "true";
 
-            if (!isCustom) {
-              try {
-                sessionStorage.removeItem("dismissed_identity_modal");
-              } catch {}
+            if (!isCustom && !isCompleted) {
               setIsIdentityModalOpen(true);
             } else {
               try {

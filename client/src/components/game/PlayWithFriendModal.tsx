@@ -57,6 +57,7 @@ export function PlayWithFriendModal({
       const loginRes = await guestLogin.mutateAsync({ name: roleName });
       if (loginRes.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+        localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
       }
       await utils.auth.me.invalidate();
     }

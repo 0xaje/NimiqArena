@@ -53,6 +53,7 @@ export default function PlayerProfile() {
       const res = await guestLogin.mutateAsync({ name: name.trim() });
       if (res.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
+        localStorage.setItem("manus-cookie", `manus-session=${res.token}`);
       }
       await utils.auth.me.invalidate();
       await utils.auth.stats.invalidate();

@@ -78,10 +78,13 @@ export default function MatchRoom() {
   );
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
+  const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [isRecoveringAuth, setIsRecoveringAuth] = useState(false);
+  const isRecoveringAuthRef = useRef(false);
   const escrow = escrowQuery.data;
 
   const command = trpc.match.command.useMutation({
@@ -137,6 +140,52 @@ export default function MatchRoom() {
 
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
+
+  const recoverSessionAndEnter = useCallback(async () => {
+    if (isRecoveringAuthRef.current) return;
+    isRecoveringAuthRef.current = true;
+    setIsRecoveringAuth(true);
+    try {
+      const savedWallet = localStorage.getItem("nimiq_arena_wallet_address");
+      let loginToken: string | null = null;
+      if (savedWallet) {
+        try {
+          const ch = await utils.client.auth.requestChallenge.query();
+          const res = await loginWithNimiq.mutateAsync({ address: savedWallet, challenge: ch.challenge });
+          loginToken = res?.token || null;
+        } catch (e) {
+          console.warn("[MatchRoom] Nimiq auto-login fallback to guest:", e);
+        }
+      }
+      if (!loginToken) {
+        const res = await guestLogin.mutateAsync({ name: "Player 1" });
+        loginToken = res?.token || null;
+      }
+      if (loginToken) {
+        sessionStorage.setItem("manus-cookie", `manus-session=${loginToken}`);
+        localStorage.setItem("manus-cookie", `manus-session=${loginToken}`);
+      }
+      await utils.auth.me.invalidate();
+      await stateQuery.refetch();
+    } catch (e) {
+      console.warn("[MatchRoom] Auth recovery error:", e);
+    } finally {
+      isRecoveringAuthRef.current = false;
+      setIsRecoveringAuth(false);
+    }
+  }, [utils, loginWithNimiq, guestLogin, stateQuery]);
+
+  // Auto-attempt recovery if stateQuery fails due to UNAUTHORIZED or missing auth
+  useEffect(() => {
+    if (!matchId) return;
+    const isUnauthorized =
+      stateQuery.error?.data?.code === "UNAUTHORIZED" ||
+      (stateQuery.isError && authQuery.isSuccess && !authQuery.data);
+
+    if (isUnauthorized && !isRecoveringAuthRef.current) {
+      void recoverSessionAndEnter();
+    }
+  }, [matchId, stateQuery.isError, stateQuery.error, authQuery.isSuccess, authQuery.data, recoverSessionAndEnter]);
 
   const prevTurnRef = useRef<number | null>(null);
   const prevDiceRef = useRef<number | null>(null);
@@ -395,13 +444,35 @@ export default function MatchRoom() {
         </header>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "70vh", flexDirection: "column", gap: "16px", textAlign: "center", maxWidth: "480px", margin: "0 auto", padding: "0 20px" }}>
           <LockKeyhole size={36} style={{ color: "#ef4444" }} />
-          <h2 style={{ fontFamily: "Outfit, sans-serif", fontSize: "20px", margin: 0 }}>Match Unavailable</h2>
+          <h2 style={{ fontFamily: "Outfit, sans-serif", fontSize: "20px", margin: 0 }}>
+            {isRecoveringAuth ? "Restoring Match Session…" : "Match Unavailable"}
+          </h2>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: "14px", opacity: 0.8, lineHeight: 1.5 }}>
-            You must be a signed-in participant to access this room. Check that you are logged in and using a valid match code.
+            {isRecoveringAuth
+              ? "Re-connecting your player credentials to the match room…"
+              : "You must be a signed-in participant to access this room. Tap below to authenticate and enter immediately."}
           </p>
-          <Link href="/join" className="copy-code" style={{ textDecoration: "none", marginTop: "8px" }}>
-            Join with a challenge code
-          </Link>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center", marginTop: "8px" }}>
+            <button
+              onClick={() => void recoverSessionAndEnter()}
+              disabled={isRecoveringAuth}
+              className="copy-code"
+              style={{
+                background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                color: "#000",
+                fontWeight: 700,
+                cursor: "pointer",
+                border: "none",
+                padding: "8px 18px",
+                borderRadius: "8px",
+              }}
+            >
+              {isRecoveringAuth ? "Connecting…" : "Sign In & Enter Match"}
+            </button>
+            <Link href="/join" className="copy-code" style={{ textDecoration: "none" }}>
+              Join with a challenge code
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -475,10 +546,8 @@ export default function MatchRoom() {
           name: "Player 1 (Solo)",
         });
         if (loginRes.token) {
-          sessionStorage.setItem(
-            "manus-cookie",
-            `manus-session=${loginRes.token}`
-          );
+          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
         }
         await utils.auth.me.invalidate();
       }

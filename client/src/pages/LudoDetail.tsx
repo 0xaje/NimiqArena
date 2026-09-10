@@ -22,12 +22,16 @@ import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
 import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
 import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
 
+import { useNimiqWallet } from "@/lib/useNimiqWallet";
+
 export default function LudoDetail() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
   const guestLogin = trpc.auth.guestLogin.useMutation();
+  const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const gameQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
+  const { address: walletAddress, balanceNim, isConnected } = useNimiqWallet();
   const createChallenge = trpc.match.createChallenge.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
@@ -59,21 +63,37 @@ export default function LudoDetail() {
     });
   };
 
+  async function ensureAuthenticated(defaultName: string) {
+    if (user) return;
+    const savedWallet = walletAddress || localStorage.getItem("nimiq_arena_wallet_address");
+    let loginToken: string | null = null;
+    if (savedWallet) {
+      try {
+        const challengeRes = await utils.client.auth.requestChallenge.query();
+        const res = await loginWithNimiq.mutateAsync({
+          address: savedWallet,
+          challenge: challengeRes.challenge,
+        });
+        loginToken = res?.token || null;
+      } catch (e) {
+        console.warn("[LudoDetail] Nimiq auto-login fallback to guest:", e);
+      }
+    }
+    if (!loginToken) {
+      toast.info("Signing in…");
+      const loginRes = await guestLogin.mutateAsync({ name: defaultName });
+      loginToken = loginRes?.token || null;
+    }
+    if (loginToken) {
+      sessionStorage.setItem("manus-cookie", `manus-session=${loginToken}`);
+      localStorage.setItem("manus-cookie", `manus-session=${loginToken}`);
+    }
+    await utils.auth.me.invalidate();
+  }
+
   async function handleStartWageredMatch() {
     try {
-      if (!user) {
-        toast.info("Signing in as Player 1…");
-        const loginRes = await guestLogin.mutateAsync({
-          name: "Player 1 (Host)",
-        });
-        if (loginRes.token) {
-          sessionStorage.setItem(
-            "manus-cookie",
-            `manus-session=${loginRes.token}`
-          );
-        }
-        await utils.auth.me.invalidate();
-      }
+      await ensureAuthenticated("Player 1 (Host)");
       toast.info(`Creating ${selectedStake} NIM Wagered Table…`);
       const res = await createWagered.mutateAsync({
         gameSlug: "ludo-league",
@@ -90,19 +110,7 @@ export default function LudoDetail() {
 
   async function handleStartSoloPractice() {
     try {
-      if (!user) {
-        toast.info("Signing in as Player 1…");
-        const loginRes = await guestLogin.mutateAsync({
-          name: "Player 1 (Solo)",
-        });
-        if (loginRes.token) {
-          sessionStorage.setItem(
-            "manus-cookie",
-            `manus-session=${loginRes.token}`
-          );
-        }
-        await utils.auth.me.invalidate();
-      }
+      await ensureAuthenticated("Player 1 (Solo)");
       toast.info("Launching Practice Table vs Arena Bot…");
       const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
       navigate(`/matches/${match.id}`);
@@ -115,19 +123,7 @@ export default function LudoDetail() {
 
   async function createMatch() {
     try {
-      if (!user) {
-        toast.info("Signing in as Player 1 (Host)…");
-        const loginRes = await guestLogin.mutateAsync({
-          name: "Player 1 (Host)",
-        });
-        if (loginRes.token) {
-          sessionStorage.setItem(
-            "manus-cookie",
-            `manus-session=${loginRes.token}`
-          );
-        }
-        await utils.auth.me.invalidate();
-      }
+      await ensureAuthenticated("Player 1 (Host)");
       const match = await createChallenge.mutateAsync({
         gameSlug: "ludo-league",
       });
@@ -171,9 +167,34 @@ export default function LudoDetail() {
           <ArrowLeft size={15} /> Arena home
         </Link>
         <span className="detail-brand">NIMIQ ARENA / GAME 001</span>
-        <span className="detail-state">
-          {user ? `PLAYING AS: ${user.name || "PLAYER 1"}` : "GUEST MODE"}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isConnected && walletAddress ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "rgba(255, 199, 44, 0.12)",
+                border: "1px solid rgba(255, 199, 44, 0.3)",
+                borderRadius: "20px",
+                padding: "3px 10px",
+                fontFamily: "IBM Plex Mono, monospace",
+                fontSize: "12px",
+                color: "#fbbf24",
+                fontWeight: 600,
+              }}
+              title={`Connected Nimiq Wallet: ${walletAddress}`}
+            >
+              <Coins size={13} style={{ color: "#eab308" }} />
+              <span>{balanceNim.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })} NIM</span>
+              <span style={{ opacity: 0.5 }}>|</span>
+              <span style={{ opacity: 0.85 }}>{walletAddress.slice(0, 4)}…{walletAddress.slice(-4)}</span>
+            </div>
+          ) : null}
+          <span className="detail-state">
+            {user ? `PLAYING AS: ${user.name || "PLAYER 1"}` : "GUEST MODE"}
+          </span>
+        </div>
       </header>
       <main className="detail-main">
         <section className="detail-hero">

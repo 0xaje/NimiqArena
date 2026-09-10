@@ -319,36 +319,42 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
     // Server proxy fetch failed, fall through to client RPC
   }
 
-  // 2. Direct Fallback: Client-side JSON-RPC
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(NIMIQ_TESTNET_RPC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "getAccountByAddress",
-        params: [clean],
-        id: 1,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const json = await res.json();
-      const balanceLuna =
-        json?.result?.data?.balance ?? json?.result?.balance ?? 0;
-      const balanceNim = Number(balanceLuna) / 100_000;
-      return {
-        ...defaultInfo,
-        balanceNim,
-        balanceLuna: Number(balanceLuna),
-        usdValue: Number((balanceNim * 0.0004).toFixed(4)),
-      };
+  // 2. Direct Fallback: Client-side JSON-RPC (Multi-Network Testnet & Mainnet)
+  const rpcUrls = [NIMIQ_TESTNET_RPC_URL, NIMIQ_MAINNET_RPC_URL];
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "getAccountByAddress",
+          params: [clean],
+          id: 1,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const json = await res.json();
+        const balanceLuna = json?.result?.data?.balance ?? json?.result?.balance;
+        if (balanceLuna !== undefined && balanceLuna !== null && Number(balanceLuna) > 0) {
+          const numLuna = Number(balanceLuna);
+          const balanceNim = numLuna / 100_000;
+          return {
+            ...defaultInfo,
+            balanceNim,
+            balanceLuna: numLuna,
+            usdValue: Number((balanceNim * 0.0004).toFixed(4)),
+            network: rpcUrl.includes("testnet") ? "testnet" : "mainnet",
+          };
+        }
+      }
+    } catch {
+      // Continue to next RPC
     }
-  } catch (err) {
-    console.warn("[NimiqWallet] Direct RPC balance check failed:", err);
   }
 
   return defaultInfo;

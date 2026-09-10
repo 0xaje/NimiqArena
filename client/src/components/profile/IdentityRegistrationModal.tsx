@@ -72,6 +72,10 @@ export function IdentityRegistrationModal({
   const handleDismiss = () => {
     try {
       sessionStorage.setItem("dismissed_identity_modal", "true");
+      localStorage.setItem("dismissed_identity_modal", "true");
+      if (walletAddress) {
+        localStorage.setItem(`onboarding_completed_${walletAddress}`, "true");
+      }
     } catch {}
     onClose();
   };
@@ -121,6 +125,7 @@ export function IdentityRegistrationModal({
       if (walletAddress) {
         try {
           localStorage.setItem(`onboarding_completed_${walletAddress}`, "true");
+          localStorage.setItem("dismissed_identity_modal", "true");
         } catch {}
       }
       try {

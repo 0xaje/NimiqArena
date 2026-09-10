@@ -32,6 +32,8 @@ function Router() {
   );
 }
 
+import { NimiqWalletProvider } from "./lib/useNimiqWallet";
+
 export default function App() {
   useEffect(() => {
     initTelegramApp();
@@ -40,10 +42,12 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <NimiqWalletProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </NimiqWalletProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

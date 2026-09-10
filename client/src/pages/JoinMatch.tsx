@@ -58,6 +58,7 @@ export default function JoinMatch() {
       });
       if (loginRes.token) {
         sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+        localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
       }
       await utils.auth.me.invalidate();
     }
@@ -94,6 +95,7 @@ export default function JoinMatch() {
         });
         if (loginRes.token) {
           sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
         }
         await utils.auth.me.invalidate();
       }
