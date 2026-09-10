@@ -1,16 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { reconnectDelayMs } from "./reconnect-policy";
+import { COOKIE_NAME } from "@shared/const";
 
-/**
- * After this many consecutive failures the stream stops retrying and the match
- * runs on polling alone.
- *
- * EventSource cannot send an Authorization header, so in browsers where the
- * session cookie is blocked - Safari ITP, iOS WebViews, in-app browsers, the
- * exact cases the Bearer fallback exists for - this endpoint always 401s.
- * Retrying it forever burned a request every 2s against the rate limit and
- * never recovered. MatchRoom already polls when the stream is down.
- */
+function getSessionToken(): string | null {
+  try {
+    const raw =
+      sessionStorage.getItem("manus-cookie") ||
+      localStorage.getItem("manus-cookie");
+    if (raw) {
+      const prefix = `${COOKIE_NAME}=`;
+      const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
+      const token = pair?.trim().slice(prefix.length);
+      if (token) return token;
+    }
+  } catch {
+    // storage blocked
+  }
+  try {
+    if (typeof document !== "undefined" && document.cookie) {
+      const prefix = `${COOKIE_NAME}=`;
+      const pair = document.cookie.split(";").find(s => s.trim().startsWith(prefix));
+      const token = pair?.trim().slice(prefix.length);
+      if (token) return token;
+    }
+  } catch {
+    // cookies blocked
+  }
+  return null;
+}
+
 const MAX_STREAM_RECONNECT_ATTEMPTS = 6;
 
 export interface EmoteEvent {
@@ -71,7 +89,12 @@ export function useMatchStream({
       if (!isSubscribed) return;
 
       try {
-        eventSource = new EventSource(`/api/matches/${matchId}/events`, {
+        const token = getSessionToken();
+        const streamUrl = token
+          ? `/api/matches/${matchId}/events?token=${encodeURIComponent(token)}`
+          : `/api/matches/${matchId}/events`;
+
+        eventSource = new EventSource(streamUrl, {
           withCredentials: true,
         });
 

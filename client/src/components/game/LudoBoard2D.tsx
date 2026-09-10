@@ -258,7 +258,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
               }
               setSteppingPiece(null);
             }
-          }, 160);
+          }, 90);
         }
 
         prevPositionsRef.current[key] = currentPos;

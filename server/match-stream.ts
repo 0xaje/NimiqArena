@@ -3,11 +3,13 @@ import type { Express } from "express";
 import {
   getMatchPlayer,
   getMatchPlayers,
+  getUserByOpenId,
   refreshMatchLifecycle,
   touchMatchPlayerPresence,
 } from "./db";
 import { PLAYER_HEARTBEAT_INTERVAL_MS } from "@shared/const";
 import { createContext } from "./_core/context";
+import { sdk } from "./_core/sdk";
 
 const matchEventsEmitter = new EventEmitter();
 matchEventsEmitter.setMaxListeners(200);
@@ -45,8 +47,22 @@ export function broadcastQuickChat(matchId: string, payload: QuickChatPayload) {
 
 export function registerMatchStream(app: Express) {
   app.get("/api/matches/:id/events", async (req, res) => {
-    const context = await createContext({ req, res } as never);
-    if (!context.user) {
+    let user = (await createContext({ req, res } as never)).user;
+
+    // WebView / In-app browser fallback: EventSource cannot set custom headers,
+    // so pass token in query param when cookies are blocked or isolated.
+    if (!user && typeof req.query.token === "string" && req.query.token.length > 0) {
+      try {
+        const session = await sdk.verifySession(req.query.token);
+        if (session?.openId) {
+          user = (await getUserByOpenId(session.openId)) ?? null;
+        }
+      } catch (err) {
+        console.warn("[MatchStream] Query token auth failed:", err);
+      }
+    }
+
+    if (!user) {
       res.status(401).json({ message: "Authentication required." });
       return;
     }
@@ -57,7 +73,7 @@ export function registerMatchStream(app: Express) {
       res.status(404).json({ message: "Match not found." });
       return;
     }
-    const player = await getMatchPlayer(matchId, context.user.id);
+    const player = await getMatchPlayer(matchId, user.id);
 
     res.status(200);
     res.setHeader("Content-Type", "text/event-stream");

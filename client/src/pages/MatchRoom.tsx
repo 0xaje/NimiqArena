@@ -61,7 +61,7 @@ export default function MatchRoom() {
     { id: matchId },
     {
       enabled: Boolean(matchId),
-      refetchInterval: () => (isStreamConnected ? false : 3_500),
+      refetchInterval: () => (isStreamConnected ? false : 1_500),
     }
   );
   const escrowQuery = trpc.match.escrowDetails.useQuery(
@@ -87,7 +87,19 @@ export default function MatchRoom() {
   const heartbeat = trpc.match.heartbeat.useMutation();
   const disconnect = trpc.match.disconnect.useMutation();
   const botTurnMutation = trpc.match.triggerBotTurn.useMutation({
-    onSuccess: () => utils.match.state.invalidate({ id: matchId }),
+    onSuccess: (res: any) => {
+      if (res?.snapshot) {
+        utils.match.state.setData({ id: matchId }, (prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            stateVersion: res.snapshot.version,
+            snapshot: res.snapshot,
+          };
+        });
+      }
+      utils.match.state.invalidate({ id: matchId });
+    },
   });
   const emoteMutation = trpc.match.sendEmote.useMutation();
 
@@ -197,7 +209,17 @@ export default function MatchRoom() {
       if (isBotMutatingRef.current || !isMounted) return;
       isBotMutatingRef.current = true;
       try {
-        await botTurnMutation.mutateAsync({ matchId });
+        const res = await botTurnMutation.mutateAsync({ matchId });
+        if (res?.snapshot && isMounted) {
+          utils.match.state.setData({ id: matchId }, (prev: any) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              stateVersion: res.snapshot.version,
+              snapshot: res.snapshot,
+            };
+          });
+        }
       } catch {
         // will retry on interval if turn persists
       } finally {
@@ -205,15 +227,15 @@ export default function MatchRoom() {
       }
     };
 
-    // Human-like 500ms delay before bot plays
-    const timer = window.setTimeout(triggerBot, 500);
+    // Snappy 200ms pacing before bot plays
+    const timer = window.setTimeout(triggerBot, 200);
 
-    // Watchdog fallback only if bot doesn't move after 4 seconds
+    // Watchdog fallback only if bot doesn't move after 3 seconds
     const interval = window.setInterval(() => {
       if (isBotTurn && !isBotMutatingRef.current) {
         void triggerBot();
       }
-    }, 4000);
+    }, 3000);
 
     return () => {
       isMounted = false;

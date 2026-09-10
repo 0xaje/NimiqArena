@@ -1124,9 +1124,9 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
         break;
       }
 
-      // Human-feeling pacing before move (skipped in automated tests for high-speed simulation)
+      // Natural pacing before move (skipped in automated tests for high-speed simulation)
       if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
-        await new Promise(r => setTimeout(r, 120));
+        await new Promise(r => setTimeout(r, 60));
       }
 
       // 2. Choose best legal move for bot
@@ -1151,13 +1151,13 @@ async function executeAuthoritativeBotTurnCore(matchId: string) {
         snapshot = moveResult.snapshot;
         currentSnapshot = snapshot;
 
-        // If bot continues turn (remaining dice or bonus turn), wait 150ms before next action
+        // If bot continues turn (remaining dice or bonus turn), wait briefly before next action
         if (
           snapshot.currentPlayer === botPlayer.seat &&
           snapshot.winner === null
         ) {
           if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
-            await new Promise(r => setTimeout(r, 150));
+            await new Promise(r => setTimeout(r, 80));
           }
           continue;
         } else {

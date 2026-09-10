@@ -45,19 +45,12 @@ export function MatchHeader({
           <span>LEAVE TABLE</span>
         </button>
 
-        <div className="gameplay-pot-badge">
-          {isWagered && totalPotNim && totalPotNim > 0 ? (
-            <>
-              <Coins size={15} className="trophy-gold" />
-              <span>MATCH POT: {formatNim(totalPotNim)} NIM</span>
-            </>
-          ) : (
-            <>
-              <Bot size={15} />
-              <span>PRACTICE TABLE (FREE)</span>
-            </>
-          )}
-        </div>
+        {isWagered && totalPotNim && totalPotNim > 0 ? (
+          <div className="gameplay-pot-badge">
+            <Coins size={15} className="trophy-gold" />
+            <span>MATCH POT: {formatNim(totalPotNim)} NIM</span>
+          </div>
+        ) : null}
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <button
