@@ -509,20 +509,10 @@ export function applyCommand(
   next.version += 1;
   next.usedNonces.push(command.nonce);
 
-  // Check victory condition:
-  // A player wins if:
-  // 1. All their pieces reached home, OR
-  // 2. A piece scored home (via capture or path) and player has no other active pieces on the track
-  const homeCount = next.players[command.playerId].pieces.filter(
+  // Check victory condition: a player wins ONLY when ALL of their pieces have reached the home goal
+  const hasWon = next.players[command.playerId].pieces.every(
     p => p.position === LUDO_HOME_ENTRY
-  ).length;
-  const piecesOnTrack = next.players[command.playerId].pieces.filter(
-    p => p.position >= 0 && p.position < LUDO_HOME_ENTRY
-  ).length;
-
-  const hasWon =
-    next.players[command.playerId].pieces.every(p => p.position === LUDO_HOME_ENTRY) ||
-    (homeCount >= 1 && piecesOnTrack === 0);
+  );
 
   if (hasWon) {
     next.winner = command.playerId;

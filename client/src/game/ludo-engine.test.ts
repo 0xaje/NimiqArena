@@ -125,7 +125,7 @@ describe("ludo engine", () => {
     }
   });
 
-  it("wins the match when sole active piece captures opponent and scores home", () => {
+  it("scores capturing piece into home (56) on capture, but match continues until all pieces are home", () => {
     const snapshot = createLudoSnapshot("match-sole-win", "2p_single", 1);
     snapshot.dice = 1;
     snapshot.players[0].pieces[0].position = 4;
@@ -136,10 +136,12 @@ describe("ludo engine", () => {
     if (result.ok) {
       expect(result.snapshot.players[1].pieces[0].position).toBe(-1);
       expect(result.snapshot.players[0].pieces[0].position).toBe(56);
-      expect(result.snapshot.winner).toBe(0);
+      // Match does NOT end on single capture! Winner is null until all pieces reach home!
+      expect(result.snapshot.winner).toBe(null);
       expect(result.event).toMatchObject({
-        type: "won",
-        playerId: 0,
+        type: "moved",
+        to: 56,
+        capturedPiece: { playerId: 1, pieceIndex: 0 },
       });
     }
   });
@@ -450,8 +452,8 @@ describe("ludo engine", () => {
       expect(moveRes.snapshot.players[0].pieces[0].position).toBe(56);
       // Opponent was captured (back to -1)
       expect(moveRes.snapshot.players[1].pieces[0].position).toBe(-1);
-      // Winner declared because sole active piece scored home
-      expect(moveRes.snapshot.winner).toBe(0);
+      // Under Rule B, the match continues! Winner is null until all pieces reach home
+      expect(moveRes.snapshot.winner).toBe(null);
     });
 
     it("allows splitting dice [5, 3] when another piece is outside, capturing opponent at distance 5 and scoring to center", () => {
