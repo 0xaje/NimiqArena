@@ -92,6 +92,14 @@ export function normalizeNimiqAddress(address: string): string {
 }
 
 /**
+ * Formats a Nimiq IBAN address with standard 4-character grouping (44 chars).
+ */
+export function formatNimiqAddress(address: string): string {
+  const clean = normalizeNimiqAddress(address);
+  return clean.match(/.{1,4}/g)?.join(' ') ?? clean;
+}
+
+/**
  * Validates basic structure of a Nimiq 64-character hex transaction hash.
  */
 export function isValidNimiqTxHash(hash: string): boolean {

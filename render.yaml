@@ -20,8 +20,10 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: NIMIQ_PAYMENT_RECIPIENT
-        sync: false
-      - key: NIMIQ_PAYOUT_PRIVATE_KEY
-        sync: false
+        value: "NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX"
+      - key: NIMIQ_SETTLEMENT_ADDRESS
+        value: "NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX"
       - key: ENABLE_AUTOMATED_PAYOUTS
         value: "true"
+      - key: NIMIQ_PAYOUT_PRIVATE_KEY
+        sync: false

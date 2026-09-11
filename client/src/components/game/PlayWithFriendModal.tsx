@@ -393,16 +393,16 @@ export function PlayWithFriendModal({
                   >
                     <div style={{ fontSize: "11px", fontWeight: 700, color: "#EC9918", marginBottom: "8px", display: "flex", justifyContent: "space-between", letterSpacing: "0.05em" }}>
                       <span>STAKE PER PLAYER</span>
-                      <span>POT: {selectedStake * 2} NIM</span>
+                      <span>POT: {(selectedStake * 2).toLocaleString()} NIM</span>
                     </div>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
-                      {[5, 10, 25, 50, 100].map(amt => (
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                      {[10, 50, 100, 500, 1000, 5000, 10000].map(amt => (
                         <button
                           key={amt}
                           type="button"
                           onClick={() => setSelectedStake(amt)}
                           style={{
-                            padding: "6px 12px",
+                            padding: "6px 10px",
                             borderRadius: "6px",
                             border: `1px solid ${selectedStake === amt ? "#EC9918" : "rgba(255, 255, 255, 0.12)"}`,
                             background: selectedStake === amt ? "rgba(236, 153, 24, 0.25)" : "rgba(0, 0, 0, 0.3)",
@@ -412,12 +412,47 @@ export function PlayWithFriendModal({
                             cursor: "pointer",
                           }}
                         >
-                          {amt} NIM
+                          {amt >= 1000 ? `${(amt / 1000).toFixed(0)}k` : amt} NIM
                         </button>
                       ))}
                     </div>
+
+                    {/* Custom Stake Numeric Input */}
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "IBM Plex Mono, monospace", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
+                        Custom Stake (1 – 10,000,000 NIM)
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", background: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(236, 153, 24, 0.35)", borderRadius: "8px", overflow: "hidden" }}>
+                        <span style={{ padding: "0 10px", color: "#EC9918", fontWeight: 700, fontSize: "12px", fontFamily: "IBM Plex Mono, monospace" }}>
+                          NIM
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10000000}
+                          value={selectedStake || ""}
+                          onChange={e => {
+                            const val = parseInt(e.target.value, 10);
+                            setSelectedStake(isNaN(val) ? 0 : Math.min(10000000, Math.max(0, val)));
+                          }}
+                          placeholder="e.g. 1000 or 1000000"
+                          style={{
+                            flex: 1,
+                            background: "transparent",
+                            border: "none",
+                            color: "#ffffff",
+                            padding: "8px 10px",
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            fontFamily: "IBM Plex Mono, monospace",
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+                    </div>
+
                     <div style={{ fontSize: "11px", color: "#94a3b8", lineHeight: "1.5", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "8px" }}>
-                      🏆 <strong>Winner receives 90%</strong> ({(selectedStake * 2 * 0.9).toFixed(1)} NIM) on-chain directly to Nimiq wallet.
+                      🏆 <strong>Winner receives 90%</strong> ({(selectedStake * 2 * 0.9).toLocaleString(undefined, { maximumFractionDigits: 2 })} NIM) on-chain directly to Nimiq wallet.
                     </div>
                   </div>
                 ) : (
@@ -428,7 +463,7 @@ export function PlayWithFriendModal({
 
                 <button
                   onClick={handleCreateRoom}
-                  disabled={createChallenge.isPending || createWageredMatch.isPending}
+                  disabled={createChallenge.isPending || createWageredMatch.isPending || (matchMode === "wager" && selectedStake < 1)}
                   style={{
                     width: "100%",
                     padding: "14px 20px",
@@ -454,7 +489,7 @@ export function PlayWithFriendModal({
                   {createChallenge.isPending || createWageredMatch.isPending
                     ? "Generating Room…"
                     : matchMode === "wager"
-                    ? `Create ${selectedStake} NIM Wager Room`
+                    ? `Create ${selectedStake.toLocaleString()} NIM Wager Room`
                     : "Generate Free Room Code"}
                 </button>
               </div>

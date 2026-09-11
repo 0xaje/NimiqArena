@@ -3,6 +3,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressApp } from "./app";
 import { serveStatic, setupVite } from "./vite";
+import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -70,6 +71,20 @@ async function startServer() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
+    const recipient = ENV.nimiqPaymentRecipient;
+    const recipientConfigured = Boolean(recipient && recipient.trim().length > 0);
+    const cleanRecipient = recipient ? recipient.replace(/\s+/g, "").toUpperCase() : "";
+    const isPlaceholder = cleanRecipient.includes("00000000000000000000000000000000") || /^NQ070+$/.test(cleanRecipient);
+    const recipientValid = Boolean(recipientConfigured && !isPlaceholder && /^NQ\d{2}[0-9A-Z]{32}$/.test(cleanRecipient));
+    const maskedRecipient = cleanRecipient
+      ? `${cleanRecipient.slice(0, 4)} **** **** **** **** **** **** **** ${cleanRecipient.slice(-4)}`
+      : "NOT_CONFIGURED";
+
+    console.log(`[NimiqArena] network = ${ENV.isTestnet ? "testnet" : "mainnet"}`);
+    console.log(`[NimiqArena] recipientConfigured = ${recipientConfigured}`);
+    console.log(`[NimiqArena] recipientValid = ${recipientValid}`);
+    console.log(`[NimiqArena] recipientNormalized = ${maskedRecipient}`);
+    console.log(`[NimiqArena] RPC Endpoint: ${ENV.nimiqRpcUrl}`);
     // Initialize authoritative match heartbeat daemon
     import("../db")
       .then(({ startMatchHeartbeatDaemon }) => {

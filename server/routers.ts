@@ -54,6 +54,7 @@ import {
   rateLimit,
   router,
 } from "./_core/trpc";
+import { ENV } from "./_core/env";
 
 /** Minting sessions: enough for normal play and player switching, not for bulk account creation. */
 const guestLoginLimit = rateLimit({
@@ -534,7 +535,7 @@ export const appRouter = router({
       .input(
         z.object({
           gameSlug: z.string().min(1).max(64),
-          stakeNim: z.number().int().min(1).max(500000),
+          stakeNim: z.number().int().min(1).max(10_000_000),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -894,6 +895,27 @@ export const appRouter = router({
       }),
   }),
   payment: router({
+    diagnostic: publicProcedure.query(async () => {
+      const recipient = ENV.nimiqPaymentRecipient;
+      const clean = recipient ? recipient.replace(/\s+/g, "").toUpperCase() : "";
+      const isPlaceholder = clean.includes("00000000000000000000000000000000") || /^NQ070+$/.test(clean);
+      const isValid = Boolean(clean && !isPlaceholder && /^NQ\d{2}[0-9A-Z]{32}$/.test(clean));
+      const masked = clean
+        ? `${clean.slice(0, 4)} **** **** **** **** **** **** **** ${clean.slice(-4)}`
+        : "NOT_CONFIGURED";
+
+      return {
+        network: ENV.nimiqNetworkName,
+        networkId: ENV.nimiqNetworkId,
+        isTestnet: ENV.isTestnet,
+        rpcUrl: ENV.nimiqRpcUrl,
+        recipientConfigured: Boolean(clean && clean.length > 0),
+        recipientValid: isValid,
+        recipientNormalizedMasked: masked,
+        settlementConfigured: Boolean(ENV.nimiqSettlementAddress),
+        automatedPayoutsEnabled: process.env.ENABLE_AUTOMATED_PAYOUTS === "true",
+      };
+    }),
     createIntent: protectedProcedure
       .use(paymentLimit)
       .input(

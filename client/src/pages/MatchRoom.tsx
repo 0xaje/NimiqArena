@@ -500,8 +500,8 @@ export default function MatchRoom() {
       ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : (guestPlayer.name || "Challenger Joined"))
       : null;
     const isWageredMatchTable = Boolean(escrow?.isWagered || (state as any)?.isWagered || state.joinCode?.startsWith("WAG"));
-    const effectiveStakeNim = escrow?.stakeNim || (state as any)?.stakeNim || 10;
-    const effectiveTotalPotNim = escrow?.totalPotNim || effectiveStakeNim * 2;
+    const effectiveStakeNim = escrow?.stakeNim ?? (state as any)?.stakeNim ?? 0;
+    const effectiveTotalPotNim = escrow?.totalPotNim ?? (effectiveStakeNim * 2);
     const allVerified = !isWageredMatchTable || Boolean(escrow?.allVerified);
     const myDepositVerified = Boolean(
       !isWageredMatchTable ||
@@ -656,7 +656,7 @@ export default function MatchRoom() {
         isOpen={isDepositModalOpen}
         onClose={() => setIsDepositModalOpen(false)}
         matchId={matchId}
-        stakeNim={escrow?.stakeNim || 10}
+        stakeNim={escrow?.stakeNim ?? 0}
         onDepositSuccess={() => {
           void escrowQuery.refetch();
           void stateQuery.refetch();

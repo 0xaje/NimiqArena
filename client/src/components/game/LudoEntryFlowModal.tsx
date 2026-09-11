@@ -208,9 +208,9 @@ export function LudoEntryFlowModal({
                 stakeNim={selectedStake}
                 onChangeStakeNim={setSelectedStake}
                 minNim={1}
-                maxNim={500000}
+                maxNim={10000000}
                 hideSummary={true}
-                hidePresets={true}
+                hidePresets={false}
               />
             </div>
 

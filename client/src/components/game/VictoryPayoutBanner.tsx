@@ -76,12 +76,12 @@ export function VictoryPayoutBanner({
         percentages: {
           winner: 90,
           referrer: hasReferrer ? 2 : 0,
-          builder: 8,
-          ecosystem: hasReferrer ? 0 : 1,
-          charity: hasReferrer ? 0 : 1,
+          builder: hasReferrer ? 5 : 7,
+          ecosystem: 2,
+          charity: 1,
         },
       }
-    : calculatePotDistribution(totalPotNim);
+    : calculatePotDistribution(totalPotNim, false);
 
   return (
     <div className={`victory-result-card ${isWinner ? "winner-theme" : "loser-theme"}`}>

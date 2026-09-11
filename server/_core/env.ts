@@ -86,6 +86,47 @@ function resolveTrustProxy(): number | false {
   return hops === 0 ? false : hops;
 }
 
+/**
+ * Resolves and strictly validates the Nimiq payment recipient address.
+ * Never silently falls back to 0000... placeholder.
+ */
+export function resolveNimiqPaymentRecipient(network: NimiqNetworkConfig): string {
+  const raw = (
+    process.env.NIMIQ_SETTLEMENT_ADDRESS ||
+    process.env.NIMIQ_PAYMENT_RECIPIENT ||
+    ""
+  ).trim();
+
+  if (!raw) {
+    if (isProduction) {
+      throw new Error(
+        `FATAL: Nimiq payment recipient is not configured for ${network.name}. Set NIMIQ_SETTLEMENT_ADDRESS or NIMIQ_PAYMENT_RECIPIENT to a valid ${network.name} Nimiq address.`
+      );
+    }
+    console.warn(
+      `[NimiqArena] NOTICE: NIMIQ_PAYMENT_RECIPIENT is unset. Payment intent creation will be rejected until configured.`
+    );
+    return "";
+  }
+
+  const clean = raw.replace(/\s+/g, "").toUpperCase();
+  if (clean.includes("00000000000000000000000000000000") || /^NQ070+$/.test(clean)) {
+    throw new Error(
+      `FATAL: Nimiq payment recipient is set to an invalid placeholder ("${raw}"). A real, arena-controlled Nimiq address must be configured via NIMIQ_SETTLEMENT_ADDRESS or NIMIQ_PAYMENT_RECIPIENT.`
+    );
+  }
+
+  if (!/^NQ\d{2}[0-9A-Z]{32}$/.test(clean)) {
+    throw new Error(
+      `FATAL: Nimiq payment recipient ("${raw}") is syntactically invalid. Expected 36-character IBAN format (e.g. NQ51 85HV...).`
+    );
+  }
+
+  return raw;
+}
+
+const resolvedRecipient = resolveNimiqPaymentRecipient(nimiqNetwork);
+
 export const ENV = {
   appId: process.env.VITE_APP_ID || "nimiq-arena-app",
   cookieSecret: resolveCookieSecret(),
@@ -95,9 +136,10 @@ export const ENV = {
   isProduction,
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-  nimiqPaymentRecipient: process.env.NIMIQ_PAYMENT_RECIPIENT ?? "",
+  nimiqPaymentRecipient: resolvedRecipient,
+  nimiqSettlementAddress: resolvedRecipient,
   nimiqArenaEntryValueLuna: Number(
-    process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA ?? 0
+    process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA || 100_000
   ),
   nimiqNetworkId: nimiqNetwork.networkId,
   nimiqNetworkName: nimiqNetwork.name,

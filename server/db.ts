@@ -55,6 +55,7 @@ import { calculateElo, STARTING_RATING } from "./rating-engine";
 import {
   verifyNimiqPayment,
   normalizeNimiqAddress,
+  formatNimiqAddress,
   type NimiqVerificationResult,
 } from "./nimiq-verifier";
 
@@ -269,6 +270,30 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
       \`rawResponseJson\` text,
       \`createdAt\` timestamp NOT NULL DEFAULT (now()),
       CONSTRAINT \`payment_verifications_id\` PRIMARY KEY(\`id\`)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS \`settlements\` (
+      \`id\` varchar(32) NOT NULL,
+      \`matchId\` varchar(32) NOT NULL,
+      \`winnerUserId\` int NOT NULL,
+      \`winnerAddress\` varchar(64) NOT NULL,
+      \`totalPotLuna\` bigint NOT NULL,
+      \`winnerAmountLuna\` bigint NOT NULL,
+      \`builderAmountLuna\` bigint NOT NULL,
+      \`ecosystemAmountLuna\` bigint NOT NULL,
+      \`charityAmountLuna\` bigint NOT NULL,
+      \`referrerAmountLuna\` bigint NOT NULL,
+      \`referrerAddress\` varchar(64),
+      \`referrerUserId\` int,
+      \`referralEligible\` boolean NOT NULL DEFAULT false,
+      \`status\` enum('pending','disbursing','settled_on_chain','settlement_failed','ledger_entitlement_confirmed') NOT NULL DEFAULT 'pending',
+      \`payoutTxHash\` varchar(128),
+      \`payoutBlockNumber\` int unsigned,
+      \`settledAt\` timestamp NULL,
+      \`errorMessage\` text,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`settlements_id\` PRIMARY KEY(\`id\`),
+      UNIQUE KEY \`settlements_match_idx\` (\`matchId\`)
     )`,
   ];
 
@@ -2501,10 +2526,14 @@ export async function createPaymentIntent(input: {
   /** Prices the intent for a specific seat instead of the flat entry fee. */
   matchId?: string;
 }): Promise<PaymentIntent> {
+  if (!ENV.nimiqPaymentRecipient || ENV.nimiqPaymentRecipient.includes("0000 0000")) {
+    throw new Error(
+      `Nimiq payment recipient is not configured for ${ENV.nimiqNetworkName}. Set NIMIQ_SETTLEMENT_ADDRESS or NIMIQ_PAYMENT_RECIPIENT to a valid ${ENV.nimiqNetworkName} Nimiq address in Render environment settings.`
+    );
+  }
+
   const db = await getDb();
   if (!db) throw new Error("Payment service is unavailable.");
-  if (!ENV.nimiqPaymentRecipient)
-    throw new Error("Nimiq payment recipient is not configured.");
 
   if (
     !Number.isSafeInteger(ENV.nimiqArenaEntryValueLuna) ||
@@ -3140,8 +3169,13 @@ export async function createWageredChallengeMatch(input: {
   if (!game || game.status !== "active") {
     throw new Error("This game is not available for wagered match creation.");
   }
-  if (input.stakeNim < 1 || input.stakeNim > 500000) {
-    throw new Error("Stake must be between 1 and 500,000 NIM.");
+  if (!ENV.nimiqPaymentRecipient || ENV.nimiqPaymentRecipient.includes("0000 0000")) {
+    throw new Error(
+      `Nimiq payment recipient is not configured for ${ENV.nimiqNetworkName}. Set NIMIQ_SETTLEMENT_ADDRESS or NIMIQ_PAYMENT_RECIPIENT to a valid ${ENV.nimiqNetworkName} Nimiq address in Render environment settings.`
+    );
+  }
+  if (input.stakeNim < 1 || input.stakeNim > 10_000_000) {
+    throw new Error("Stake must be between 1 and 10,000,000 NIM.");
   }
 
   const id = nanoid(20);
@@ -3288,7 +3322,7 @@ export async function getMatchEscrowDetails(matchId: string) {
     escrowState,
     allVerified,
     playerStatuses,
-    treasuryAddress: normalizeNimiqAddress(ENV.nimiqPaymentRecipient),
+    treasuryAddress: formatNimiqAddress(ENV.nimiqPaymentRecipient),
   };
 }
 
@@ -3318,29 +3352,8 @@ export async function settleMatchWinnerPayout(input: {
   )[0];
 
   const grossPotNim = escrow.totalPotNim || 0;
-  const hasReferrer = Boolean(winnerUser?.referredByUserId);
+  const hasReferrer = Boolean(winnerUser?.referredByUserId && winnerUser.referredByUserId !== winnerUser.id);
   const dist = calculatePotDistribution(grossPotNim, hasReferrer);
-
-  // Credit 5% referral earning and points to the referrer if present
-  if (hasReferrer && dist.referrerNim > 0 && winnerUser?.referredByUserId) {
-    try {
-      await db
-        .update(users)
-        .set({
-          referralEarningsNim: sql`${users.referralEarningsNim} + ${Math.round(dist.referrerNim)}`,
-          points: sql`${users.points} + ${Math.round(dist.referrerNim * 10)}`,
-        })
-        .where(eq(users.id, winnerUser.referredByUserId));
-    } catch (err) {
-      console.warn("[Referral] Failed to credit referrer:", err);
-    }
-  }
-
-  const protocolFeeNim = Number(
-    (dist.builderNim + dist.ecosystemNim + dist.charityNim + dist.referrerNim).toFixed(2)
-  ); // 10% platform total
-  const netPayoutNim = dist.winnerNim; // 90% Winner
-  const isTestnet = ENV.nimiqNetworkId === 5;
 
   let payoutResult: {
     status?: string;
@@ -3354,6 +3367,32 @@ export async function settleMatchWinnerPayout(input: {
   } catch (err) {
     console.warn("[PayoutWorker] settleMatchWinnerPayout execution notice:", err);
   }
+
+  const protocolFeeNim = Number(
+    (dist.builderNim + dist.ecosystemNim + dist.charityNim + dist.referrerNim).toFixed(2)
+  ); // 10% platform total
+  const netPayoutNim = dist.winnerNim; // 90% Winner
+  const isTestnet = ENV.nimiqNetworkId === 5;
+  const settlementStatus = payoutResult?.status || "ledger_entitlement_confirmed";
+  const payoutTxHash = payoutResult?.payoutTxHash || null;
+
+  console.log(`
+======================================================
+[SETTLEMENT RUNTIME VERIFICATION]
+Match ID: ${input.matchId}
+Gross Pot: ${grossPotNim} NIM (${dist.totalPotLuna} Luna)
+Winner ID: ${input.winnerUserId} (${winnerUser?.name || "Player"}) | Address: ${winnerUser?.address || "none"}
+Distribution:
+  - Winner (90%): ${dist.winnerNim} NIM (${dist.winnerLuna} Luna)
+  - Builder (${hasReferrer ? "5%" : "7%"}): ${dist.builderNim} NIM (${dist.builderLuna} Luna)
+  - Ecosystem (2%): ${dist.ecosystemNim} NIM (${dist.ecosystemLuna} Luna)
+  - Charity (1%): ${dist.charityNim} NIM (${dist.charityLuna} Luna)
+  - Referrer (${hasReferrer ? "2%" : "0%"}): ${dist.referrerNim} NIM (${dist.referrerLuna} Luna) [Eligible: ${hasReferrer}]
+Settlement Mode: ${settlementStatus === "settled_on_chain" ? "ON_CHAIN_PAYOUT" : "LEDGER_ENTITLEMENT"}
+Status: ${settlementStatus}
+Tx Hash: ${payoutTxHash || "N/A (Ledger Settlement - Option A)"}
+======================================================
+`);
 
   return {
     success: true,
@@ -3370,16 +3409,16 @@ export async function settleMatchWinnerPayout(input: {
       ecosystemNim: dist.ecosystemNim,
       charityNim: dist.charityNim,
     },
-    settlementStatus: payoutResult?.status || "ledger_entitlement_confirmed",
-    payoutTxHash: payoutResult?.payoutTxHash || null,
+    settlementStatus,
+    payoutTxHash,
     settledAt: new Date().toISOString(),
     network: isTestnet ? "testnet" : "mainnet",
     explorerUrl: payoutResult?.explorerUrl || null,
     notice:
       payoutResult?.errorMessage ||
-      (payoutResult?.status === "settled_on_chain"
+      (settlementStatus === "settled_on_chain"
         ? `Disbursed ${netPayoutNim} NIM directly on-chain to winner's Nimiq wallet.`
-        : "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger. Platform allocation: 8% Builder Pool (including Patron revenue share), 2% Referral. Automated on-chain disbursement worker is active."),
+        : `Winner pot entitlement (90% of pot: ${netPayoutNim} NIM) recorded authoritatively on Testnet ledger. Platform allocation: ${hasReferrer ? "5% Builder, 2% Referral" : "7% Builder (Option A)"}, 2% Ecosystem, 1% Charity.`),
   };
 }
 

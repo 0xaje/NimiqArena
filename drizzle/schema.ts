@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   int,
   index,
@@ -336,6 +337,45 @@ export const paymentVerifications = mysqlTable(
   })
 );
 
+export const settlements = mysqlTable(
+  "settlements",
+  {
+    id: varchar("id", { length: 32 }).primaryKey(),
+    matchId: varchar("matchId", { length: 32 }).notNull(),
+    winnerUserId: int("winnerUserId").notNull(),
+    winnerAddress: varchar("winnerAddress", { length: 64 }).notNull(),
+    totalPotLuna: bigint("totalPotLuna", { mode: "bigint" }).notNull(),
+    winnerAmountLuna: bigint("winnerAmountLuna", { mode: "bigint" }).notNull(),
+    builderAmountLuna: bigint("builderAmountLuna", { mode: "bigint" }).notNull(),
+    ecosystemAmountLuna: bigint("ecosystemAmountLuna", { mode: "bigint" }).notNull(),
+    charityAmountLuna: bigint("charityAmountLuna", { mode: "bigint" }).notNull(),
+    referrerAmountLuna: bigint("referrerAmountLuna", { mode: "bigint" }).notNull(),
+    referrerAddress: varchar("referrerAddress", { length: 64 }),
+    referrerUserId: int("referrerUserId"),
+    referralEligible: boolean("referralEligible").default(false).notNull(),
+    status: mysqlEnum("status", [
+      "pending",
+      "disbursing",
+      "settled_on_chain",
+      "settlement_failed",
+      "ledger_entitlement_confirmed",
+    ])
+      .default("pending")
+      .notNull(),
+    payoutTxHash: varchar("payoutTxHash", { length: 128 }),
+    payoutBlockNumber: int("payoutBlockNumber", { unsigned: true }),
+    settledAt: timestamp("settledAt"),
+    errorMessage: text("errorMessage"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    matchIdx: uniqueIndex("settlements_match_idx").on(table.matchId),
+    winnerIdx: index("settlements_winner_idx").on(table.winnerUserId),
+    statusIdx: index("settlements_status_idx").on(table.status),
+  })
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Game = typeof games.$inferSelect;
@@ -356,3 +396,6 @@ export type PaymentIntent = typeof paymentIntents.$inferSelect;
 export type InsertPaymentIntent = typeof paymentIntents.$inferInsert;
 export type PaymentVerification = typeof paymentVerifications.$inferSelect;
 export type InsertPaymentVerification = typeof paymentVerifications.$inferInsert;
+export type Settlement = typeof settlements.$inferSelect;
+export type InsertSettlement = typeof settlements.$inferInsert;
+

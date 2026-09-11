@@ -12,14 +12,14 @@ interface StakeSelectorProps {
   hidePresets?: boolean;
 }
 
-const NIM_PRESETS = [25, 50, 100, 250, 500];
+const NIM_PRESETS = [25, 100, 500, 1000, 5000, 10000];
 const USD_PRESETS = [5, 10, 25, 50, 100];
 
 export function StakeSelector({
   stakeNim,
   onChangeStakeNim,
   minNim = 1,
-  maxNim = 500_000,
+  maxNim = 10_000_000,
   hideSummary = false,
   hidePresets = false,
 }: StakeSelectorProps) {

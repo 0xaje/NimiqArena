@@ -328,33 +328,55 @@ export async function sendNimiqPayment(options: {
   endpoint?: string;
 }): Promise<string> {
   const mode = getWalletConnectionMode();
+  const formattedRecipient = formatNimiqAddress(options.recipient);
+  const safeLuna = Math.floor(options.valueLuna);
 
-  if (mode === "mini-app" && _miniAppProvider) {
-    // The server only accepts a transfer that carries its intent reference, so
-    // the data-bearing call is used whenever there is one to attach.
-    const res = options.data
-      ? await _miniAppProvider.sendBasicTransactionWithData({
-          recipient: options.recipient,
-          value: options.valueLuna,
-          data: options.data,
-        })
-      : await _miniAppProvider.sendBasicTransaction({
-          recipient: options.recipient,
-          value: options.valueLuna,
-        });
-    if (typeof res === "string") return res;
-    if (res && typeof res === "object" && "error" in res) {
-      throw new Error((res as any).error?.message || "Transaction was rejected in Nimiq Pay.");
+  if (mode === "mini-app") {
+    if (!_miniAppProvider) {
+      _miniAppProvider = await initMiniApp({ timeout: 4000 }).catch(() => null);
     }
-    throw new Error("Transaction failed.");
+    if (_miniAppProvider) {
+      // The server expects transfers to carry intent reference data where supported
+      let res: any;
+      if (options.data && typeof _miniAppProvider.sendBasicTransactionWithData === "function") {
+        try {
+          res = await _miniAppProvider.sendBasicTransactionWithData({
+            recipient: formattedRecipient,
+            value: safeLuna,
+            data: options.data,
+          });
+        } catch (dataErr: any) {
+          console.warn("[NimiqWallet] sendBasicTransactionWithData failed, attempting sendBasicTransaction fallback:", dataErr);
+          res = await _miniAppProvider.sendBasicTransaction({
+            recipient: formattedRecipient,
+            value: safeLuna,
+          });
+        }
+      } else {
+        res = await _miniAppProvider.sendBasicTransaction({
+          recipient: formattedRecipient,
+          value: safeLuna,
+        });
+      }
+
+      if (typeof res === "string") return res;
+      if (res && typeof res === "object") {
+        if ("hash" in res && typeof (res as any).hash === "string") return (res as any).hash;
+        if ("transactionHash" in res && typeof (res as any).transactionHash === "string") return (res as any).transactionHash;
+        if ("error" in res) {
+          throw new Error((res as any).error?.message || "Transaction was rejected in Nimiq Pay.");
+        }
+      }
+      throw new Error("Transaction failed or was rejected.");
+    }
   }
 
   // Web Browser: use Nimiq Hub Checkout (defaults to Testnet Hub)
   const hub = getHubApi(options.endpoint || DEFAULT_NIMIQ_HUB_URL);
   const checkoutRes = await hub.checkout({
     appName: "Nimiq Arena",
-    recipient: options.recipient,
-    value: options.valueLuna,
+    recipient: formattedRecipient,
+    value: safeLuna,
     extraData: options.data ? new TextEncoder().encode(options.data) : undefined,
   });
 

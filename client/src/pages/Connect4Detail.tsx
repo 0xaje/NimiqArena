@@ -202,7 +202,7 @@ export default function Connect4Detail() {
                 stakeNim={selectedStake}
                 onChangeStakeNim={setSelectedStake}
                 minNim={1}
-                maxNim={500000}
+                maxNim={10000000}
               />
 
               <button
