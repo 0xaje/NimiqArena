@@ -287,26 +287,33 @@ export async function signIdentityMessage(message: string, signerAddress?: strin
  * Fetches the live balance and USD valuation for an address.
  * Queries high-performance server proxy first, then falls back to direct JSON-RPC.
  */
-export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccountInfo> {
+export async function fetchNimiqAccountInfo(
+  address: string,
+  preferredNetwork?: "testnet" | "mainnet"
+): Promise<NimiqAccountInfo> {
   const inApp = isRunningInNimiqPay();
+  const targetNetwork = preferredNetwork || (inApp ? "mainnet" : "testnet");
   const defaultInfo: NimiqAccountInfo = {
     balanceNim: 0,
     balanceLuna: 0,
     usdValue: 0,
     usdPrice: 0.0004,
-    network: inApp ? "mainnet" : "testnet",
+    network: targetNetwork,
   };
 
   if (!address || !isValidNimiqAddress(address)) return defaultInfo;
   const clean = address.replace(/\s+/g, "").toUpperCase();
 
-  // 1. Primary: Server Proxy (/api/nimiq/account/:address) with fast multi-RPC fallback & price
+  // 1. Primary: Server Proxy (/api/nimiq/account/:address?network=...) with fast multi-RPC fallback & price
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(`/api/nimiq/account/${encodeURIComponent(clean)}`, {
-      signal: controller.signal,
-    });
+    const timeout = setTimeout(() => controller.abort(), 6500);
+    const res = await fetch(
+      `/api/nimiq/account/${encodeURIComponent(clean)}?network=${encodeURIComponent(targetNetwork)}`,
+      {
+        signal: controller.signal,
+      }
+    );
     clearTimeout(timeout);
     if (res.ok) {
       const json = await res.json();
@@ -316,7 +323,7 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
           balanceLuna: Number(json.balanceLuna) || 0,
           usdValue: Number(json.usdValue) || 0,
           usdPrice: Number(json.usdPrice) || 0.0004,
-          network: json.network || (inApp ? "mainnet" : "testnet"),
+          network: json.network || targetNetwork,
         };
       }
     }
@@ -328,7 +335,7 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
   const queryEndpoint = async (url: string, net: "mainnet" | "testnet") => {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -359,11 +366,15 @@ export async function fetchNimiqAccountInfo(address: string): Promise<NimiqAccou
   ]);
 
   const bestResult =
-    (mainnetResult && mainnetResult.balanceLuna > 0 ? mainnetResult : null) ||
-    (testnetResult && testnetResult.balanceLuna > 0 ? testnetResult : null) ||
-    (inApp ? mainnetResult : null) ||
-    testnetResult ||
-    mainnetResult;
+    targetNetwork === "testnet"
+      ? (testnetResult && testnetResult.balanceLuna > 0 ? testnetResult : null) ||
+        (mainnetResult && mainnetResult.balanceLuna > 0 ? mainnetResult : null) ||
+        testnetResult ||
+        mainnetResult
+      : (mainnetResult && mainnetResult.balanceLuna > 0 ? mainnetResult : null) ||
+        (testnetResult && testnetResult.balanceLuna > 0 ? testnetResult : null) ||
+        mainnetResult ||
+        testnetResult;
 
   if (bestResult) {
     const balanceNim = bestResult.balanceLuna / 100_000;

@@ -9,6 +9,7 @@ interface StakeSelectorProps {
   minNim?: number;
   maxNim?: number;
   hideSummary?: boolean;
+  hidePresets?: boolean;
 }
 
 const NIM_PRESETS = [25, 50, 100, 250, 500];
@@ -20,6 +21,7 @@ export function StakeSelector({
   minNim = 1,
   maxNim = 500_000,
   hideSummary = false,
+  hidePresets = false,
 }: StakeSelectorProps) {
   const { priceUsd, isLive, nimToUsd, usdToNim, formatUsd } = useNimiqPrice();
   const [mode, setMode] = useState<"NIM" | "USD">("NIM");
@@ -238,49 +240,51 @@ export function StakeSelector({
           />
         </div>
 
-        {/* Quick Amount Preset Chips */}
-        <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
-          {(mode === "NIM" ? NIM_PRESETS : USD_PRESETS).map(preset => {
-            const isSelected =
-              mode === "NIM"
-                ? stakeNim === preset
-                : Math.abs(currentUsdValue - preset) < 0.5;
+        {/* Quick Amount Preset Chips (Optional) */}
+        {!hidePresets && (
+          <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
+            {(mode === "NIM" ? NIM_PRESETS : USD_PRESETS).map(preset => {
+              const isSelected =
+                mode === "NIM"
+                  ? stakeNim === preset
+                  : Math.abs(currentUsdValue - preset) < 0.5;
 
-            return (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => handlePresetClick(preset)}
-                style={{
-                  flex: "1 0 auto",
-                  padding: "6px 10px",
-                  borderRadius: "8px",
-                  border: `1px solid ${
-                    isSelected
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => handlePresetClick(preset)}
+                  style={{
+                    flex: "1 0 auto",
+                    padding: "6px 10px",
+                    borderRadius: "8px",
+                    border: `1px solid ${
+                      isSelected
+                        ? mode === "NIM"
+                          ? "#f59e0b"
+                          : "#22c55e"
+                        : "rgba(251, 248, 241, 0.12)"
+                    }`,
+                    background: isSelected
                       ? mode === "NIM"
-                        ? "#f59e0b"
-                        : "#22c55e"
-                      : "rgba(251, 248, 241, 0.12)"
-                  }`,
-                  background: isSelected
-                    ? mode === "NIM"
-                      ? "rgba(245, 158, 11, 0.2)"
-                      : "rgba(34, 197, 94, 0.2)"
-                    : "rgba(255, 255, 255, 0.04)",
-                  color: isSelected ? "#ffffff" : "rgba(251, 248, 241, 0.75)",
-                  fontSize: "11px",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                {mode === "NIM" ? `${formatNim(preset)}` : `$${preset}`}
-              </button>
-            );
-          })}
-        </div>
+                        ? "rgba(245, 158, 11, 0.2)"
+                        : "rgba(34, 197, 94, 0.2)"
+                      : "rgba(255, 255, 255, 0.04)",
+                    color: isSelected ? "#ffffff" : "rgba(251, 248, 241, 0.75)",
+                    fontSize: "11px",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {mode === "NIM" ? `${formatNim(preset)}` : `$${preset}`}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Compact Live Exchange Rate Strip */}

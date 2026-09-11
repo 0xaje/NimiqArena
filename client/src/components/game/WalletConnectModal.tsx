@@ -60,14 +60,10 @@ export function WalletConnectModal({
     if (!connectedAddress) return;
     setIsLoadingBalance(true);
     try {
-      const info = await fetchNimiqAccountInfo(connectedAddress);
+      const preferredNet = useTestnet ? "testnet" : "mainnet";
+      const info = await fetchNimiqAccountInfo(connectedAddress, preferredNet);
       setAccountInfo(info);
       setBalance(info.balanceNim);
-      if (info.network === "mainnet") {
-        setUseTestnet(false);
-      } else if (info.network === "testnet") {
-        setUseTestnet(true);
-      }
     } catch {
       // transient network catch
     } finally {
@@ -287,9 +283,7 @@ export function WalletConnectModal({
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                   <Sparkles size={14} style={{ color: "#EC9918" }} />
                   <span style={{ fontSize: "12px", color: "#8b949e", fontWeight: 600 }}>
-                    {accountInfo?.network === "mainnet" || (!useTestnet && !accountInfo)
-                      ? "Mainnet Balance:"
-                      : "Testnet Balance:"}
+                    {useTestnet ? "Testnet Balance:" : "Mainnet Balance:"}
                   </span>
                 </div>
                 <div
@@ -348,7 +342,7 @@ export function WalletConnectModal({
               </div>
 
               {/* Faucet Callout only if on Testnet */}
-              {accountInfo?.network !== "mainnet" && useTestnet && !inApp && (
+              {useTestnet && !inApp && (
                 <div
                   style={{
                     display: "flex",
@@ -367,32 +361,31 @@ export function WalletConnectModal({
                 >
                   <span>Need free Testnet NIM for wagers?</span>
                   <a
-                    href="https://testnet.nimiq.watch/#faucet"
+                    href="https://stake-faucet.nimiq.network"
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      color: "#EC9918",
-                      fontWeight: 700,
-                      textDecoration: "underline",
                       display: "flex",
                       alignItems: "center",
-                      gap: "3px",
-                      whiteSpace: "nowrap",
+                      gap: "4px",
+                      color: "#58a6ff",
+                      fontWeight: 700,
+                      textDecoration: "underline",
+                      flexShrink: 0,
                     }}
                   >
-                    Get Free NIM <ExternalLink size={10} />
+                    Get Free NIM <ExternalLink size={11} />
                   </a>
                 </div>
               )}
 
+              {/* Action Buttons */}
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "6px",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: "8px",
                   marginTop: "4px",
-                  width: "100%",
-                  boxSizing: "border-box",
                 }}
               >
                 <button
@@ -423,9 +416,9 @@ export function WalletConnectModal({
                 </button>
                 <a
                   href={
-                    (accountInfo?.network === "mainnet" || (!useTestnet && !accountInfo))
-                      ? `https://nimiqwatch.com/#${cleanAddress}`
-                      : `https://testnet.nimiqwatch.com/#${cleanAddress}`
+                    useTestnet
+                      ? `https://testnet.nimiqwatch.com/#${cleanAddress}`
+                      : `https://nimiqwatch.com/#${cleanAddress}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"

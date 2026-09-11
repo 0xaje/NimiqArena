@@ -73,41 +73,76 @@ async function queryRpcAccount(rpcUrl: string, address: string, timeoutMs = 5000
   }
 }
 
-export async function getLiveAccountBalance(rawAddress: string) {
+const TESTNET_RPCS = [
+  "https://rpc.testnet.nimiqwatch.com",
+  "https://testnet.nimiq.network:8443",
+];
+const MAINNET_RPCS = [
+  "https://rpc.nimiqwatch.com",
+];
+
+async function queryRpcWithFallbacks(urls: string[], address: string, timeoutMs = 6000): Promise<number | null> {
+  for (const url of urls) {
+    const res = await queryRpcAccount(url, address, timeoutMs);
+    if (res !== null) return res;
+  }
+  return null;
+}
+
+export async function getLiveAccountBalance(
+  rawAddress: string,
+  preferredNetwork: "testnet" | "mainnet" = "testnet"
+) {
   const clean = normalizeNimiqAddress(rawAddress);
   if (!/^NQ\d{2}[A-Z0-9]{32}$/.test(clean)) {
     throw new Error("Invalid Nimiq address format");
   }
 
+  const cacheKey = `${clean}_${preferredNetwork}`;
   // Check cache
-  const cached = accountCache.get(clean);
+  const cached = accountCache.get(cacheKey);
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
     return cached;
   }
 
   const usdPrice = await fetchNimiqUsdPrice();
 
-  // Query Mainnet and Testnet in parallel (Nimiq Pay mobile wallets hold Mainnet NIM)
-  const [mainnetLuna, testnetLuna] = await Promise.all([
-    queryRpcAccount("https://rpc.nimiqwatch.com", clean, 3500),
-    queryRpcAccount("https://rpc.testnet.nimiqwatch.com", clean, 3500),
-  ]);
-
   let balanceLuna = 0;
-  let network: "testnet" | "mainnet" = "mainnet";
+  let network: "testnet" | "mainnet" = preferredNetwork;
 
-  if (mainnetLuna !== null && mainnetLuna > 0) {
-    balanceLuna = mainnetLuna;
-    network = "mainnet";
-  } else if (testnetLuna !== null && testnetLuna > 0) {
-    balanceLuna = testnetLuna;
-    network = "testnet";
-  } else if (mainnetLuna !== null) {
-    balanceLuna = mainnetLuna;
-    network = "mainnet";
-  } else if (testnetLuna !== null) {
-    balanceLuna = testnetLuna;
-    network = "testnet";
+  if (preferredNetwork === "testnet") {
+    // Prioritize Testnet RPC query
+    const testnetLuna = await queryRpcWithFallbacks(TESTNET_RPCS, clean, 6000);
+    if (testnetLuna !== null) {
+      balanceLuna = testnetLuna;
+      network = "testnet";
+    } else {
+      // Fallback: check mainnet if testnet RPC is unreachable
+      const mainnetLuna = await queryRpcWithFallbacks(MAINNET_RPCS, clean, 4000);
+      if (mainnetLuna !== null && mainnetLuna > 0) {
+        balanceLuna = mainnetLuna;
+        network = "mainnet";
+      } else {
+        balanceLuna = 0;
+        network = "testnet";
+      }
+    }
+  } else {
+    // Prioritize Mainnet RPC query
+    const mainnetLuna = await queryRpcWithFallbacks(MAINNET_RPCS, clean, 6000);
+    if (mainnetLuna !== null) {
+      balanceLuna = mainnetLuna;
+      network = "mainnet";
+    } else {
+      const testnetLuna = await queryRpcWithFallbacks(TESTNET_RPCS, clean, 4000);
+      if (testnetLuna !== null && testnetLuna > 0) {
+        balanceLuna = testnetLuna;
+        network = "testnet";
+      } else {
+        balanceLuna = 0;
+        network = "mainnet";
+      }
+    }
   }
 
   const finalLuna = balanceLuna ?? 0;
@@ -123,7 +158,7 @@ export async function getLiveAccountBalance(rawAddress: string) {
     cachedAt: Date.now(),
   };
 
-  accountCache.set(clean, result);
+  accountCache.set(cacheKey, result);
   return result;
 }
 
@@ -131,7 +166,8 @@ export function registerNimiqAccountRoutes(app: Express) {
   app.get("/api/nimiq/account/:address", async (req: Request, res: Response) => {
     try {
       const address = req.params.address;
-      const account = await getLiveAccountBalance(address);
+      const preferredNetwork = (req.query.network === "mainnet" ? "mainnet" : "testnet") as "testnet" | "mainnet";
+      const account = await getLiveAccountBalance(address, preferredNetwork);
       res.json({
         success: true,
         address: normalizeNimiqAddress(address),

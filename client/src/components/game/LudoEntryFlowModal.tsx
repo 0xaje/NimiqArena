@@ -198,10 +198,10 @@ export function LudoEntryFlowModal({
           /* Competitive Wagered Content */
           <div className="ludo-flow-wager-body">
             {/* Step 1: Stake Selection */}
-            <div className="ludo-step-section">
-              <div className="ludo-step-label">
+            <div className="ludo-step-section" style={{ marginBottom: "12px" }}>
+              <div className="ludo-step-label" style={{ marginBottom: "8px" }}>
                 <span className="step-num">1</span>
-                <span>CHOOSE YOUR STAKE</span>
+                <span>ENTRY STAKE</span>
               </div>
 
               <StakeSelector
@@ -210,123 +210,150 @@ export function LudoEntryFlowModal({
                 minNim={1}
                 maxNim={500000}
                 hideSummary={true}
+                hidePresets={true}
               />
             </div>
 
-            {/* Transparent Pot & Distribution Summary */}
-            <div className="ludo-summary-card">
-              <div className="summary-stakes-row">
-                <div className="stake-breakdown-col">
-                  <span className="sub-caption">YOUR STAKE</span>
-                  <span className="sub-amount">{formatNim(currentStake)} NIM</span>
-                </div>
-                <span className="stake-vs-plus">+</span>
-                <div className="stake-breakdown-col">
-                  <span className="sub-caption">OPPONENT STAKE</span>
-                  <span className="sub-amount">{formatNim(currentStake)} NIM</span>
-                </div>
-                <span className="stake-vs-equals">=</span>
-                <div className="stake-breakdown-col highlight">
-                  <span className="sub-caption">TOTAL MATCH POT</span>
-                  <span className="sub-amount pot">{formatNim(totalPot)} NIM</span>
-                </div>
+            {/* Compact Pot Summary */}
+            <div
+              style={{
+                background: "rgba(0, 0, 0, 0.35)",
+                border: "1px solid rgba(245, 158, 11, 0.22)",
+                borderRadius: "10px",
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "14px",
+                fontFamily: "'IBM Plex Mono', monospace",
+              }}
+            >
+              <div>
+                <span style={{ color: "rgba(251, 248, 241, 0.5)", fontSize: "10px", display: "block" }}>
+                  MATCH POT (2X)
+                </span>
+                <strong style={{ color: "#ffffff", fontSize: "14px" }}>
+                  {formatNim(totalPot)} NIM
+                </strong>
               </div>
-
-              <div className="summary-payout-banner">
-                <div className="winner-take-badge">
-                  <Trophy size={18} className="trophy-gold" />
-                  <span>
-                    WINNER RECEIVES <strong>{formatNim(dist.winnerNim)} NIM</strong> (90%)
-                  </span>
-                </div>
-              </div>
-
-              <div className="summary-distribution-details">
-                <span className="dist-header">MATCH DISTRIBUTION (100% OF POT)</span>
-                <div className="dist-row">
-                  <div className="dist-item">
-                    <Trophy size={14} className="trophy-gold" />
-                    <span className="dist-name">Winner:</span>
-                    <span className="dist-val">{formatNim(dist.winnerNim)} NIM ({dist.percentages.winner}%)</span>
-                  </div>
-                  <div className="dist-item">
-                    <Hammer size={14} className="icon-blue" />
-                    <span className="dist-name">Builder:</span>
-                    <span className="dist-val">{formatNim(dist.builderNim)} NIM ({dist.percentages.builder}%)</span>
-                  </div>
-                  <div className="dist-item">
-                    <Globe size={14} className="icon-teal" />
-                    <span className="dist-name">Ecosystem:</span>
-                    <span className="dist-val">{formatNim(dist.ecosystemNim)} NIM ({dist.percentages.ecosystem}%)</span>
-                  </div>
-                  <div className="dist-item">
-                    <Heart size={14} className="icon-pink" />
-                    <span className="dist-name">Charity:</span>
-                    <span className="dist-val">{formatNim(dist.charityNim)} NIM ({dist.percentages.charity}%)</span>
-                  </div>
-                </div>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ color: "rgba(251, 248, 241, 0.5)", fontSize: "10px", display: "block" }}>
+                  WINNER TAKES (90%)
+                </span>
+                <strong style={{ color: "#4ade80", fontSize: "14px" }}>
+                  {formatNim(dist.winnerNim)} NIM
+                </strong>
               </div>
             </div>
 
-            {/* Step 2: Choose How to Play */}
-            <div className="ludo-step-section">
-              <div className="ludo-step-label">
+            {/* Step 2: Choose Opponent Type */}
+            <div className="ludo-step-section" style={{ marginBottom: "16px" }}>
+              <div className="ludo-step-label" style={{ marginBottom: "8px" }}>
                 <span className="step-num">2</span>
-                <span>CHOOSE OPPONENT TYPE</span>
+                <span>OPPONENT</span>
               </div>
 
-              <div className="mode-selection-row">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "6px",
+                }}
+              >
                 <button
                   type="button"
-                  className={`mode-card ${selectedMode === "bot" ? "active" : ""}`}
                   onClick={() => setSelectedMode("bot")}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px",
+                    padding: "10px 6px",
+                    borderRadius: "10px",
+                    border: `1px solid ${selectedMode === "bot" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
+                    background: selectedMode === "bot" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                    color: selectedMode === "bot" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                  }}
                 >
-                  <div className="mode-card-icon">
-                    <Bot size={24} />
-                  </div>
-                  <div className="mode-card-info">
-                    <h4>Arena AI Bot (Live Play)</h4>
-                    <p>Instant start! Play directly against the Nimiq AI on a live table.</p>
-                  </div>
+                  <Bot size={18} />
+                  <span>AI Bot</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`mode-card ${selectedMode === "private" ? "active" : ""}`}
                   onClick={() => setSelectedMode("private")}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px",
+                    padding: "10px 6px",
+                    borderRadius: "10px",
+                    border: `1px solid ${selectedMode === "private" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
+                    background: selectedMode === "private" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                    color: selectedMode === "private" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                  }}
                 >
-                  <div className="mode-card-icon">
-                    <Coins size={24} />
-                  </div>
-                  <div className="mode-card-info">
-                    <h4>Private Table Code</h4>
-                    <p>Generate a match code to invite any friend or rival.</p>
-                  </div>
+                  <Coins size={18} />
+                  <span>Room Code</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`mode-card ${selectedMode === "friend" ? "active" : ""}`}
                   onClick={() => setSelectedMode("friend")}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px",
+                    padding: "10px 6px",
+                    borderRadius: "10px",
+                    border: `1px solid ${selectedMode === "friend" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
+                    background: selectedMode === "friend" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                    color: selectedMode === "friend" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                  }}
                 >
-                  <div className="mode-card-icon">
-                    <Users size={24} />
-                  </div>
-                  <div className="mode-card-info">
-                    <h4>Invite Player Online</h4>
-                    <p>Invite an active player directly by name or tag.</p>
-                  </div>
+                  <Users size={18} />
+                  <span>Invite</span>
                 </button>
               </div>
 
               {selectedMode === "friend" && (
-                <div className="friend-invite-input-row">
+                <div style={{ marginTop: "8px" }}>
                   <input
                     type="text"
                     placeholder="Friend's username or player tag…"
                     value={friendUsername}
                     onChange={e => setFriendUsername(e.target.value)}
-                    className="friend-input-field"
+                    style={{
+                      width: "100%",
+                      background: "rgba(0, 0, 0, 0.4)",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      borderRadius: "8px",
+                      padding: "10px 12px",
+                      color: "#ffffff",
+                      fontSize: "12px",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      boxSizing: "border-box",
+                    }}
                   />
                 </div>
               )}
@@ -342,8 +369,8 @@ export function LudoEntryFlowModal({
               {isSubmitting
                 ? "LAUNCHING ARENA TABLE…"
                 : selectedMode === "bot"
-                  ? "PLAY VS ARENA BOT NOW (INSTANT)"
-                  : `CONFIRM & CREATE TABLE (${formatNim(currentStake)} NIM)`}
+                  ? "PLAY VS ARENA BOT (INSTANT)"
+                  : `CREATE TABLE (${formatNim(currentStake)} NIM)`}
             </button>
           </div>
         )}
