@@ -222,43 +222,54 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
         // Animate piece when advancing on track
         if (prevPos !== undefined && currentPos > prevPos && prevPos >= 0) {
           const totalSteps = currentPos - prevPos;
-          let currentStep = 1;
 
-          if (animationTimerRef.current !== null) {
-            window.clearInterval(animationTimerRef.current);
-          }
-
-          setSteppingPiece({
-            player: pIdx,
-            pieceIndex: pieceIdx,
-            currentProgress: prevPos + 1,
-            targetProgress: currentPos,
-            stepNum: 1,
-            totalSteps,
-          });
-          soundEngine.playStepTick(1);
-
-          animationTimerRef.current = window.setInterval(() => {
-            currentStep++;
-            if (currentStep <= totalSteps) {
-              setSteppingPiece(prev =>
-                prev
-                  ? {
-                      ...prev,
-                      currentProgress: prevPos + currentStep,
-                      stepNum: currentStep,
-                    }
-                  : null
-              );
-              soundEngine.playStepTick(currentStep);
-            } else {
-              if (animationTimerRef.current !== null) {
-                window.clearInterval(animationTimerRef.current);
-                animationTimerRef.current = null;
-              }
-              setSteppingPiece(null);
+          if (currentPos === 56 || totalSteps > 12) {
+            // Instant capture-to-home or goal reached: clear stepping counter and play capture impact
+            if (animationTimerRef.current !== null) {
+              window.clearInterval(animationTimerRef.current);
+              animationTimerRef.current = null;
             }
-          }, 90);
+            setSteppingPiece(null);
+            soundEngine.playCapture();
+          } else {
+            let currentStep = 1;
+
+            if (animationTimerRef.current !== null) {
+              window.clearInterval(animationTimerRef.current);
+            }
+
+            setSteppingPiece({
+              player: pIdx,
+              pieceIndex: pieceIdx,
+              currentProgress: prevPos + 1,
+              targetProgress: currentPos,
+              stepNum: 1,
+              totalSteps,
+            });
+            soundEngine.playStepTick(1);
+
+            animationTimerRef.current = window.setInterval(() => {
+              currentStep++;
+              if (currentStep <= totalSteps) {
+                setSteppingPiece(prev =>
+                  prev
+                    ? {
+                        ...prev,
+                        currentProgress: prevPos + currentStep,
+                        stepNum: currentStep,
+                      }
+                    : null
+                );
+                soundEngine.playStepTick(currentStep);
+              } else {
+                if (animationTimerRef.current !== null) {
+                  window.clearInterval(animationTimerRef.current);
+                  animationTimerRef.current = null;
+                }
+                setSteppingPiece(null);
+              }
+            }, 90);
+          }
         }
 
         prevPositionsRef.current[key] = currentPos;

@@ -254,7 +254,7 @@ export function applyCommand(
       next.usedNonces.push(command.nonce);
       next.diceValues = [d1, d2];
       next.remainingDice = [d1, d2];
-      next.rolledDoubles = d1 === 6 && d2 === 6;
+      next.rolledDoubles = d1 === d2;
       const combined = d1 + d2;
       next.dice = combined;
 
@@ -486,6 +486,12 @@ export function applyCommand(
     }
   }
 
+  // Option 2: Capturing an opponent piece sends opponent to yard (-1) and scores capturing pawn into center Home Goal!
+  if (capturedPiece) {
+    nextPiece.position = LUDO_HOME_ENTRY;
+  }
+  const effectiveTo = nextPiece.position;
+
   // Splice used die / dice from next.remainingDice
   if (!next.remainingDice || next.remainingDice.length === 0) {
     next.remainingDice = remaining;
@@ -503,10 +509,21 @@ export function applyCommand(
   next.version += 1;
   next.usedNonces.push(command.nonce);
 
-  // Check victory condition: all pieces reached home goal
-  const hasWon = next.players[command.playerId].pieces.every(
+  // Check victory condition:
+  // A player wins if:
+  // 1. All their pieces reached home, OR
+  // 2. A piece scored home (via capture or path) and player has no other active pieces on the track
+  const homeCount = next.players[command.playerId].pieces.filter(
     p => p.position === LUDO_HOME_ENTRY
-  );
+  ).length;
+  const piecesOnTrack = next.players[command.playerId].pieces.filter(
+    p => p.position >= 0 && p.position < LUDO_HOME_ENTRY
+  ).length;
+
+  const hasWon =
+    next.players[command.playerId].pieces.every(p => p.position === LUDO_HOME_ENTRY) ||
+    (homeCount >= 1 && piecesOnTrack === 0);
+
   if (hasWon) {
     next.winner = command.playerId;
     next.dice = null;
@@ -539,7 +556,7 @@ export function applyCommand(
           playerId: command.playerId,
           pieceIndex: command.pieceIndex,
           from,
-          to,
+          to: effectiveTo,
           dieUsed: dieToUse,
           remainingDice: [...next.remainingDice],
           ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),
@@ -579,7 +596,7 @@ export function applyCommand(
       playerId: command.playerId,
       pieceIndex: command.pieceIndex,
       from,
-      to,
+      to: effectiveTo,
       dieUsed: dieToUse,
       remainingDice: [],
       ...(capturedPiece ? { captured: capturedPiece, capturedPiece } : {}),
