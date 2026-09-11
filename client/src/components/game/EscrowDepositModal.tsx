@@ -127,13 +127,29 @@ export function EscrowDepositModal({
   const verifyPayment = trpc.payment.verify.useMutation();
   const claimPayment = trpc.match.claimPayment.useMutation();
 
+  // Internal fallback query if stakeNim was 0 or unhydrated on initial mount
+  const modalEscrowQuery = trpc.match.escrowDetails.useQuery(
+    { matchId },
+    {
+      enabled: Boolean(isOpen && matchId && (!stakeNim || stakeNim <= 0)),
+      staleTime: 5_000,
+    }
+  );
+  const [intentStakeNim, setIntentStakeNim] = useState<number | null>(null);
+
   if (!isOpen) return null;
 
-  // Display only. stakeNim comes from the match's root intent via
-  // escrowDetails, so this matches what the server will price the seat at;
-  // the amount actually charged is whatever createIntent returns.
-  const lunaValue = Math.floor(stakeNim * 100_000);
+  // Display only. Resolved dynamically from intent, parent prop, or server escrow query
+  const displayStakeNim =
+    intentStakeNim && intentStakeNim > 0
+      ? intentStakeNim
+      : stakeNim > 0
+      ? stakeNim
+      : modalEscrowQuery.data?.stakeNim && modalEscrowQuery.data.stakeNim > 0
+      ? modalEscrowQuery.data.stakeNim
+      : 0;
 
+  const lunaValue = Math.floor(displayStakeNim * 100_000);
 
   const handleStartDeposit = async () => {
     if (accountInfo?.status === "wrong_network") {
@@ -142,9 +158,9 @@ export function EscrowDepositModal({
       });
       return;
     }
-    if (accountInfo?.status === "available" && userBalance !== null && userBalance < stakeNim) {
+    if (accountInfo?.status === "available" && userBalance !== null && displayStakeNim > 0 && userBalance < displayStakeNim) {
       toast.error("Insufficient Balance", {
-        description: `You have ${userBalance.toFixed(2)} NIM but ${stakeNim} NIM is required for this match.`,
+        description: `You have ${userBalance.toFixed(2)} NIM but ${displayStakeNim} NIM is required for this match.`,
       });
       return;
     }
@@ -161,6 +177,9 @@ export function EscrowDepositModal({
         matchId,
       });
       const intent = intentRes;
+      if (intent.valueLuna > 0) {
+        setIntentStakeNim(intent.valueLuna / 100_000);
+      }
 
       setStep("paying");
       await markPending.mutateAsync({ id: intent.id });
@@ -340,39 +359,21 @@ export function EscrowDepositModal({
                     Your Testnet Balance:
                   </span>
                   {isLoadingBalance ? (
-                    <span
-                      style={{
-                        color: "#EC9918",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        fontSize: "11px",
-                      }}
-                    >
-                      <Loader2 size={12} className="spin" /> Checking TestAlbatross…
+                    <span style={{ color: "rgba(251, 248, 241, 0.5)", fontSize: "12px" }}>
+                      <Loader2 size={12} className="animate-spin" style={{ display: "inline", marginRight: "4px" }} />
+                      Checking…
                     </span>
                   ) : accountInfo?.status === "unavailable" ? (
-                    <span
-                      style={{
-                        color: "#ff7b72",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        fontSize: "11px",
-                      }}
-                    >
-                      Balance Unavailable
+                    <span style={{ color: "rgba(251, 248, 241, 0.5)", fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      Offline
                       <button
                         type="button"
-                        onClick={() => activeWallet && loadBalance(activeWallet)}
+                        onClick={() => activeWallet && void loadBalance(activeWallet)}
                         style={{
                           background: "none",
                           border: "none",
                           color: "#EC9918",
                           cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "3px",
                           textDecoration: "underline",
                           fontSize: "11px",
                           padding: 0,
@@ -390,7 +391,7 @@ export function EscrowDepositModal({
                       style={{
                         fontWeight: 700,
                         color:
-                          userBalance !== null && userBalance >= stakeNim
+                          userBalance !== null && userBalance >= displayStakeNim
                             ? "#2ecc71"
                             : "#f85149",
                       }}
@@ -405,10 +406,26 @@ export function EscrowDepositModal({
                           fontWeight: 400,
                         }}
                       >
-                        (TestAlbatross)
+                        [Testnet]
                       </span>
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={handleSyncNimiqPay}
+                    disabled={isLoadingBalance}
+                    title="Sync with active Nimiq Pay / Hub wallet"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#EC9918",
+                      cursor: "pointer",
+                      padding: "2px",
+                      opacity: 0.8,
+                    }}
+                  >
+                    <RotateCw size={12} />
+                  </button>
                 </div>
               </>
             ) : (
@@ -478,7 +495,7 @@ export function EscrowDepositModal({
               <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
                 Required Stake:
               </span>
-              <strong style={{ color: "var(--orange)" }}>{stakeNim} NIM</strong>
+              <strong style={{ color: "var(--orange)" }}>{displayStakeNim} NIM</strong>
             </div>
             <div
               style={{
@@ -503,7 +520,7 @@ export function EscrowDepositModal({
                 Winner Allocation (90%):
               </span>
               <strong style={{ color: "#2ecc71" }}>
-                {(stakeNim * 2 * 0.9).toFixed(1)} NIM
+                {(displayStakeNim * 2 * 0.9).toFixed(1)} NIM
               </strong>
             </div>
             <div
@@ -591,7 +608,7 @@ export function EscrowDepositModal({
           )}
 
           {/* Real Insufficient Balance Alert (Only shown when balance is genuinely known and insufficient) */}
-          {accountInfo?.status === "available" && userBalance !== null && userBalance < stakeNim && (
+          {accountInfo?.status === "available" && userBalance !== null && displayStakeNim > 0 && userBalance < displayStakeNim && (
             <div
               style={{
                 backgroundColor: "rgba(231, 76, 60, 0.12)",
@@ -606,7 +623,7 @@ export function EscrowDepositModal({
                 alignItems: "center",
               }}
             >
-              <span>Balance ({userBalance.toFixed(2)} NIM) is below {stakeNim} NIM stake</span>
+              <span>Balance ({userBalance.toFixed(2)} NIM) is below {displayStakeNim} NIM stake</span>
               <a
                 href="https://testnet.nimiq.watch/#faucet"
                 target="_blank"

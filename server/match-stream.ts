@@ -3,6 +3,7 @@ import type { Express } from "express";
 import {
   getMatchPlayer,
   getMatchPlayers,
+  getMatchEscrowDetails,
   getUserByOpenId,
   refreshMatchLifecycle,
   touchMatchPlayerPresence,
@@ -39,6 +40,9 @@ export interface DirectStatePayload {
   engineVersion: string;
   stateVersion: number;
   snapshot: any;
+  joinCode?: string;
+  isWagered?: boolean;
+  stakeNim?: number | null;
   players?: Array<{ seat: number; status: string; lastSeenAt: Date }>;
 }
 
@@ -107,12 +111,28 @@ export function registerMatchStream(app: Express) {
 
         const resolvedSeat = activePlayer ? activePlayer.seat : -1;
 
+        const isWagered = Boolean(
+          current.paymentIntentId || current.joinCode?.startsWith("WAG")
+        );
+        let stakeNim: number | null = null;
+        if (isWagered) {
+          try {
+            const escrow = await getMatchEscrowDetails(matchId);
+            stakeNim = escrow.stakeNim;
+          } catch {
+            // fallback
+          }
+        }
+
         res.write(
           `event: state\ndata: ${JSON.stringify({
             id: current.id,
+            joinCode: current.joinCode,
             status: current.status,
             engineVersion: current.engineVersion,
             stateVersion: current.stateVersion,
+            isWagered,
+            stakeNim,
             snapshot: JSON.parse(current.stateJson),
             players: players.map(item => ({
               seat: item.seat,
@@ -138,9 +158,12 @@ export function registerMatchStream(app: Express) {
           res.write(
             `event: state\ndata: ${JSON.stringify({
               id: payload.id,
+              joinCode: payload.joinCode,
               status: payload.status,
               engineVersion: payload.engineVersion,
               stateVersion: payload.stateVersion,
+              isWagered: payload.isWagered,
+              stakeNim: payload.stakeNim,
               snapshot: payload.snapshot,
               players: payload.players ?? [],
               yourSeat: resolvedSeat,

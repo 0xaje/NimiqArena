@@ -43,7 +43,7 @@ export function LudoEntryFlowModal({
 
   const [activeTab, setActiveTab] = useState<"wager" | "practice">("wager");
   const [selectedStake, setSelectedStake] = useState<number>(defaultStake);
-  const [selectedMode, setSelectedMode] = useState<"bot" | "private" | "friend">("bot");
+  const [selectedMode, setSelectedMode] = useState<"private" | "friend" | "bot">("private");
   const [friendUsername, setFriendUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -262,31 +262,6 @@ export function LudoEntryFlowModal({
               >
                 <button
                   type="button"
-                  onClick={() => setSelectedMode("bot")}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "5px",
-                    padding: "10px 6px",
-                    borderRadius: "10px",
-                    border: `1px solid ${selectedMode === "bot" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
-                    background: selectedMode === "bot" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                    color: selectedMode === "bot" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                  }}
-                >
-                  <Bot size={18} />
-                  <span>AI Bot</span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setSelectedMode("private")}
                   style={{
                     display: "flex",
@@ -333,6 +308,31 @@ export function LudoEntryFlowModal({
                 >
                   <Users size={18} />
                   <span>Invite</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode("bot")}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px",
+                    padding: "10px 6px",
+                    borderRadius: "10px",
+                    border: `1px solid ${selectedMode === "bot" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
+                    background: selectedMode === "bot" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                    color: selectedMode === "bot" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                  }}
+                >
+                  <Bot size={18} />
+                  <span>AI Bot</span>
                 </button>
               </div>
 

@@ -1671,11 +1671,26 @@ export async function joinMatchByCode(input: {
 
   // Real-time broadcast AFTER transaction has committed
   try {
+    const isWagered = Boolean(
+      result.match.paymentIntentId || result.match.joinCode.startsWith("WAG")
+    );
+    let stakeNim: number | null = null;
+    if (isWagered) {
+      try {
+        const escrow = await getMatchEscrowDetails(result.match.id);
+        stakeNim = escrow.stakeNim;
+      } catch {
+        // fallback
+      }
+    }
     notifyMatchUpdated(result.match.id, {
       id: result.match.id,
+      joinCode: result.match.joinCode,
       status: result.match.status,
       engineVersion: result.match.engineVersion,
       stateVersion: result.match.stateVersion,
+      isWagered,
+      stakeNim,
       snapshot: JSON.parse(result.match.stateJson),
       players: (result.allPlayers || []).map((item: any) => ({
         seat: item.seat,
@@ -1704,14 +1719,13 @@ export async function forceStartMatch(input: {
     const match = (
       await tx.select().from(matches).where(eq(matches.id, input.matchId)).limit(1)
     )[0];
+
     if (!match) throw new Error("Match not found.");
-
-    if (match.status === "in_progress") {
-      return { match, alreadyStarted: true };
+    if (match.hostUserId !== input.userId) {
+      throw new Error("Only the match host can start the game.");
     }
-
-    if (["finished", "cancelled", "expired"].includes(match.status)) {
-      throw new Error(`Match has already ${match.status}.`);
+    if (match.status !== "waiting") {
+      return { match, alreadyStarted: true };
     }
 
     const players = await tx
@@ -1719,35 +1733,22 @@ export async function forceStartMatch(input: {
       .from(matchPlayers)
       .where(eq(matchPlayers.matchId, input.matchId));
 
-    const callerSeat = players.find(p => p.userId === input.userId);
-    if (!callerSeat) {
-      throw new Error("You are not a participant in this match.");
-    }
-
     if (players.length < 2) {
-      throw new Error("Waiting for an opponent to connect before starting.");
+      throw new Error("Cannot start match: waiting for second player to join.");
     }
 
-    // Check wager escrow requirements
-    if (isWageredMatch(match)) {
-      const escrowDetails = await getMatchEscrowDetails(input.matchId);
-      if (escrowDetails.isWagered && !escrowDetails.allVerified) {
-        const callerStatus = escrowDetails.playerStatuses.find(p => p.userId === input.userId);
-        if (!callerStatus?.verified) {
-          throw new Error("Please lock your NIM stake into escrow before starting.");
-        }
-        throw new Error("Waiting for opponent to lock their wager stake into escrow.");
+    const isWagered = isWageredMatch(match);
+    if (isWagered) {
+      const escrow = await getMatchEscrowDetails(input.matchId);
+      if (!escrow.allVerified) {
+        throw new Error(
+          "Cannot start match: all players must deposit their wager stakes into escrow first."
+        );
       }
     }
 
     const now = new Date();
     const playExpiresAt = matchPlayWindowExpiry();
-
-    // Touch all players' lastSeenAt and ensure joined
-    await tx
-      .update(matchPlayers)
-      .set({ status: "joined", lastSeenAt: now })
-      .where(eq(matchPlayers.matchId, input.matchId));
 
     await tx
       .update(matches)
@@ -1760,7 +1761,7 @@ export async function forceStartMatch(input: {
 
     const updatedMatch: Match = {
       ...match,
-      status: "in_progress" as const,
+      status: "in_progress",
       expiresAt: playExpiresAt,
       updatedAt: now,
     };
@@ -1769,11 +1770,26 @@ export async function forceStartMatch(input: {
   });
 
   try {
+    const isWagered = Boolean(
+      result.match.paymentIntentId || result.match.joinCode.startsWith("WAG")
+    );
+    let stakeNim: number | null = null;
+    if (isWagered) {
+      try {
+        const escrow = await getMatchEscrowDetails(result.match.id);
+        stakeNim = escrow.stakeNim;
+      } catch {
+        // fallback
+      }
+    }
     notifyMatchUpdated(result.match.id, {
       id: result.match.id,
+      joinCode: result.match.joinCode,
       status: result.match.status,
       engineVersion: result.match.engineVersion,
       stateVersion: result.match.stateVersion,
+      isWagered,
+      stakeNim,
       snapshot: JSON.parse(result.match.stateJson),
       players: (result.players || []).map((item: any) => ({
         seat: item.seat,
@@ -3259,18 +3275,24 @@ export async function getMatchEscrowDetails(matchId: string) {
     txHash: string | null;
   }[] = [];
 
-  if (isWagered && match.paymentIntentId) {
-    const rootIntent = (
-      await db
-        .select()
-        .from(paymentIntents)
-        .where(eq(paymentIntents.id, match.paymentIntentId))
-        .limit(1)
-    )[0];
+  if (isWagered) {
+    const intentIdToLookup =
+      match.paymentIntentId ||
+      players.find(p => p.paymentIntentId)?.paymentIntentId;
 
-    if (rootIntent) {
-      stakeNim = rootIntent.valueLuna / 100_000;
-      totalPotNim = stakeNim * 2;
+    if (intentIdToLookup) {
+      const rootIntent = (
+        await db
+          .select()
+          .from(paymentIntents)
+          .where(eq(paymentIntents.id, intentIdToLookup))
+          .limit(1)
+      )[0];
+
+      if (rootIntent) {
+        stakeNim = rootIntent.valueLuna / 100_000;
+        totalPotNim = stakeNim * 2;
+      }
     }
   }
 

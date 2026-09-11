@@ -47,7 +47,13 @@ export default function MatchRoom() {
         ) {
           return prev;
         }
-        return { ...prev, ...streamState };
+        return {
+          ...prev,
+          ...streamState,
+          joinCode: streamState.joinCode || prev.joinCode,
+          isWagered: streamState.isWagered ?? prev.isWagered,
+          stakeNim: streamState.stakeNim ?? prev.stakeNim,
+        };
       });
     },
     onEmote: () => {
@@ -66,15 +72,18 @@ export default function MatchRoom() {
         query?.state?.data?.status === "waiting" ? 1_000 : isStreamConnected ? false : 1_500,
     }
   );
-  const isWagered = Boolean(stateQuery.data?.joinCode?.startsWith("WAG"));
+  const isWagered = Boolean(
+    stateQuery.data?.isWagered ||
+    stateQuery.data?.joinCode?.startsWith("WAG") ||
+    Boolean(stateQuery.data?.stakeNim && stateQuery.data.stakeNim > 0)
+  );
   const escrowQuery = trpc.match.escrowDetails.useQuery(
     { matchId },
     {
-      enabled: Boolean(matchId && (isWagered || !stateQuery.data)),
-      refetchInterval: () => {
-        if (!isWagered) return false;
+      enabled: Boolean(matchId),
+      refetchInterval: (query: any): number | false => {
         if (stateQuery.data?.status === "in_progress" && !isDepositModalOpen) return false;
-        return 5_000;
+        return 2_500;
       },
     }
   );
@@ -217,6 +226,12 @@ export default function MatchRoom() {
       : authQuery.data
       ? 0
       : -1;
+  const gameplayStakeNim =
+    (escrow?.stakeNim && escrow.stakeNim > 0)
+      ? escrow.stakeNim
+      : ((state as any)?.stakeNim && (state as any).stakeNim > 0)
+      ? (state as any).stakeNim
+      : 0;
   const isYourTurn = Boolean(
     snapshot &&
       state?.status === "in_progress" &&
@@ -499,9 +514,20 @@ export default function MatchRoom() {
     const guestName = guestPlayer
       ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : (guestPlayer.name || "Challenger Joined"))
       : null;
-    const isWageredMatchTable = Boolean(escrow?.isWagered || (state as any)?.isWagered || state.joinCode?.startsWith("WAG"));
-    const effectiveStakeNim = escrow?.stakeNim ?? (state as any)?.stakeNim ?? 0;
-    const effectiveTotalPotNim = escrow?.totalPotNim ?? (effectiveStakeNim * 2);
+    const isWageredMatchTable = Boolean(
+      escrow?.isWagered ||
+      (state as any)?.isWagered ||
+      state.joinCode?.startsWith("WAG") ||
+      (escrow?.stakeNim && escrow.stakeNim > 0) ||
+      ((state as any)?.stakeNim && (state as any).stakeNim > 0)
+    );
+    const effectiveStakeNim =
+      (escrow?.stakeNim && escrow.stakeNim > 0)
+        ? escrow.stakeNim
+        : ((state as any)?.stakeNim && (state as any).stakeNim > 0)
+        ? (state as any).stakeNim
+        : 0;
+    const effectiveTotalPotNim = escrow?.totalPotNim || (effectiveStakeNim * 2);
     const allVerified = !isWageredMatchTable || Boolean(escrow?.allVerified);
     const myDepositVerified = Boolean(
       !isWageredMatchTable ||
@@ -656,7 +682,7 @@ export default function MatchRoom() {
         isOpen={isDepositModalOpen}
         onClose={() => setIsDepositModalOpen(false)}
         matchId={matchId}
-        stakeNim={escrow?.stakeNim ?? 0}
+        stakeNim={gameplayStakeNim}
         onDepositSuccess={() => {
           void escrowQuery.refetch();
           void stateQuery.refetch();

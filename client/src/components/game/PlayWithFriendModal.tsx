@@ -94,10 +94,12 @@ export function PlayWithFriendModal({
     try {
       await ensureSession("Player 1 (Host)");
       toast.loading("Generating private arena room…", { id: "create-room" });
-      if (matchMode === "wager") {
+      const isWager = matchMode === "wager" || (selectedStake && selectedStake > 0);
+      if (isWager) {
+        const stakeToUse = Math.max(1, selectedStake || 10);
         const res = await createWageredMatch.mutateAsync({
           gameSlug,
-          stakeNim: selectedStake,
+          stakeNim: stakeToUse,
         });
         setCreatedMatch({
           id: res.id,
@@ -400,7 +402,10 @@ export function PlayWithFriendModal({
                         <button
                           key={amt}
                           type="button"
-                          onClick={() => setSelectedStake(amt)}
+                          onClick={() => {
+                            setSelectedStake(amt);
+                            setMatchMode("wager");
+                          }}
                           style={{
                             padding: "6px 10px",
                             borderRadius: "6px",
@@ -433,7 +438,9 @@ export function PlayWithFriendModal({
                           value={selectedStake || ""}
                           onChange={e => {
                             const val = parseInt(e.target.value, 10);
-                            setSelectedStake(isNaN(val) ? 0 : Math.min(10000000, Math.max(0, val)));
+                            const next = isNaN(val) ? 0 : Math.min(10000000, Math.max(0, val));
+                            setSelectedStake(next);
+                            if (next > 0) setMatchMode("wager");
                           }}
                           placeholder="e.g. 1000 or 1000000"
                           style={{
