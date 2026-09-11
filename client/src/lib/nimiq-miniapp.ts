@@ -170,10 +170,35 @@ export async function runNimiqThreeRequests(provider: NimiqProvider) {
     throw new Error((accountsResult as any).error?.message || "Failed to fetch accounts from wallet.");
   }
 
+  let accounts: string[] = [];
+  if (Array.isArray(accountsResult)) {
+    accounts = accountsResult
+      .map((item: any) => (typeof item === "string" ? item : item?.address))
+      .filter((addr): addr is string => Boolean(addr && typeof addr === "string"));
+  } else if (
+    accountsResult &&
+    typeof accountsResult === "object" &&
+    Array.isArray((accountsResult as any).accounts)
+  ) {
+    accounts = (accountsResult as any).accounts
+      .map((item: any) => (typeof item === "string" ? item : item?.address))
+      .filter((addr: any): addr is string => Boolean(addr && typeof addr === "string"));
+  }
+
+  const consensus = typeof (consensusResult as any)?.data === "boolean"
+    ? (consensusResult as any).data
+    : Boolean(consensusResult);
+
+  const blockNumber = typeof (blockResult as any)?.data === "number"
+    ? (blockResult as any).data
+    : typeof blockResult === "number"
+      ? blockResult
+      : 0;
+
   return {
-    accounts: Array.isArray(accountsResult) ? (accountsResult as string[]) : [],
-    consensus: Boolean(consensusResult),
-    blockNumber: typeof blockResult === "number" ? blockResult : 0,
+    accounts,
+    consensus,
+    blockNumber,
   };
 }
 

@@ -43,6 +43,7 @@ import {
   sendNimiqPayment,
   fetchNimiqBalance,
   fetchNimiqAccountInfo,
+  formatNimiqAddress,
   type NimiqAccountInfo,
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
@@ -257,7 +258,9 @@ export default function Home() {
             runNimiqThreeRequests(provider)
               .then(res => {
                 if (res.accounts.length > 0) {
-                  setAddress(res.accounts[0]);
+                  const raw = res.accounts[0];
+                  const formatted = formatNimiqAddress(raw);
+                  setAddress(formatted);
                   setConnectionMode("mini-app");
                 }
               })

@@ -120,10 +120,11 @@ export async function getLiveAccountBalance(
   rawAddress: string,
   preferredNetwork: "testnet" | "mainnet" = "testnet"
 ): Promise<CachedAccount> {
-  const clean = normalizeNimiqAddress(rawAddress);
-  if (!/^NQ\d{2}[A-Z0-9]{32}$/.test(clean)) {
+  const unspaced = (rawAddress || "").replace(/\s+/g, "").toUpperCase();
+  if (!/^NQ\d{2}[A-Z0-9]{32}$/.test(unspaced)) {
     throw new Error("Invalid Nimiq address format");
   }
+  const clean = normalizeNimiqAddress(unspaced);
 
   const cacheKey = `${clean}_${preferredNetwork}`;
   // Check cache

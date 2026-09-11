@@ -124,6 +124,7 @@ export default function Leaderboard() {
   const season = seasonQuery.data;
   const standings = leaderboardQuery.data ?? [];
   const topThree = standings.slice(0, 3);
+  const userStanding = user ? standings.find(s => s.userId === user.id) : null;
 
   // User's active stake from vault
   const [userStake, setUserStake] = useState<number>(0);
@@ -197,9 +198,11 @@ export default function Leaderboard() {
             {/* Dual-Track Switcher */}
             <div
               style={{
-                display: "inline-flex",
-                gap: "8px",
-                marginTop: "20px",
+                display: "flex",
+                width: "100%",
+                maxWidth: "460px",
+                gap: "6px",
+                marginTop: "16px",
                 background: "rgba(0, 0, 0, 0.35)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 padding: "4px",
@@ -210,7 +213,8 @@ export default function Leaderboard() {
                 type="button"
                 onClick={() => setActiveTrack("gladiators")}
                 style={{
-                  padding: "8px 18px",
+                  flex: 1,
+                  padding: "8px 12px",
                   borderRadius: "8px",
                   border: "none",
                   cursor: "pointer",
@@ -221,17 +225,19 @@ export default function Leaderboard() {
                   fontFamily: "'IBM Plex Mono', monospace",
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "6px",
                   transition: "all 0.15s ease",
                 }}
               >
-                <Trophy size={14} /> GLADIATORS (SKILL ELO)
+                <Trophy size={14} /> GLADIATORS
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTrack("patrons")}
                 style={{
-                  padding: "8px 18px",
+                  flex: 1,
+                  padding: "8px 12px",
                   borderRadius: "8px",
                   border: activeTrack === "patrons" ? "1px solid rgba(251, 191, 36, 0.6)" : "1px solid transparent",
                   cursor: "pointer",
@@ -242,11 +248,12 @@ export default function Leaderboard() {
                   fontFamily: "'IBM Plex Mono', monospace",
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "6px",
                   transition: "all 0.15s ease",
                 }}
               >
-                <Gem size={14} /> ARENA PATRONS (STAKERS &amp; VIPS)
+                <Gem size={14} /> PATRONS
               </button>
             </div>
           </div>
@@ -398,90 +405,148 @@ export default function Leaderboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="standings-table-wrap">
-                  <table className="standings-table">
-                    <thead>
-                      <tr>
-                        <th>Rank</th>
-                        <th>Player</th>
-                        <th>Rating</th>
-                        <th>Record (W-L)</th>
-                        <th>Win Rate</th>
-                        <th>Current Streak</th>
-                        <th>Best Streak</th>
-                        <th>Matches</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {standings.map(player => {
-                        const isCurrentUser = user && user.id === player.userId;
-                        return (
-                          <tr
-                            key={player.userId}
-                            className={isCurrentUser ? "current-user-row" : ""}
+                <>
+                  <div className="standings-table-wrap desktop-only">
+                    <table className="standings-table">
+                      <thead>
+                        <tr>
+                          <th>Rank</th>
+                          <th>Player</th>
+                          <th>Rating</th>
+                          <th>Record (W-L)</th>
+                          <th>Win Rate</th>
+                          <th>Current Streak</th>
+                          <th>Best Streak</th>
+                          <th>Matches</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.map(player => {
+                          const isCurrentUser = user && user.id === player.userId;
+                          return (
+                            <tr
+                              key={player.userId}
+                              className={isCurrentUser ? "current-user-row" : ""}
+                            >
+                              <td className="rank-cell">
+                                <span
+                                  className={`rank-badge ${
+                                    player.rank === 1
+                                      ? "gold"
+                                      : player.rank === 2
+                                        ? "silver"
+                                        : player.rank === 3
+                                          ? "bronze"
+                                          : ""
+                                  }`}
+                                >
+                                  #{player.rank}
+                                </span>
+                              </td>
+                              <td className="player-cell">
+                                <div className="player-meta">
+                                  <span className="avatar-mini">
+                                    {(player.userName || "P")[0].toUpperCase()}
+                                  </span>
+                                  <strong>
+                                    {player.userName || `Player ${player.userId}`}
+                                    {isCurrentUser && (
+                                      <span className="you-pill">YOU</span>
+                                    )}
+                                  </strong>
+                                </div>
+                              </td>
+                              <td className="rating-cell">
+                                <strong>{player.rating}</strong>
+                              </td>
+                              <td className="record-cell">
+                                <span className="wins">{player.wins}W</span>
+                                <span className="sep">-</span>
+                                <span className="losses">{player.losses}L</span>
+                              </td>
+                              <td className="wr-cell">
+                                <div className="wr-bar-wrap">
+                                  <div
+                                    className="wr-bar"
+                                    style={{ width: `${player.winRate}%` }}
+                                  />
+                                </div>
+                                <span>{player.winRate}%</span>
+                              </td>
+                              <td className="streak-cell">
+                                {player.currentStreak > 0 ? (
+                                  <span className="streak-badge fire">
+                                    <Flame size={12} /> {player.currentStreak}W
+                                  </span>
+                                ) : (
+                                  <span className="streak-badge">-</span>
+                                )}
+                              </td>
+                              <td className="streak-cell">{player.bestStreak}W</td>
+                              <td className="matches-cell">{player.matchesPlayed}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Standings Card List */}
+                  <div className="standings-mobile-cards mobile-only">
+                    {standings.map(player => {
+                      const isCurrentUser = user && user.id === player.userId;
+                      return (
+                        <div
+                          key={player.userId}
+                          className={`leaderboard-mobile-card ${isCurrentUser ? "current-user-card" : ""}`}
+                        >
+                          <div
+                            className={`player-rank-chip ${
+                              player.rank === 1
+                                ? "gold"
+                                : player.rank === 2
+                                  ? "silver"
+                                  : player.rank === 3
+                                    ? "bronze"
+                                    : ""
+                            }`}
                           >
-                            <td className="rank-cell">
-                              <span
-                                className={`rank-badge ${
-                                  player.rank === 1
-                                    ? "gold"
-                                    : player.rank === 2
-                                      ? "silver"
-                                      : player.rank === 3
-                                        ? "bronze"
-                                        : ""
-                                }`}
-                              >
-                                #{player.rank}
+                            #{player.rank}
+                          </div>
+
+                          <div className="player-info">
+                            <div className="player-header-row">
+                              <span className="avatar-mini" style={{ width: 22, height: 22, fontSize: 11 }}>
+                                {(player.userName || "P")[0].toUpperCase()}
                               </span>
-                            </td>
-                            <td className="player-cell">
-                              <div className="player-meta">
-                                <span className="avatar-mini">
-                                  {(player.userName || "P")[0].toUpperCase()}
-                                </span>
-                                <strong>
-                                  {player.userName || `Player ${player.userId}`}
-                                  {isCurrentUser && (
-                                    <span className="you-pill">YOU</span>
-                                  )}
-                                </strong>
-                              </div>
-                            </td>
-                            <td className="rating-cell">
-                              <strong>{player.rating}</strong>
-                            </td>
-                            <td className="record-cell">
-                              <span className="wins">{player.wins}W</span>
-                              <span className="sep">-</span>
-                              <span className="losses">{player.losses}L</span>
-                            </td>
-                            <td className="wr-cell">
-                              <div className="wr-bar-wrap">
-                                <div
-                                  className="wr-bar"
-                                  style={{ width: `${player.winRate}%` }}
-                                />
-                              </div>
-                              <span>{player.winRate}%</span>
-                            </td>
-                            <td className="streak-cell">
-                              {player.currentStreak > 0 ? (
-                                <span className="streak-badge fire">
-                                  <Flame size={12} /> {player.currentStreak}W
-                                </span>
-                              ) : (
-                                <span className="streak-badge">-</span>
+                              <span className="player-name">
+                                {player.userName || `Player ${player.userId}`}
+                              </span>
+                              {isCurrentUser && <span className="you-pill">YOU</span>}
+                            </div>
+                            <div className="player-stats-sub">
+                              <span>{player.wins}W - {player.losses}L</span>
+                              <span>•</span>
+                              <span>{player.winRate}% WR</span>
+                              {player.currentStreak > 1 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="streak-chip">
+                                    <Flame size={10} /> {player.currentStreak}
+                                  </span>
+                                </>
                               )}
-                            </td>
-                            <td className="streak-cell">{player.bestStreak}W</td>
-                            <td className="matches-cell">{player.matchesPlayed}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+                          </div>
+
+                          <div className="player-score-col">
+                            <span className="elo-badge">{player.rating} ELO</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </section>
           </>
@@ -591,7 +656,7 @@ export default function Leaderboard() {
                 <span className="standings-count">{patronsList.length} Patrons Active</span>
               </div>
 
-              <div className="standings-table-wrap">
+              <div className="standings-table-wrap desktop-only">
                 <table className="standings-table">
                   <thead>
                     <tr>
@@ -678,6 +743,51 @@ export default function Leaderboard() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Patrons Card List */}
+              <div className="patrons-mobile-cards mobile-only">
+                {patronsList.map(patron => (
+                  <div
+                    key={`${patron.rank}-${patron.userName}`}
+                    className={`leaderboard-mobile-card ${patron.isCurrentUser ? "current-user-card" : ""}`}
+                  >
+                    <div
+                      className={`player-rank-chip ${
+                        patron.rank === 1
+                          ? "gold"
+                          : patron.rank === 2
+                            ? "silver"
+                            : patron.rank === 3
+                              ? "bronze"
+                              : ""
+                      }`}
+                    >
+                      #{patron.rank}
+                    </div>
+
+                    <div className="player-info">
+                      <div className="player-header-row">
+                        <span className="avatar-mini" style={{ width: 22, height: 22, fontSize: 11 }}>
+                          {patron.userName[0].toUpperCase()}
+                        </span>
+                        <span className="player-name">{patron.userName}</span>
+                        {patron.isCurrentUser && <span className="you-pill">YOU</span>}
+                      </div>
+                      <div className="player-stats-sub">
+                        <span style={{ color: patron.tierColor, fontWeight: 600 }}>{patron.tierIcon} {patron.tier}</span>
+                        <span>•</span>
+                        <span style={{ color: "#4ade80", fontWeight: 700 }}>{patron.apy}% APY</span>
+                      </div>
+                    </div>
+
+                    <div className="player-score-col">
+                      <span className="elo-badge" style={{ color: "#fbbf24" }}>
+                        {formatNim(patron.stakedNim)} NIM
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
 
             {/* Become a Patron CTA */}
@@ -724,7 +834,7 @@ export default function Leaderboard() {
         )}
 
         {/* Footer info */}
-        <div className="trust-line" style={{ marginTop: "36px" }}>
+        <div className="trust-line" style={{ marginTop: "36px", marginBottom: userStanding ? "60px" : "0px" }}>
           <ShieldCheck size={16} />
           <span>
             {activeTrack === "gladiators"
@@ -733,6 +843,24 @@ export default function Leaderboard() {
           </span>
         </div>
       </main>
+
+      {/* Sticky Mobile Rank Pill */}
+      {userStanding && (
+        <div className="sticky-rank-bar mobile-only">
+          <div className="rank-left">
+            <span className="rank-pill">#{userStanding.rank}</span>
+            <div>
+              <div className="rank-text">Your Rank: {userStanding.rating} ELO</div>
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.65)" }}>
+                {userStanding.wins}W - {userStanding.losses}L ({userStanding.winRate}% WR)
+              </div>
+            </div>
+          </div>
+          <Link href={`/games/${selectedGame}`} className="rank-action">
+            Play <ArrowRight size={13} />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
