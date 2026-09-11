@@ -708,12 +708,26 @@ export const appRouter = router({
           });
         const player = await getMatchPlayer(input.id, ctx.user.id);
         const players = await getMatchPlayers(input.id);
+        const isWagered = Boolean(
+          match.paymentIntentId || match.joinCode.startsWith("WAG")
+        );
+        let stakeNim: number | null = null;
+        if (isWagered) {
+          try {
+            const escrow = await getMatchEscrowDetails(input.id);
+            stakeNim = escrow.stakeNim;
+          } catch {
+            // fallback
+          }
+        }
         return {
           id: match.id,
           joinCode: match.joinCode,
           status: match.status,
           engineVersion: match.engineVersion,
           stateVersion: match.stateVersion,
+          isWagered,
+          stakeNim,
           snapshot: JSON.parse(match.stateJson),
           players: players.map(current => ({
             seat: current.seat,

@@ -499,7 +499,9 @@ export default function MatchRoom() {
     const guestName = guestPlayer
       ? (yourSeat === 1 ? (authQuery.data?.name || "Player 2") : (guestPlayer.name || "Challenger Joined"))
       : null;
-    const isWageredMatchTable = Boolean(escrow?.isWagered || state.joinCode?.startsWith("WAG"));
+    const isWageredMatchTable = Boolean(escrow?.isWagered || (state as any)?.isWagered || state.joinCode?.startsWith("WAG"));
+    const effectiveStakeNim = escrow?.stakeNim || (state as any)?.stakeNim || 10;
+    const effectiveTotalPotNim = escrow?.totalPotNim || effectiveStakeNim * 2;
     const allVerified = !isWageredMatchTable || Boolean(escrow?.allVerified);
     const myDepositVerified = Boolean(
       !isWageredMatchTable ||
@@ -514,8 +516,8 @@ export default function MatchRoom() {
           joinCode={state.joinCode || ""}
           hostName={hostName}
           guestName={guestName}
-          stakeNim={escrow?.stakeNim ?? null}
-          totalPotNim={escrow?.totalPotNim ?? null}
+          stakeNim={effectiveStakeNim}
+          totalPotNim={effectiveTotalPotNim}
           isHost={yourSeat === 0}
           onLeave={() => {
             if (confirm("Are you sure you want to leave this table?")) {
@@ -531,18 +533,16 @@ export default function MatchRoom() {
             startMatchMutation.mutate({ matchId });
           }}
         />
-        {escrow && (
-          <EscrowDepositModal
-            isOpen={isDepositModalOpen}
-            onClose={() => setIsDepositModalOpen(false)}
-            matchId={matchId}
-            stakeNim={escrow.stakeNim}
-            onDepositSuccess={() => {
-              void escrowQuery.refetch();
-              void stateQuery.refetch();
-            }}
-          />
-        )}
+        <EscrowDepositModal
+          isOpen={isDepositModalOpen}
+          onClose={() => setIsDepositModalOpen(false)}
+          matchId={matchId}
+          stakeNim={effectiveStakeNim}
+          onDepositSuccess={() => {
+            void escrowQuery.refetch();
+            void stateQuery.refetch();
+          }}
+        />
       </div>
     );
   }

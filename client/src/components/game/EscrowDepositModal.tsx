@@ -21,6 +21,7 @@ import {
   getActiveWalletAddress,
   fetchNimiqBalance,
   formatNimiqAddress,
+  connectViaNimiqHub,
 } from "@/lib/nimiq-wallet";
 
 interface EscrowDepositModalProps {
@@ -47,18 +48,41 @@ export function EscrowDepositModal({
   const [txHash, setTxHash] = useState("");
   const [userBalance, setUserBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-
-  const activeWallet = getActiveWalletAddress();
+  const [activeWallet, setActiveWallet] = useState<string | null>(() => getActiveWalletAddress());
 
   React.useEffect(() => {
-    if (isOpen && activeWallet) {
+    if (isOpen) {
+      setStep("idle");
+      setErrorMessage("");
+      setTxHash("");
+      const current = getActiveWalletAddress();
+      setActiveWallet(current);
+      if (current) {
+        setIsLoadingBalance(true);
+        fetchNimiqBalance(current)
+          .then(bal => setUserBalance(bal))
+          .catch(() => {})
+          .finally(() => setIsLoadingBalance(false));
+      } else {
+        setUserBalance(null);
+      }
+    }
+  }, [isOpen]);
+
+  const handleConnectWallet = async () => {
+    try {
+      const res = await connectViaNimiqHub();
+      setActiveWallet(res.address);
       setIsLoadingBalance(true);
-      fetchNimiqBalance(activeWallet)
+      fetchNimiqBalance(res.address)
         .then(bal => setUserBalance(bal))
         .catch(() => {})
         .finally(() => setIsLoadingBalance(false));
+      toast.success("Wallet connected!", { description: res.address });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to connect wallet.");
     }
-  }, [isOpen, activeWallet]);
+  };
 
   const createIntent = trpc.payment.createIntent.useMutation();
   const markPending = trpc.payment.markConfirmationPending.useMutation();
@@ -211,7 +235,7 @@ export function EscrowDepositModal({
             }}
           >
             {/* Wallet Balance Check */}
-            {activeWallet && (
+            {activeWallet ? (
               <div
                 style={{
                   display: "flex",
@@ -240,6 +264,41 @@ export function EscrowDepositModal({
                       ? `${userBalance.toFixed(2)} NIM`
                       : "0.00 NIM"}
                 </span>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderBottom: "1px solid rgba(251, 248, 241, 0.1)",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
+                  Wallet:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleConnectWallet}
+                  style={{
+                    background: "rgba(236, 153, 24, 0.15)",
+                    border: "1px solid rgba(236, 153, 24, 0.4)",
+                    color: "#EC9918",
+                    borderRadius: "6px",
+                    padding: "4px 10px",
+                    fontSize: "11px",
+                    fontFamily: "IBM Plex Mono, monospace",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  <Wallet size={12} /> Connect Hub Wallet
+                </button>
               </div>
             )}
 
