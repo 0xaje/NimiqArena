@@ -283,7 +283,7 @@ describe("ludo engine", () => {
       expect(moveRes2.snapshot.currentPlayer).toBe(1);
     });
 
-    it("awards bonus turn on doubles (e.g. [4, 4]) when moving on track", () => {
+    it("does NOT award bonus turn on non-six doubles (e.g. [4, 4]), played once and turn passes to opponent", () => {
       const snapshot = createLudoSnapshot("match-dual-3", "2p_single", 2);
       snapshot.players[0].pieces[0].position = 10; // First piece on track
       snapshot.players[0].pieces[1].position = 0;  // Second piece on track (allows splitting dice)
@@ -343,7 +343,65 @@ describe("ludo engine", () => {
       if (!moveRes2.ok) return;
       expect(moveRes2.snapshot.players[0].pieces[0].position).toBe(18);
       expect(moveRes2.snapshot.remainingDice).toEqual([]);
-      // Extra turn awarded for doubles [4, 4]!
+      // NO extra turn for [4, 4] - turn passes to Player 1!
+      expect(moveRes2.snapshot.currentPlayer).toBe(1);
+    });
+
+    it("awards bonus turn (play twice) ONLY on double 6 ([6, 6])", () => {
+      const snapshot = createLudoSnapshot("match-dual-double6", "2p_single", 2);
+      snapshot.players[0].pieces[0].position = 10;
+      snapshot.players[0].pieces[1].position = 0;
+
+      const rollRes = applyCommand(
+        snapshot,
+        {
+          kind: "roll",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: 0,
+          nonce: "roll-6-6",
+        },
+        () => 6
+      );
+
+      expect(rollRes.ok).toBe(true);
+      if (!rollRes.ok) return;
+      expect(rollRes.snapshot.diceValues).toEqual([6, 6]);
+      expect(rollRes.snapshot.rolledDoubles).toBe(true);
+
+      // Move 1: advance by first 6 (10 -> 16)
+      const moveRes1 = applyCommand(
+        rollRes.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: rollRes.snapshot.version,
+          nonce: "move-6-6-step1",
+          pieceIndex: 0,
+        },
+        () => 1
+      );
+      expect(moveRes1.ok).toBe(true);
+      if (!moveRes1.ok) return;
+
+      // Move 2: advance by second 6 (16 -> 22)
+      const moveRes2 = applyCommand(
+        moveRes1.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: moveRes1.snapshot.version,
+          nonce: "move-6-6-step2",
+          pieceIndex: 0,
+        },
+        () => 1
+      );
+      expect(moveRes2.ok).toBe(true);
+      if (!moveRes2.ok) return;
+
+      // Extra turn awarded specifically for double 6!
       expect(moveRes2.snapshot.currentPlayer).toBe(0);
     });
 

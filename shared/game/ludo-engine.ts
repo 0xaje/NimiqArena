@@ -254,7 +254,7 @@ export function applyCommand(
       next.usedNonces.push(command.nonce);
       next.diceValues = [d1, d2];
       next.remainingDice = [d1, d2];
-      next.rolledDoubles = d1 === d2;
+      next.rolledDoubles = d1 === 6 && d2 === 6;
       const combined = d1 + d2;
       next.dice = combined;
 
