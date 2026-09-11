@@ -22,34 +22,43 @@ function resolveCookieSecret(): string {
   return secret || defaultDevSecret;
 }
 
-const NIMIQ_TESTNET_ID = 5;
-const NIMIQ_MAINNET_ID = 42;
+import {
+  getNimiqNetworkConfig,
+  NIMIQ_TESTNET_NETWORK_ID,
+  NIMIQ_MAINNET_NETWORK_ID,
+  type NimiqNetworkConfig,
+} from "@shared/nimiq-network";
 
 /**
  * Resolves the Nimiq network, refusing configurations that would verify
  * payments against the wrong chain.
  */
-function resolveNimiqNetwork(): { networkId: number; rpcUrl: string } {
-  const networkId = Number(process.env.NIMIQ_NETWORK_ID ?? NIMIQ_TESTNET_ID);
-  if (networkId !== NIMIQ_TESTNET_ID && networkId !== NIMIQ_MAINNET_ID) {
+function resolveNimiqNetwork(): NimiqNetworkConfig {
+  const rawId = process.env.NIMIQ_NETWORK_ID;
+  const networkId = Number(rawId ?? NIMIQ_TESTNET_NETWORK_ID);
+  if (networkId !== NIMIQ_TESTNET_NETWORK_ID && networkId !== NIMIQ_MAINNET_NETWORK_ID) {
     throw new Error(
-      `FATAL: NIMIQ_NETWORK_ID must be ${NIMIQ_TESTNET_ID} (testnet) or ${NIMIQ_MAINNET_ID} (mainnet); received "${process.env.NIMIQ_NETWORK_ID}".`
+      `FATAL: NIMIQ_NETWORK_ID must be ${NIMIQ_TESTNET_NETWORK_ID} (testnet) or ${NIMIQ_MAINNET_NETWORK_ID} (mainnet); received "${rawId}".`
     );
   }
 
-  const rpcUrl =
-    process.env.NIMIQ_RPC_URL ||
-    (networkId === NIMIQ_MAINNET_ID
-      ? "https://rpc.nimiqwatch.com"
-      : "https://rpc.testnet.nimiqwatch.com");
+  const baseConfig = getNimiqNetworkConfig(networkId);
+  const rpcUrl = process.env.NIMIQ_RPC_URL || baseConfig.rpcUrl;
 
-  if (networkId === NIMIQ_MAINNET_ID && /testnet/i.test(rpcUrl)) {
+  if (networkId === NIMIQ_MAINNET_NETWORK_ID && /testnet/i.test(rpcUrl)) {
     throw new Error(
       `FATAL: NIMIQ_NETWORK_ID is set to mainnet but NIMIQ_RPC_URL points at a testnet node (${rpcUrl}). Payments would be verified against the wrong chain.`
     );
   }
 
-  return { networkId, rpcUrl };
+  // Safe startup diagnostic output (NO secrets/keys)
+  console.log(`[NimiqArena] Network Configuration: ${baseConfig.name} (Chain ID: ${networkId})`);
+  console.log(`[NimiqArena] Blockchain RPC Endpoint: ${rpcUrl}`);
+
+  return {
+    ...baseConfig,
+    rpcUrl,
+  };
 }
 
 const nimiqNetwork = resolveNimiqNetwork();
@@ -91,7 +100,11 @@ export const ENV = {
     process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA ?? 0
   ),
   nimiqNetworkId: nimiqNetwork.networkId,
+  nimiqNetworkName: nimiqNetwork.name,
   nimiqRpcUrl: nimiqNetwork.rpcUrl,
+  nimiqExplorerUrl: nimiqNetwork.explorerUrl,
+  nimiqFaucetUrl: nimiqNetwork.faucetUrl,
+  isTestnet: nimiqNetwork.isTestnet,
   trustProxy: resolveTrustProxy(),
 };
 

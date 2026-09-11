@@ -61,18 +61,18 @@ export interface NimiqVerificationResult {
   rawResponse?: unknown;
 }
 
-export const NIMIQ_TESTNET_NETWORK_ID = 5;
-export const NIMIQ_MAINNET_NETWORK_ID = 42;
+import {
+  NIMIQ_NETWORKS,
+  NIMIQ_TESTNET_NETWORK_ID,
+  NIMIQ_MAINNET_NETWORK_ID,
+} from '@shared/nimiq-network';
 
-export const DEFAULT_NIMIQ_TESTNET_RPC = 'https://rpc.testnet.nimiqwatch.com';
-export const DEFAULT_NIMIQ_MAINNET_RPC = 'https://rpc.nimiqwatch.com';
-export const DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS = [
-  'https://rpc.testnet.nimiqwatch.com',
-  'https://testnet.nimiq.network:8443',
-];
-export const DEFAULT_NIMIQ_MAINNET_FALLBACK_RPCS = [
-  'https://rpc.nimiqwatch.com',
-];
+export { NIMIQ_TESTNET_NETWORK_ID, NIMIQ_MAINNET_NETWORK_ID };
+
+export const DEFAULT_NIMIQ_TESTNET_RPC = NIMIQ_NETWORKS.testnet.rpcUrl;
+export const DEFAULT_NIMIQ_MAINNET_RPC = NIMIQ_NETWORKS.mainnet.rpcUrl;
+export const DEFAULT_NIMIQ_TESTNET_FALLBACK_RPCS = NIMIQ_NETWORKS.testnet.fallbackRpcUrls;
+export const DEFAULT_NIMIQ_MAINNET_FALLBACK_RPCS = NIMIQ_NETWORKS.mainnet.fallbackRpcUrls;
 
 /**
  * Fallback endpoints for a network. Falling back across networks would query a

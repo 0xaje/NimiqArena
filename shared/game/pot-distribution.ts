@@ -43,17 +43,18 @@ export function calculatePotDistribution(
   const safePotNim = Math.max(0, Number(totalPotNim) || 0);
   const totalPotLuna = BigInt(Math.round(safePotNim * 100_000));
 
-  // Integer Luna calculations
+  // Integer Luna calculations strictly adhering to Section 16 economic model:
+  // 90% Winner, 5% Builder, 3% Ecosystem, 2% Charity
   const winnerLuna = (totalPotLuna * BigInt(90)) / BigInt(100);
   const referrerLuna = hasReferrer
-    ? (totalPotLuna * BigInt(2)) / BigInt(100) // 2% referral commission
+    ? (totalPotLuna * BigInt(2)) / BigInt(100) // 2% referral commission out of builder share
     : BigInt(0);
-  const builderLuna = (totalPotLuna * BigInt(8)) / BigInt(100);  // 8% builder pool (funds ops + arena staker revenue share)
-  const ecosystemLuna = hasReferrer
-    ? BigInt(0)
-    : (totalPotLuna * BigInt(1)) / BigInt(100); // 1% ecosystem pool if no referrer
+  const builderLuna = hasReferrer
+    ? (totalPotLuna * BigInt(3)) / BigInt(100) // 3% net builder pool when referral paid
+    : (totalPotLuna * BigInt(5)) / BigInt(100); // 5% builder pool when no referrer
+  const ecosystemLuna = (totalPotLuna * BigInt(3)) / BigInt(100); // 3% Nimiq ecosystem/community pool
   
-  // Charity receives remaining Luna to guarantee exact 100% balance with 0 rounding leakage
+  // Charity receives remaining Luna (2%) to guarantee exact 100% balance with 0 rounding leakage
   const charityLuna = totalPotLuna - winnerLuna - referrerLuna - builderLuna - ecosystemLuna;
 
   return {
@@ -72,9 +73,9 @@ export function calculatePotDistribution(
     percentages: {
       winner: 90,
       referrer: hasReferrer ? 2 : 0,
-      builder: 8,
-      ecosystem: hasReferrer ? 0 : 1,
-      charity: hasReferrer ? 0 : 1,
+      builder: hasReferrer ? 3 : 5,
+      ecosystem: 3,
+      charity: 2,
     },
   };
 }

@@ -13,6 +13,24 @@ export const systemRouter = router({
       ok: true,
     })),
 
+  nimiqNetworkConfig: publicProcedure.query(async () => {
+    const { ENV } = await import("./env");
+    let rpcHost = "unknown";
+    try {
+      rpcHost = new URL(ENV.nimiqRpcUrl).host;
+    } catch {
+      rpcHost = ENV.nimiqRpcUrl;
+    }
+    return {
+      networkId: ENV.nimiqNetworkId,
+      networkName: ENV.nimiqNetworkName,
+      rpcHost,
+      explorerUrl: ENV.nimiqExplorerUrl,
+      faucetUrl: ENV.nimiqFaucetUrl,
+      isTestnet: ENV.isTestnet,
+    };
+  }),
+
   notifyOwner: adminProcedure
     .input(
       z.object({

@@ -1,12 +1,20 @@
 import type { Express, Request, Response } from "express";
 import { normalizeNimiqAddress } from "./nimiq-verifier";
 
-interface CachedAccount {
+import { NIMIQ_NETWORKS } from "@shared/nimiq-network";
+
+export type AccountBalanceStatus = "available" | "zero" | "unavailable";
+
+export interface CachedAccount {
   balanceNim: number;
   balanceLuna: number;
+  status: AccountBalanceStatus;
   network: "testnet" | "mainnet";
   usdPrice: number;
   usdValue: number;
+  accountType?: string;
+  blockHeight?: number;
+  rpcHost: string;
   cachedAt: number;
 }
 
@@ -37,13 +45,23 @@ export async function fetchNimiqUsdPrice(): Promise<number> {
         priceLastFetched = now;
       }
     }
-  } catch (e) {
+  } catch {
     // transient price fetch error, use last known price
   }
   return cachedUsdPrice;
 }
 
-async function queryRpcAccount(rpcUrl: string, address: string, timeoutMs = 5000): Promise<number | null> {
+interface RpcAccountSuccess {
+  balanceLuna: number;
+  accountType?: string;
+  blockHeight?: number;
+}
+
+async function queryRpcAccount(
+  rpcUrl: string,
+  address: string,
+  timeoutMs = 6000
+): Promise<RpcAccountSuccess | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -61,26 +79,36 @@ async function queryRpcAccount(rpcUrl: string, address: string, timeoutMs = 5000
     clearTimeout(timer);
     if (!res.ok) return null;
     const json = (await res.json()) as any;
-    if (json?.error) return null;
-    const luna = json?.result?.data?.balance ?? json?.result?.balance;
-    if (luna !== undefined && luna !== null) {
-      return Number(luna);
+    if (json?.error) {
+      console.warn(`[NimiqAccount] RPC returned error for ${address} from ${rpcUrl}:`, json.error);
+      return null;
     }
-    return 0;
-  } catch {
+    const rawAccount = json?.result?.data ?? json?.result;
+    if (rawAccount !== undefined && rawAccount !== null && typeof rawAccount === "object") {
+      const luna = rawAccount.balance !== undefined ? Number(rawAccount.balance) : 0;
+      const blockHeight = json?.result?.metadata?.blockNumber;
+      return {
+        balanceLuna: Number.isFinite(luna) ? luna : 0,
+        accountType: rawAccount.type || "basic",
+        blockHeight: typeof blockHeight === "number" ? blockHeight : undefined,
+      };
+    }
+    return null;
+  } catch (err: any) {
     clearTimeout(timer);
+    console.warn(`[NimiqAccount] RPC fetch exception for ${address} from ${rpcUrl}:`, err?.message || err);
     return null;
   }
 }
 
-const TESTNET_RPCS = [
-  "https://rpc.testnet.nimiqwatch.com",
-];
-const MAINNET_RPCS = [
-  "https://rpc.nimiqwatch.com",
-];
+const TESTNET_RPCS = NIMIQ_NETWORKS.testnet.fallbackRpcUrls;
+const MAINNET_RPCS = NIMIQ_NETWORKS.mainnet.fallbackRpcUrls;
 
-async function queryRpcWithFallbacks(urls: string[], address: string, timeoutMs = 6000): Promise<number | null> {
+async function queryRpcWithFallbacks(
+  urls: string[],
+  address: string,
+  timeoutMs = 6000
+): Promise<RpcAccountSuccess | null> {
   for (const url of urls) {
     const res = await queryRpcAccount(url, address, timeoutMs);
     if (res !== null) return res;
@@ -91,7 +119,7 @@ async function queryRpcWithFallbacks(urls: string[], address: string, timeoutMs 
 export async function getLiveAccountBalance(
   rawAddress: string,
   preferredNetwork: "testnet" | "mainnet" = "testnet"
-) {
+): Promise<CachedAccount> {
   const clean = normalizeNimiqAddress(rawAddress);
   if (!/^NQ\d{2}[A-Z0-9]{32}$/.test(clean)) {
     throw new Error("Invalid Nimiq address format");
@@ -105,32 +133,46 @@ export async function getLiveAccountBalance(
   }
 
   const usdPrice = await fetchNimiqUsdPrice();
+  const urls = preferredNetwork === "testnet" ? TESTNET_RPCS : MAINNET_RPCS;
+  const primaryHost = new URL(urls[0]).host;
 
-  let balanceLuna = 0;
-  let network: "testnet" | "mainnet" = preferredNetwork;
+  const rpcResult = await queryRpcWithFallbacks(urls, clean, 6000);
 
-  if (preferredNetwork === "testnet") {
-    // Query Testnet RPC directly
-    const testnetLuna = await queryRpcWithFallbacks(TESTNET_RPCS, clean, 6000);
-    balanceLuna = testnetLuna ?? 0;
-    network = "testnet";
-  } else {
-    // Query Mainnet RPC directly
-    const mainnetLuna = await queryRpcWithFallbacks(MAINNET_RPCS, clean, 6000);
-    balanceLuna = mainnetLuna ?? 0;
-    network = "mainnet";
+  if (rpcResult === null) {
+    // RPC failed or timed out: DO NOT coerce to zero!
+    if (cached) {
+      return {
+        ...cached,
+        status: "unavailable",
+      };
+    }
+    return {
+      balanceNim: 0,
+      balanceLuna: 0,
+      status: "unavailable",
+      network: preferredNetwork,
+      usdPrice,
+      usdValue: 0,
+      rpcHost: primaryHost,
+      cachedAt: Date.now(),
+    };
   }
 
-  const finalLuna = balanceLuna ?? 0;
+  const finalLuna = rpcResult.balanceLuna;
   const balanceNim = finalLuna / 100_000;
   const usdValue = Number((balanceNim * usdPrice).toFixed(4));
+  const status: AccountBalanceStatus = finalLuna > 0 ? "available" : "zero";
 
   const result: CachedAccount = {
     balanceNim,
     balanceLuna: finalLuna,
-    network,
+    status,
+    network: preferredNetwork,
     usdPrice,
     usdValue,
+    accountType: rpcResult.accountType,
+    blockHeight: rpcResult.blockHeight,
+    rpcHost: primaryHost,
     cachedAt: Date.now(),
   };
 
@@ -145,7 +187,7 @@ export function registerNimiqAccountRoutes(app: Express) {
       const preferredNetwork = (req.query.network === "mainnet" ? "mainnet" : "testnet") as "testnet" | "mainnet";
       const account = await getLiveAccountBalance(address, preferredNetwork);
       res.json({
-        success: true,
+        success: account.status !== "unavailable",
         address: normalizeNimiqAddress(address),
         ...account,
       });

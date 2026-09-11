@@ -594,10 +594,24 @@ export default function Home() {
               >
                 {accountInfo !== null && (
                   <span className="capsule-balance-zone">
-                    <span className="balance-live-dot" />
-                    <strong className="balance-amount">{accountInfo.balanceNim.toFixed(1)}</strong>
+                    <span
+                      className="balance-live-dot"
+                      style={{
+                        background:
+                          accountInfo.status === "available"
+                            ? "#2ecc71"
+                            : accountInfo.status === "unavailable"
+                            ? "#f59e0b"
+                            : "#94a3b8",
+                      }}
+                    />
+                    <strong className="balance-amount">
+                      {accountInfo.status === "unavailable"
+                        ? "N/A"
+                        : accountInfo.balanceNim.toFixed(1)}
+                    </strong>
                     <span className="balance-ticker">NIM</span>
-                    {accountInfo.usdValue > 0 && (
+                    {accountInfo.status === "available" && accountInfo.usdValue > 0 && (
                       <span className="balance-usd" style={{ fontSize: "10px", opacity: 0.7, marginLeft: "4px" }}>
                         (~${accountInfo.usdValue < 0.01 ? accountInfo.usdValue.toFixed(4) : accountInfo.usdValue.toFixed(2)})
                       </span>

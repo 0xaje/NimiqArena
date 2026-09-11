@@ -30,7 +30,7 @@ export default function Connect4Detail() {
   const guestLogin = trpc.auth.guestLogin.useMutation();
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const gameQuery = trpc.game.getBySlug.useQuery({ slug: "connect-four" });
-  const { address: walletAddress, balanceNim, isConnected } = useNimiqWallet();
+  const { address: walletAddress, balanceNim, balanceStatus, isConnected, networkName } = useNimiqWallet();
   const createChallenge = trpc.match.createChallenge.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
@@ -251,10 +251,20 @@ export default function Connect4Detail() {
                 color: "#fbbf24",
                 fontWeight: 600,
               }}
-              title={`Connected Nimiq Wallet: ${walletAddress}`}
+              title={`Connected Nimiq Wallet (${networkName}): ${walletAddress}`}
             >
               <Coins size={13} style={{ color: "#eab308" }} />
-              <span>{balanceNim.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })} NIM</span>
+              <span>
+                {balanceStatus === "unavailable"
+                  ? "N/A"
+                  : balanceStatus === "loading"
+                  ? "…"
+                  : balanceNim.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}{" "}
+                NIM
+              </span>
+              <span style={{ fontSize: "10px", opacity: 0.65, textTransform: "uppercase" }}>
+                [{networkName.replace("Albatross", "")}]
+              </span>
               <span style={{ opacity: 0.5 }}>|</span>
               <span style={{ opacity: 0.85 }}>{walletAddress.slice(0, 4)}…{walletAddress.slice(-4)}</span>
             </div>

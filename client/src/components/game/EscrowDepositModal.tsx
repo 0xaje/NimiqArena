@@ -7,6 +7,7 @@ import {
   Coins,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   X,
   Copy,
@@ -14,12 +15,15 @@ import {
   Wallet,
   Sparkles,
   Check,
+  RotateCw,
 } from "lucide-react";
 import { createPaymentNonce } from "@/lib/payment-state";
 import {
   sendNimiqPayment,
   getActiveWalletAddress,
-  fetchNimiqBalance,
+  getNimiqPayActiveAccount,
+  fetchNimiqAccountInfo,
+  type NimiqAccountInfo,
   formatNimiqAddress,
   connectViaNimiqHub,
 } from "@/lib/nimiq-wallet";
@@ -47,25 +51,44 @@ export function EscrowDepositModal({
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState("");
   const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [activeWallet, setActiveWallet] = useState<string | null>(() => getActiveWalletAddress());
+
+  const loadBalance = async (addr: string) => {
+    setIsLoadingBalance(true);
+    try {
+      const info = await fetchNimiqAccountInfo(addr, "testnet");
+      setAccountInfo(info);
+      setUserBalance(info.balanceNim);
+    } catch {
+      setAccountInfo(null);
+      setUserBalance(null);
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
 
   React.useEffect(() => {
     if (isOpen) {
       setStep("idle");
       setErrorMessage("");
       setTxHash("");
-      const current = getActiveWalletAddress();
-      setActiveWallet(current);
-      if (current) {
-        setIsLoadingBalance(true);
-        fetchNimiqBalance(current)
-          .then(bal => setUserBalance(bal))
-          .catch(() => {})
-          .finally(() => setIsLoadingBalance(false));
-      } else {
-        setUserBalance(null);
-      }
+      // Prioritize active Nimiq Pay account when running inside mobile container
+      getNimiqPayActiveAccount().then(detected => {
+        const current = detected || getActiveWalletAddress();
+        setActiveWallet(current);
+        if (current) {
+          void loadBalance(current);
+        } else {
+          setUserBalance(null);
+          setAccountInfo(null);
+        }
+      }).catch(() => {
+        const current = getActiveWalletAddress();
+        setActiveWallet(current);
+        if (current) void loadBalance(current);
+      });
     }
   }, [isOpen]);
 
@@ -73,11 +96,7 @@ export function EscrowDepositModal({
     try {
       const res = await connectViaNimiqHub();
       setActiveWallet(res.address);
-      setIsLoadingBalance(true);
-      fetchNimiqBalance(res.address)
-        .then(bal => setUserBalance(bal))
-        .catch(() => {})
-        .finally(() => setIsLoadingBalance(false));
+      void loadBalance(res.address);
       toast.success("Wallet connected!", { description: res.address });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to connect wallet.");
@@ -99,6 +118,18 @@ export function EscrowDepositModal({
 
 
   const handleStartDeposit = async () => {
+    if (accountInfo?.status === "wrong_network") {
+      toast.error("Network Mismatch", {
+        description: "Please switch Nimiq Pay to Testnet in developer settings.",
+      });
+      return;
+    }
+    if (accountInfo?.status === "available" && userBalance !== null && userBalance < stakeNim) {
+      toast.error("Insufficient Balance", {
+        description: `You have ${userBalance.toFixed(2)} NIM but ${stakeNim} NIM is required for this match.`,
+      });
+      return;
+    }
     try {
       setStep("creating");
       setErrorMessage("");
@@ -249,21 +280,76 @@ export function EscrowDepositModal({
                 <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
                   Your Testnet Balance:
                 </span>
-                <span
-                  style={{
-                    fontWeight: 700,
-                    color:
-                      userBalance !== null && userBalance >= stakeNim
-                        ? "#2ecc71"
-                        : "#f85149",
-                  }}
-                >
-                  {isLoadingBalance
-                    ? "Checking..."
-                    : userBalance !== null
-                      ? `${userBalance.toFixed(2)} NIM`
-                      : "0.00 NIM"}
-                </span>
+                {isLoadingBalance ? (
+                  <span
+                    style={{
+                      color: "#EC9918",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <Loader2 size={12} className="spin" /> Checking TestAlbatross…
+                  </span>
+                ) : accountInfo?.status === "unavailable" ? (
+                  <span
+                    style={{
+                      color: "#ff7b72",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "11px",
+                    }}
+                  >
+                    Balance Unavailable
+                    <button
+                      type="button"
+                      onClick={() => activeWallet && loadBalance(activeWallet)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#EC9918",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "3px",
+                        textDecoration: "underline",
+                        fontSize: "11px",
+                        padding: 0,
+                      }}
+                    >
+                      <RotateCw size={11} /> Retry
+                    </button>
+                  </span>
+                ) : accountInfo?.status === "wrong_network" ? (
+                  <span style={{ color: "#f85149", fontWeight: 700, fontSize: "11px" }}>
+                    Network Mismatch
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color:
+                        userBalance !== null && userBalance >= stakeNim
+                          ? "#2ecc71"
+                          : "#f85149",
+                    }}
+                  >
+                    {userBalance !== null ? `${userBalance.toFixed(2)} NIM` : "0.00 NIM"}
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        marginLeft: "4px",
+                        opacity: 0.85,
+                        color: "#EC9918",
+                        fontWeight: 400,
+                      }}
+                    >
+                      (TestAlbatross)
+                    </span>
+                  </span>
+                )}
               </div>
             ) : (
               <div
@@ -364,7 +450,68 @@ export function EscrowDepositModal({
             </div>
           </div>
 
-          {userBalance !== null && userBalance < stakeNim && (
+          {/* Network Mismatch Callout */}
+          {accountInfo?.status === "wrong_network" && (
+            <div
+              style={{
+                backgroundColor: "rgba(231, 76, 60, 0.15)",
+                border: "1px solid rgba(231, 76, 60, 0.4)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#ff7b72",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                textAlign: "left",
+              }}
+            >
+              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+              <span>NETWORK MISMATCH: Switch Nimiq Pay to Testnet in developer settings to fund with Testnet NIM.</span>
+            </div>
+          )}
+
+          {/* RPC Unavailable Alert (NEVER pretend it's 0 NIM) */}
+          {accountInfo?.status === "unavailable" && !isLoadingBalance && (
+            <div
+              style={{
+                backgroundColor: "rgba(236, 153, 24, 0.12)",
+                border: "1px solid rgba(236, 153, 24, 0.35)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#EC9918",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                textAlign: "left",
+              }}
+            >
+              <span>TestAlbatross balance query is busy or pending.</span>
+              <button
+                type="button"
+                onClick={() => activeWallet && loadBalance(activeWallet)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#EC9918",
+                  fontWeight: 700,
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                Retry <RotateCw size={11} />
+              </button>
+            </div>
+          )}
+
+          {/* Real Insufficient Balance Alert (Only shown when balance is genuinely known and insufficient) */}
+          {accountInfo?.status === "available" && userBalance !== null && userBalance < stakeNim && (
             <div
               style={{
                 backgroundColor: "rgba(231, 76, 60, 0.12)",
@@ -380,6 +527,41 @@ export function EscrowDepositModal({
               }}
             >
               <span>Balance ({userBalance.toFixed(2)} NIM) is below {stakeNim} NIM stake</span>
+              <a
+                href="https://testnet.nimiq.watch/#faucet"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "#EC9918",
+                  fontWeight: 700,
+                  textDecoration: "underline",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                Get Free NIM <ExternalLink size={11} />
+              </a>
+            </div>
+          )}
+
+          {/* Real Zero Balance Alert */}
+          {accountInfo?.status === "zero" && (
+            <div
+              style={{
+                backgroundColor: "rgba(231, 76, 60, 0.12)",
+                border: "1px solid rgba(231, 76, 60, 0.35)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "#ff7b72",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span>Account has 0 NIM on TestAlbatross</span>
               <a
                 href="https://testnet.nimiq.watch/#faucet"
                 target="_blank"

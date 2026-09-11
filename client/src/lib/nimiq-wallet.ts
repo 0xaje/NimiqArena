@@ -28,14 +28,18 @@ export interface ConnectedWalletState {
   blockNumber: number | null;
 }
 
-export const NIMIQ_TESTNET_HUB_URL = "https://hub.nimiq-testnet.com";
-export const NIMIQ_MAINNET_HUB_URL = "https://hub.nimiq.com";
-export const NIMIQ_TESTNET_RPC_URL = "https://rpc.testnet.nimiqwatch.com";
-export const NIMIQ_MAINNET_RPC_URL = "https://rpc.nimiqwatch.com";
-export const DEFAULT_NIMIQ_HUB_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_NIMIQ_NETWORK === "mainnet")
-    ? NIMIQ_MAINNET_HUB_URL
-    : NIMIQ_TESTNET_HUB_URL;
+import {
+  NIMIQ_NETWORKS,
+  getNimiqNetworkConfig,
+  NIMIQ_TESTNET_NETWORK_ID,
+  NIMIQ_MAINNET_NETWORK_ID,
+} from "@shared/nimiq-network";
+
+export const NIMIQ_TESTNET_HUB_URL = NIMIQ_NETWORKS.testnet.hubUrl;
+export const NIMIQ_MAINNET_HUB_URL = NIMIQ_NETWORKS.mainnet.hubUrl;
+export const NIMIQ_TESTNET_RPC_URL = NIMIQ_NETWORKS.testnet.rpcUrl;
+export const NIMIQ_MAINNET_RPC_URL = NIMIQ_NETWORKS.mainnet.rpcUrl;
+export const DEFAULT_NIMIQ_HUB_URL = NIMIQ_TESTNET_HUB_URL;
 
 let _miniAppProvider: NimiqProvider | null = null;
 let _hubApi: HubApi | null = null;
@@ -94,31 +98,55 @@ export function restoreSavedWallet(): string | null {
 
 /**
  * Connects via Nimiq Pay Mini App SDK (when running inside Nimiq Pay).
+ * Automatically resolves the active account from Nimiq Pay without stale cache dependency.
  */
 export async function connectViaMiniApp(): Promise<string> {
-  if (!isRunningInNimiqPay()) {
-    throw new Error("Nimiq Pay host is not detected in this browser. Please use official Nimiq Hub web wallet.");
-  }
   const provider = await initMiniApp({ timeout: 5000 });
   _miniAppProvider = provider;
   const accounts = await provider.listAccounts();
   if (accounts && typeof accounts === "object" && "error" in accounts) {
     throw new Error((accounts as any).error?.message || "Failed to list accounts from Nimiq Pay.");
   }
-  const list = accounts as string[];
-  if (!list || list.length === 0) {
-    throw new Error("No accounts were returned by Nimiq Pay.");
+
+  let rawAddr: string | null = null;
+  if (Array.isArray(accounts) && accounts.length > 0) {
+    const first = accounts[0];
+    rawAddr = typeof first === "string" ? first : (first as any)?.address;
+  } else if (accounts && typeof accounts === "object" && Array.isArray((accounts as any).accounts)) {
+    const first = (accounts as any).accounts[0];
+    rawAddr = typeof first === "string" ? first : (first as any)?.address;
   }
-  const rawAddr = typeof list[0] === "string" ? list[0] : (list[0] as any)?.address;
+
   if (!rawAddr) {
-    throw new Error("Invalid account data returned by Nimiq Pay.");
+    throw new Error("No accounts were returned by Nimiq Pay. Please create or import an account in Nimiq Pay.");
   }
+
   const formatted = formatNimiqAddress(rawAddr);
   _activeAddress = formatted;
   _connectionMode = "mini-app";
   localStorage.setItem("nimiq_arena_wallet_address", formatted);
   localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+  console.log(`[NimiqWallet] Connected to Nimiq Pay Account: ${formatted}`);
   return formatted;
+}
+
+/**
+ * Checks if Nimiq Pay currently holds an active account without throwing.
+ */
+export async function getNimiqPayActiveAccount(): Promise<string | null> {
+  try {
+    const provider = _miniAppProvider || (await initMiniApp({ timeout: 3000 }));
+    _miniAppProvider = provider;
+    const accounts = await provider.listAccounts();
+    if (Array.isArray(accounts) && accounts.length > 0) {
+      const first = accounts[0];
+      const raw = typeof first === "string" ? first : (first as any)?.address;
+      return raw && isValidNimiqAddress(raw) ? formatNimiqAddress(raw) : null;
+    }
+  } catch {
+    // Not running inside Nimiq Pay or timed out
+  }
+  return null;
 }
 
 /**
@@ -231,12 +259,19 @@ export async function sendNimiqPayment(options: {
   return (checkoutRes as any).hash;
 }
 
+export type BalanceStatus = "loading" | "available" | "zero" | "unavailable" | "wrong_network";
+
 export interface NimiqAccountInfo {
   balanceNim: number;
   balanceLuna: number;
+  status: BalanceStatus;
   usdValue: number;
   usdPrice: number;
   network: "testnet" | "mainnet";
+  accountType?: string;
+  blockHeight?: number;
+  rpcHost?: string;
+  errorMessage?: string;
 }
 
 /**
@@ -299,6 +334,7 @@ export function setSavedNimiqNetwork(network: "testnet" | "mainnet"): void {
 /**
  * Fetches the live balance and USD valuation for an address.
  * Queries high-performance server proxy first, then falls back to direct JSON-RPC.
+ * NEVER coerces RPC failures to 0 NIM.
  */
 export async function fetchNimiqAccountInfo(
   address: string,
@@ -308,6 +344,7 @@ export async function fetchNimiqAccountInfo(
   const defaultInfo: NimiqAccountInfo = {
     balanceNim: 0,
     balanceLuna: 0,
+    status: "unavailable",
     usdValue: 0,
     usdPrice: 0.0004,
     network: targetNetwork,
@@ -329,13 +366,18 @@ export async function fetchNimiqAccountInfo(
     clearTimeout(timeout);
     if (res.ok) {
       const json = await res.json();
-      if (json.success) {
+      if (json.status !== "unavailable") {
+        const nim = Number(json.balanceNim) || 0;
         return {
-          balanceNim: Number(json.balanceNim) || 0,
+          balanceNim: nim,
           balanceLuna: Number(json.balanceLuna) || 0,
+          status: json.status || (nim > 0 ? "available" : "zero"),
           usdValue: Number(json.usdValue) || 0,
           usdPrice: Number(json.usdPrice) || 0.0004,
-          network: targetNetwork,
+          network: json.network || targetNetwork,
+          accountType: json.accountType,
+          blockHeight: json.blockHeight,
+          rpcHost: json.rpcHost,
         };
       }
     }
@@ -344,51 +386,57 @@ export async function fetchNimiqAccountInfo(
   }
 
   // 2. Direct Fallback: Client-side JSON-RPC
-  const queryEndpoint = async (url: string, net: "mainnet" | "testnet") => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "getAccountByAddress",
-          params: [clean],
-          id: 1,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) return null;
+  const targetRpc = targetNetwork === "testnet" ? NIMIQ_NETWORKS.testnet.rpcUrl : NIMIQ_NETWORKS.mainnet.rpcUrl;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(targetRpc, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "getAccountByAddress",
+        params: [clean],
+        id: 1,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
       const json = await res.json();
-      const balanceLuna = json?.result?.data?.balance ?? json?.result?.balance;
-      if (balanceLuna !== undefined && balanceLuna !== null) {
-        return { balanceLuna: Number(balanceLuna), network: net };
+      if (!json.error) {
+        const rawAccount = json?.result?.data ?? json?.result;
+        if (rawAccount && typeof rawAccount === "object" && rawAccount.balance !== undefined) {
+          const luna = Number(rawAccount.balance);
+          const nim = luna / 100_000;
+          return {
+            balanceNim: nim,
+            balanceLuna: luna,
+            status: luna > 0 ? "available" : "zero",
+            usdValue: Number((nim * 0.0004).toFixed(4)),
+            usdPrice: 0.0004,
+            network: targetNetwork,
+            accountType: rawAccount.type,
+            blockHeight: json?.result?.metadata?.blockNumber,
+            rpcHost: new URL(targetRpc).host,
+          };
+        }
       }
-    } catch {
-      // Endpoint error or timeout
     }
-    return null;
-  };
-
-  const directRpcUrl = targetNetwork === "testnet" ? NIMIQ_TESTNET_RPC_URL : NIMIQ_MAINNET_RPC_URL;
-  const rpcResult = await queryEndpoint(directRpcUrl, targetNetwork);
-
-  const bestResult = rpcResult || { balanceLuna: 0, network: targetNetwork };
-
-  if (bestResult) {
-    const balanceNim = bestResult.balanceLuna / 100_000;
-    return {
-      balanceNim,
-      balanceLuna: bestResult.balanceLuna,
-      usdValue: Number((balanceNim * 0.0004).toFixed(4)),
-      usdPrice: 0.0004,
-      network: bestResult.network,
-    };
+  } catch (err: any) {
+    console.warn(`[NimiqWallet] Direct client RPC query failed for ${clean}:`, err);
   }
 
-  return defaultInfo;
+  // If both server proxy and direct client RPC failed: return explicit "unavailable", NEVER fake 0 NIM!
+  return {
+    balanceNim: 0,
+    balanceLuna: 0,
+    status: "unavailable",
+    usdValue: 0,
+    usdPrice: 0.0004,
+    network: targetNetwork,
+    errorMessage: "RPC nodes busy or unavailable. Tap to retry.",
+  };
 }
 
 /**
@@ -396,9 +444,9 @@ export async function fetchNimiqAccountInfo(
  */
 export async function fetchNimiqBalance(
   address: string,
-  _rpcUrl = NIMIQ_TESTNET_RPC_URL
+  preferredNetwork?: "testnet" | "mainnet"
 ): Promise<number> {
-  const info = await fetchNimiqAccountInfo(address);
+  const info = await fetchNimiqAccountInfo(address, preferredNetwork);
   return info.balanceNim;
 }
 
@@ -423,9 +471,12 @@ export async function getLiveTestnetStatus(): Promise<{ blockNumber: number | nu
     const blockJson = blockRes.ok ? await blockRes.json() : null;
     const consensusJson = consensusRes.ok ? await consensusRes.json() : null;
 
+    const blockVal = blockJson?.result?.data ?? blockJson?.result;
+    const consensusVal = consensusJson?.result?.data ?? consensusJson?.result;
+
     return {
-      blockNumber: typeof blockJson?.result === "number" ? blockJson.result : null,
-      consensus: Boolean(consensusJson?.result),
+      blockNumber: typeof blockVal === "number" ? blockVal : null,
+      consensus: Boolean(consensusVal),
     };
   } catch {
     return { blockNumber: null, consensus: false };
