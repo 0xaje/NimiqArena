@@ -103,6 +103,24 @@ export function EscrowDepositModal({
     }
   };
 
+  const handleSyncNimiqPay = async () => {
+    setIsLoadingBalance(true);
+    try {
+      const detected = await getNimiqPayActiveAccount(4000);
+      if (detected) {
+        setActiveWallet(detected);
+        await loadBalance(detected);
+        toast.success("Nimiq Pay wallet synced!", { description: detected });
+      } else {
+        toast.error("Could not detect Nimiq Pay wallet. Ensure Nimiq Pay is open.");
+      }
+    } catch {
+      toast.error("Failed to sync Nimiq Pay account.");
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
+
   const createIntent = trpc.payment.createIntent.useMutation();
   const markPending = trpc.payment.markConfirmationPending.useMutation();
   const submitTx = trpc.payment.submitTransaction.useMutation();
@@ -265,92 +283,134 @@ export function EscrowDepositModal({
               fontSize: "12px",
             }}
           >
-            {/* Wallet Balance Check */}
+            {/* Connected Account & Sync Action */}
             {activeWallet ? (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 0",
-                  borderBottom: "1px solid rgba(251, 248, 241, 0.1)",
-                  marginBottom: "8px",
-                }}
-              >
-                <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
-                  Your Testnet Balance:
-                </span>
-                {isLoadingBalance ? (
-                  <span
-                    style={{
-                      color: "#EC9918",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      fontSize: "11px",
-                    }}
-                  >
-                    <Loader2 size={12} className="spin" /> Checking TestAlbatross…
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "6px 0",
+                    borderBottom: "1px solid rgba(251, 248, 241, 0.1)",
+                    marginBottom: "6px",
+                  }}
+                >
+                  <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
+                    Connected Account:
                   </span>
-                ) : accountInfo?.status === "unavailable" ? (
-                  <span
-                    style={{
-                      color: "#ff7b72",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      fontSize: "11px",
-                    }}
-                  >
-                    Balance Unavailable
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ color: "#fbbf24", fontWeight: 600 }}>
+                      {activeWallet.slice(0, 4)}…{activeWallet.slice(-4)}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => activeWallet && loadBalance(activeWallet)}
+                      onClick={handleSyncNimiqPay}
+                      disabled={isLoadingBalance}
+                      title="Re-sync active account from Nimiq Pay"
                       style={{
-                        background: "none",
-                        border: "none",
+                        background: "rgba(236, 153, 24, 0.15)",
+                        border: "1px solid rgba(236, 153, 24, 0.35)",
                         color: "#EC9918",
+                        borderRadius: "4px",
+                        padding: "2px 7px",
+                        fontSize: "10px",
                         cursor: "pointer",
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: "3px",
-                        textDecoration: "underline",
-                        fontSize: "11px",
-                        padding: 0,
+                        gap: "4px",
                       }}
                     >
-                      <RotateCw size={11} /> Retry
+                      <RotateCw size={10} className={isLoadingBalance ? "spin" : ""} /> Sync Pay
                     </button>
                   </span>
-                ) : accountInfo?.status === "wrong_network" ? (
-                  <span style={{ color: "#f85149", fontWeight: 700, fontSize: "11px" }}>
-                    Network Mismatch
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "8px 0",
+                    borderBottom: "1px solid rgba(251, 248, 241, 0.1)",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
+                    Your Testnet Balance:
                   </span>
-                ) : (
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color:
-                        userBalance !== null && userBalance >= stakeNim
-                          ? "#2ecc71"
-                          : "#f85149",
-                    }}
-                  >
-                    {userBalance !== null ? `${userBalance.toFixed(2)} NIM` : "0.00 NIM"}
+                  {isLoadingBalance ? (
                     <span
                       style={{
-                        fontSize: "10px",
-                        marginLeft: "4px",
-                        opacity: 0.85,
                         color: "#EC9918",
-                        fontWeight: 400,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "11px",
                       }}
                     >
-                      (TestAlbatross)
+                      <Loader2 size={12} className="spin" /> Checking TestAlbatross…
                     </span>
-                  </span>
-                )}
-              </div>
+                  ) : accountInfo?.status === "unavailable" ? (
+                    <span
+                      style={{
+                        color: "#ff7b72",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "11px",
+                      }}
+                    >
+                      Balance Unavailable
+                      <button
+                        type="button"
+                        onClick={() => activeWallet && loadBalance(activeWallet)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#EC9918",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px",
+                          textDecoration: "underline",
+                          fontSize: "11px",
+                          padding: 0,
+                        }}
+                      >
+                        <RotateCw size={11} /> Retry
+                      </button>
+                    </span>
+                  ) : accountInfo?.status === "wrong_network" ? (
+                    <span style={{ color: "#f85149", fontWeight: 700, fontSize: "11px" }}>
+                      Network Mismatch
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color:
+                          userBalance !== null && userBalance >= stakeNim
+                            ? "#2ecc71"
+                            : "#f85149",
+                      }}
+                    >
+                      {userBalance !== null ? `${userBalance.toFixed(2)} NIM` : "0.00 NIM"}
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          marginLeft: "4px",
+                          opacity: 0.85,
+                          color: "#EC9918",
+                          fontWeight: 400,
+                        }}
+                      >
+                        (TestAlbatross)
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </>
             ) : (
               <div
                 style={{
@@ -365,26 +425,46 @@ export function EscrowDepositModal({
                 <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
                   Wallet:
                 </span>
-                <button
-                  type="button"
-                  onClick={handleConnectWallet}
-                  style={{
-                    background: "rgba(236, 153, 24, 0.15)",
-                    border: "1px solid rgba(236, 153, 24, 0.4)",
-                    color: "#EC9918",
-                    borderRadius: "6px",
-                    padding: "4px 10px",
-                    fontSize: "11px",
-                    fontFamily: "IBM Plex Mono, monospace",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                  }}
-                >
-                  <Wallet size={12} /> Connect Hub Wallet
-                </button>
+                <div style={{ display: "inline-flex", gap: "6px" }}>
+                  <button
+                    type="button"
+                    onClick={handleSyncNimiqPay}
+                    style={{
+                      background: "rgba(236, 153, 24, 0.2)",
+                      border: "1px solid rgba(236, 153, 24, 0.5)",
+                      color: "#EC9918",
+                      borderRadius: "6px",
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                    }}
+                  >
+                    <RotateCw size={12} className={isLoadingBalance ? "spin" : ""} /> Sync Nimiq Pay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConnectWallet}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      color: "rgba(251, 248, 241, 0.8)",
+                      borderRadius: "6px",
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                    }}
+                  >
+                    <Wallet size={12} /> Hub
+                  </button>
+                </div>
               </div>
             )}
 

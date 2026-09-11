@@ -31,6 +31,7 @@ interface NimiqWalletContextValue {
   isInsideNimiqPay: boolean;
   isNetworkMismatch: boolean;
   refreshBalance: () => Promise<void>;
+  syncNimiqPayAccount: (timeoutMs?: number) => Promise<string | null>;
   connectMiniApp: () => Promise<string | null>;
   setAddress: (addr: string | null) => void;
   disconnect: () => void;
@@ -53,6 +54,7 @@ const NimiqWalletContext = createContext<NimiqWalletContextValue>({
   isInsideNimiqPay: false,
   isNetworkMismatch: false,
   refreshBalance: async () => {},
+  syncNimiqPayAccount: async () => null,
   connectMiniApp: async () => null,
   setAddress: () => {},
   disconnect: () => {},
@@ -90,7 +92,7 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
 
   const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const insideNimiqPay = isRunningInNimiqPay();
+  const [insideNimiqPay, setInsideNimiqPay] = useState<boolean>(() => isRunningInNimiqPay());
 
   const refreshBalance = useCallback(async (targetAddr?: string | null, targetNet?: "testnet" | "mainnet") => {
     const addr = targetAddr || address;
@@ -111,53 +113,86 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
     }
   }, [address, network]);
 
-  // Active Nimiq Pay synchronization:
-  // Whenever running inside Nimiq Pay, query the host container to resolve the real active account.
-  // This overwrites any stale address previously persisted in localStorage.
+  const syncNimiqPayAccount = useCallback(async (timeoutMs = 4000) => {
+    setIsLoadingBalance(true);
+    try {
+      const detected = await getNimiqPayActiveAccount(timeoutMs);
+      if (detected) {
+        setInsideNimiqPay(true);
+        setAddressState(detected);
+        await refreshBalance(detected);
+        return detected;
+      }
+    } catch (e) {
+      console.warn("[useNimiqWallet] syncNimiqPayAccount failed:", e);
+    } finally {
+      setIsLoadingBalance(false);
+    }
+    return null;
+  }, [refreshBalance]);
+
+  // Initial mount:
+  // Query Nimiq Pay host container immediately and poll for up to 4000ms for async bridge injection.
+  // Overwrites any stale localStorage address with the real active Nimiq Pay account.
   useEffect(() => {
     let isMounted = true;
-    if (insideNimiqPay) {
-      getNimiqPayActiveAccount()
-        .then((detectedAddr) => {
-          if (isMounted && detectedAddr) {
-            if (detectedAddr !== address) {
-              console.log(`[useNimiqWallet] Active Nimiq Pay account synced: ${detectedAddr} (replaced: ${address})`);
-              setAddressState(detectedAddr);
-            }
-            void refreshBalance(detectedAddr);
-          }
-        })
-        .catch((err) => {
-          console.warn("[useNimiqWallet] Failed to sync Nimiq Pay active account:", err);
-        });
-    } else if (address) {
+
+    getNimiqPayActiveAccount(4000)
+      .then((detectedAddr) => {
+        if (!isMounted) return;
+        if (detectedAddr) {
+          setInsideNimiqPay(true);
+          setAddressState(detectedAddr);
+          void refreshBalance(detectedAddr);
+        } else if (isRunningInNimiqPay()) {
+          setInsideNimiqPay(true);
+        }
+      })
+      .catch((err) => {
+        console.warn("[useNimiqWallet] Nimiq Pay auto-detection:", err);
+      });
+
+    // Also refresh existing address while bridge detection is underway
+    if (address) {
       void refreshBalance(address);
     }
 
     return () => {
       isMounted = false;
     };
-  }, [insideNimiqPay, address, refreshBalance]);
+  }, []);
 
-  // Re-sync on window focus in case account was switched in Nimiq Pay
+  // Re-sync on window focus & visibility change (essential when switching between apps on mobile)
   useEffect(() => {
-    const handleFocus = () => {
-      if (insideNimiqPay) {
-        getNimiqPayActiveAccount().then((detected) => {
-          if (detected && detected !== address) {
+    const handleSync = () => {
+      getNimiqPayActiveAccount(1500).then((detected) => {
+        if (detected) {
+          setInsideNimiqPay(true);
+          if (detected !== address) {
             setAddressState(detected);
-            void refreshBalance(detected);
-          } else if (address) {
-            void refreshBalance(address);
           }
-        }).catch(() => {});
-      } else if (address) {
-        void refreshBalance(address);
+          void refreshBalance(detected);
+        } else if (address) {
+          void refreshBalance(address);
+        }
+      }).catch(() => {
+        if (address) void refreshBalance(address);
+      });
+    };
+
+    window.addEventListener("focus", handleSync);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handleSync();
       }
     };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [insideNimiqPay, address, refreshBalance]);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleSync);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [address, refreshBalance]);
 
   // Periodic balance refresher (every 20s)
   useEffect(() => {
@@ -214,6 +249,7 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
     isInsideNimiqPay: insideNimiqPay,
     isNetworkMismatch,
     refreshBalance: () => refreshBalance(address, network),
+    syncNimiqPayAccount,
     connectMiniApp,
     setAddress,
     disconnect,

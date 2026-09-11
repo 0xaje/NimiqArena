@@ -68,7 +68,7 @@ export function formatNimiqAddress(address: string): string {
  */
 export function isRunningInNimiqPay(): boolean {
   if (typeof window === "undefined") return false;
-  return Boolean((window as any).nimiq || (window as any).nimiqPay);
+  return Boolean(_miniAppProvider || (window as any).nimiq || (window as any).nimiqPay);
 }
 
 /**
@@ -132,16 +132,51 @@ export async function connectViaMiniApp(): Promise<string> {
 
 /**
  * Checks if Nimiq Pay currently holds an active account without throwing.
+ * Supports async injection polling up to timeoutMs, array formats, and object formats.
  */
-export async function getNimiqPayActiveAccount(): Promise<string | null> {
+export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string | null> {
   try {
-    const provider = _miniAppProvider || (await initMiniApp({ timeout: 3000 }));
+    const provider = _miniAppProvider || (await initMiniApp({ timeout: timeoutMs }));
     _miniAppProvider = provider;
+
+    // 1. Try getActiveAccount() if exposed directly
+    if (typeof (provider as any).getActiveAccount === "function") {
+      try {
+        const direct = await (provider as any).getActiveAccount();
+        const raw = typeof direct === "string" ? direct : (direct as any)?.address;
+        if (raw && isValidNimiqAddress(raw)) {
+          const formatted = formatNimiqAddress(raw);
+          _activeAddress = formatted;
+          _connectionMode = "mini-app";
+          localStorage.setItem("nimiq_arena_wallet_address", formatted);
+          localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+          return formatted;
+        }
+      } catch {
+        // Fall back to listAccounts
+      }
+    }
+
+    // 2. Query listAccounts()
     const accounts = await provider.listAccounts();
+    if (!accounts || (accounts as any).error) return null;
+
+    let rawAddr: string | null = null;
     if (Array.isArray(accounts) && accounts.length > 0) {
       const first = accounts[0];
-      const raw = typeof first === "string" ? first : (first as any)?.address;
-      return raw && isValidNimiqAddress(raw) ? formatNimiqAddress(raw) : null;
+      rawAddr = typeof first === "string" ? first : (first as any)?.address;
+    } else if (typeof accounts === "object" && Array.isArray((accounts as any).accounts)) {
+      const first = (accounts as any).accounts[0];
+      rawAddr = typeof first === "string" ? first : (first as any)?.address;
+    }
+
+    if (rawAddr && isValidNimiqAddress(rawAddr)) {
+      const formatted = formatNimiqAddress(rawAddr);
+      _activeAddress = formatted;
+      _connectionMode = "mini-app";
+      localStorage.setItem("nimiq_arena_wallet_address", formatted);
+      localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+      return formatted;
     }
   } catch {
     // Not running inside Nimiq Pay or timed out
