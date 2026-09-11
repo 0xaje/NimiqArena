@@ -18,6 +18,14 @@ export type RpcAccountLookupStatus =
   | "RPC_ZERO_BALANCE"
   | "RPC_FAILED";
 
+export interface DiscoveredAccountInfo {
+  address: string;
+  balanceNim: number | null;
+  balanceLuna: number | null;
+  status: RpcAccountLookupStatus;
+  isActive: boolean;
+}
+
 export interface NimiqForensicReport {
   timestamp: string;
   buildCommit: string;
@@ -31,6 +39,7 @@ export interface NimiqForensicReport {
   rawAccountCount: number;
   connectedAddress: string | null;
   connectedAddressLength: number;
+  discoveredAccounts: DiscoveredAccountInfo[];
   consensusEstablished: boolean | null;
   blockNumber: number | null;
   networkConfigured: "TestAlbatross" | "MainAlbatross";

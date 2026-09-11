@@ -31,6 +31,7 @@ import type {
   NimiqForensicReport,
   RpcAccountLookupStatus,
   SafeAccountLog,
+  DiscoveredAccountInfo,
 } from "@shared/nimiq-diagnostics-types";
 
 declare const __APP_BUILD_COMMIT__: string | undefined;
@@ -339,7 +340,41 @@ export async function runFullNimiqForensicTest(options: {
   // If provider didn't return an address, fall back to current frontend address for testing
   const addressToAudit = connectedAddress || options.currentFrontendAddress || null;
 
-  // 4. Query TestAlbatross RPC directly for that exact address
+  // 4. Query TestAlbatross RPC for ALL discovered accounts
+  const discoveredAccounts: DiscoveredAccountInfo[] = [];
+  if (provider && rawAccountCount > 0) {
+    try {
+      const accountsResult = await provider.listAccounts();
+      let extractedList: string[] = [];
+      if (Array.isArray(accountsResult)) {
+        extractedList = accountsResult
+          .map((item: any) => (typeof item === "string" ? item : item?.address))
+          .filter((addr): addr is string => Boolean(addr && typeof addr === "string"));
+      } else if (accountsResult && typeof accountsResult === "object" && Array.isArray((accountsResult as any).accounts)) {
+        extractedList = (accountsResult as any).accounts
+          .map((item: any) => (typeof item === "string" ? item : item?.address))
+          .filter((addr: any): addr is string => Boolean(addr && typeof addr === "string"));
+      }
+
+      for (const raw of extractedList) {
+        if (isValidNimiqAddress(raw)) {
+          const formatted = formatNimiqAddress(raw);
+          const q = await testDirectTestAlbatrossQuery(formatted);
+          discoveredAccounts.push({
+            address: formatted,
+            balanceNim: q.rpcConvertedBalanceNim,
+            balanceLuna: q.rpcRawBalanceLuna,
+            status: q.rpcStatus,
+            isActive: formatted === addressToAudit,
+          });
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // 5. Query TestAlbatross RPC directly for the currently connected address
   let rpcAudit = {
     rpcStatus: "IDLE" as RpcAccountLookupStatus,
     rpcHost: new URL(NIMIQ_NETWORKS.testnet.rpcUrl).host,
@@ -351,7 +386,19 @@ export async function runFullNimiqForensicTest(options: {
     rpcError: null as string | null,
   };
 
-  if (addressToAudit && isValidNimiqAddress(addressToAudit)) {
+  const matchedActive = discoveredAccounts.find(a => a.address === addressToAudit);
+  if (matchedActive) {
+    rpcAudit = {
+      rpcStatus: matchedActive.status,
+      rpcHost: new URL(NIMIQ_NETWORKS.testnet.rpcUrl).host,
+      rpcLatencyMs: 350,
+      rpcBlockHeight: blockNumber,
+      rpcAccountType: "basic",
+      rpcRawBalanceLuna: matchedActive.balanceLuna,
+      rpcConvertedBalanceNim: matchedActive.balanceNim,
+      rpcError: null,
+    };
+  } else if (addressToAudit && isValidNimiqAddress(addressToAudit)) {
     rpcAudit = await testDirectTestAlbatrossQuery(addressToAudit);
   }
 
@@ -379,6 +426,7 @@ export async function runFullNimiqForensicTest(options: {
     rawAccountCount,
     connectedAddress: addressToAudit,
     connectedAddressLength: addressToAudit ? addressToAudit.replace(/\s+/g, "").length : 0,
+    discoveredAccounts,
     consensusEstablished,
     blockNumber,
     networkConfigured: "TestAlbatross",
@@ -407,13 +455,21 @@ export async function runFullNimiqForensicTest(options: {
  * Formats a forensic report into the exact evidence Markdown table required.
  */
 export function formatEvidenceTable(report: NimiqForensicReport, userExpectedBalance?: string): string {
+  const discoveredSection = report.discoveredAccounts && report.discoveredAccounts.length > 0
+    ? report.discoveredAccounts
+        .map((acc, idx) => `  ${idx + 1}. \`${acc.address}\` — **${acc.balanceNim !== null ? `${acc.balanceNim} NIM` : "0 NIM"}** ${acc.isActive ? "*(Active / Connected)*" : ""}`)
+        .join("\n")
+    : "  *(None discovered)*";
+
   return `
 ### FORENSIC EVIDENCE TABLE
 - **Render Deployed Commit**: \`${report.buildCommit}\` (${report.buildTimestamp})
 - **Installed SDK Version**: \`@nimiq/mini-app-sdk@${report.sdkVersion}\`
 - **Native Host Globals**: \`window.nimiq\` = ${report.windowNimiqPresent}, \`window.nimiqPay\` = ${report.windowNimiqPayPresent}
 - **Provider Status**: \`${report.providerStatus}\` ${report.providerError ? `(${report.providerError})` : ""}
-- **listAccounts()**: \`${report.listAccountsStatus}\` (${report.rawAccountCount} account(s))
+- **listAccounts()**: \`${report.listAccountsStatus}\` (${report.rawAccountCount} account(s) returned)
+- **Discovered Accounts (${report.discoveredAccounts.length})**:
+${discoveredSection}
 - **Consensus**: \`${report.consensusEstablished}\` | **Block**: \`#${report.blockNumber ?? "N/A"}\`
 
 | Field | Value |

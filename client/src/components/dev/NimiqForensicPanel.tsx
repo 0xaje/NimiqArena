@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 export function NimiqForensicPanel() {
-  const { address, balanceNim, balanceStatus, syncNimiqPayAccount, isInsideNimiqPay } = useNimiqWallet();
+  const { address, balanceNim, balanceStatus, syncNimiqPayAccount, isInsideNimiqPay, setAddress } = useNimiqWallet();
   const [report, setReport] = useState<NimiqForensicReport | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -264,6 +264,65 @@ export function NimiqForensicPanel() {
                 >
                   {report?.connectedAddress || "NONE (listAccounts returned empty or failed)"}
                 </div>
+
+                {/* Discovered Accounts List (if multi-account wallet) */}
+                {report?.discoveredAccounts && report.discoveredAccounts.length > 0 && (
+                  <div style={{ marginTop: "6px", display: "grid", gap: "4px" }}>
+                    <span style={{ color: "#38bdf8", fontSize: "10px", fontWeight: 700 }}>
+                      Nimiq Pay Accounts ({report.discoveredAccounts.length}):
+                    </span>
+                    {report.discoveredAccounts.map((acc, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: acc.isActive ? "rgba(229,160,0,0.12)" : "rgba(0,0,0,0.3)",
+                          border: `1px solid ${acc.isActive ? "#e5a000" : "rgba(255,255,255,0.08)"}`,
+                          borderRadius: "4px",
+                          padding: "4px 6px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span style={{ fontWeight: 600, color: acc.isActive ? "#e5a000" : "#f8fafc" }}>
+                            Account #{idx + 1}: {acc.address.slice(0, 7)}…{acc.address.slice(-5)}
+                          </span>
+                          <span style={{ color: (acc.balanceNim ?? 0) > 0 ? "#2ecc71" : "#94a3b8", fontWeight: 700 }}>
+                            {acc.balanceNim !== null ? `${acc.balanceNim.toFixed(2)} NIM` : "Checking…"}
+                          </span>
+                        </div>
+                        {acc.isActive ? (
+                          <span style={{ color: "#2ecc71", fontSize: "9px", fontWeight: 700 }}>● Active</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddress(acc.address);
+                              localStorage.setItem("nimiq_arena_wallet_address", acc.address);
+                              localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+                              toast.success(`Switched to Account #${idx + 1}`);
+                              void executeAudit();
+                            }}
+                            style={{
+                              background: "rgba(56, 189, 248, 0.2)",
+                              border: "1px solid #38bdf8",
+                              color: "#38bdf8",
+                              borderRadius: "3px",
+                              padding: "2px 6px",
+                              fontSize: "9px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Switch
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Network & Consensus */}

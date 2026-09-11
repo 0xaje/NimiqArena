@@ -174,33 +174,65 @@ export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string
       return null;
     }
 
-    let rawAddr: string | null = null;
-    let count = 0;
-    if (Array.isArray(accounts) && accounts.length > 0) {
-      count = accounts.length;
-      const first = accounts[0];
-      rawAddr = typeof first === "string" ? first : (first as any)?.address;
+    let allAddrs: string[] = [];
+    if (Array.isArray(accounts)) {
+      allAddrs = accounts
+        .map((item: any) => (typeof item === "string" ? item : item?.address))
+        .filter((a): a is string => Boolean(a && isValidNimiqAddress(a)));
     } else if (typeof accounts === "object" && Array.isArray((accounts as any).accounts)) {
-      count = (accounts as any).accounts.length;
-      const first = (accounts as any).accounts[0];
-      rawAddr = typeof first === "string" ? first : (first as any)?.address;
+      allAddrs = (accounts as any).accounts
+        .map((item: any) => (typeof item === "string" ? item : item?.address))
+        .filter((a: any): a is string => Boolean(a && isValidNimiqAddress(a)));
     }
 
-    if (rawAddr && isValidNimiqAddress(rawAddr)) {
-      const formatted = formatNimiqAddress(rawAddr);
-      _activeAddress = formatted;
-      _connectionMode = "mini-app";
-      localStorage.setItem("nimiq_arena_wallet_address", formatted);
-      localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
-      recordNimiqBoundary("account received", `Received ${count} account(s), connected: ${formatted.slice(0, 4)}…${formatted.slice(-4)}`, {
-        accountCount: count,
-        address: `${formatted.slice(0, 4)}…${formatted.slice(-4)}`,
-        addressLength: formatted.replace(/\s+/g, "").length,
-      });
-      return formatted;
-    } else {
-      recordNimiqBoundary("account received", `listAccounts returned ${count} account(s) but no valid Nimiq address extracted`);
+    if (allAddrs.length === 0) {
+      recordNimiqBoundary("account received", "listAccounts returned accounts but no valid Nimiq address extracted");
+      return null;
     }
+
+    // Check if the user previously selected one of these accounts
+    const saved = localStorage.getItem("nimiq_arena_wallet_address");
+    let chosen = allAddrs[0];
+
+    if (saved && allAddrs.some(a => formatNimiqAddress(a) === formatNimiqAddress(saved))) {
+      chosen = saved;
+    } else if (allAddrs.length > 1) {
+      // Multi-account wallet: Check which account holds Testnet NIM!
+      try {
+        const balanceChecks = await Promise.all(
+          allAddrs.map(async addr => {
+            try {
+              const res = await fetchNimiqAccountInfo(addr, "testnet");
+              return { addr, balanceNim: res.balanceNim };
+            } catch {
+              return { addr, balanceNim: 0 };
+            }
+          })
+        );
+        const funded = balanceChecks.find(b => b.balanceNim > 0);
+        if (funded) {
+          chosen = funded.addr;
+          recordNimiqBoundary(
+            "account received",
+            `Auto-selected funded account among ${allAddrs.length} accounts: ${chosen.slice(0, 4)}…${chosen.slice(-4)} (${funded.balanceNim} NIM)`
+          );
+        }
+      } catch {
+        // Fall back to first account
+      }
+    }
+
+    const formatted = formatNimiqAddress(chosen);
+    _activeAddress = formatted;
+    _connectionMode = "mini-app";
+    localStorage.setItem("nimiq_arena_wallet_address", formatted);
+    localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+    recordNimiqBoundary("account received", `Received ${allAddrs.length} account(s), connected: ${formatted.slice(0, 4)}…${formatted.slice(-4)}`, {
+      accountCount: allAddrs.length,
+      address: `${formatted.slice(0, 4)}…${formatted.slice(-4)}`,
+      addressLength: formatted.replace(/\s+/g, "").length,
+    });
+    return formatted;
   } catch (err: any) {
     recordNimiqBoundary("provider initialized", `Exception resolving Nimiq Pay account: ${err?.message || err}`);
   }
