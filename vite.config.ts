@@ -149,6 +149,13 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+import { execSync } from "node:child_process";
+
+let gitCommit = process.env.RENDER_GIT_COMMIT || "2efda76";
+try {
+  gitCommit = execSync("git rev-parse --short HEAD").toString().trim();
+} catch {}
+
 const plugins = [
   react(),
   tailwindcss(),
@@ -158,6 +165,10 @@ const plugins = [
 
 export default defineConfig({
   plugins,
+  define: {
+    __APP_BUILD_COMMIT__: JSON.stringify(gitCommit),
+    __APP_BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+  },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

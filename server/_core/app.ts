@@ -23,15 +23,26 @@ export function createExpressApp(): Express {
   // Apply rate limiting on API endpoints
   app.use("/api", apiRateLimiter);
 
-  // Health check endpoint
+  // Safe Public Build & Health Check Endpoints
+  const gitCommit = process.env.RENDER_GIT_COMMIT || "2efda76";
+  const buildInfo = {
+    status: "ok",
+    gitCommit,
+    buildTimestamp: new Date().toISOString(),
+    service: "Nimiq Arena",
+    miniAppSdk: "0.1.0",
+    network: "TestAlbatross",
+    networkId: 5,
+    rpcUrl: "https://rpc.testnet.nimiqwatch.com",
+    database: Boolean(process.env.DATABASE_URL),
+  };
+
   app.get("/api/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      service: "Nimiq Arena",
-      miniAppSdk: "0.1.0",
-      database: Boolean(process.env.DATABASE_URL),
-    });
+    res.json(buildInfo);
+  });
+
+  app.get("/api/build", (_req, res) => {
+    res.json(buildInfo);
   });
 
   // Register API features

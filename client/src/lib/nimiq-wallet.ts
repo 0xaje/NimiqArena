@@ -16,6 +16,7 @@ import {
   type NimiqProvider,
 } from "@nimiq/mini-app-sdk";
 import HubApi from "@nimiq/hub-api";
+import { recordNimiqBoundary } from "./nimiq-diagnostics";
 
 export type WalletConnectionMode = "mini-app" | "hub" | "manual" | "none";
 
@@ -136,8 +137,10 @@ export async function connectViaMiniApp(): Promise<string> {
  */
 export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string | null> {
   try {
+    recordNimiqBoundary("provider initialized", `Checking Mini App SDK provider (timeout: ${timeoutMs}ms)`);
     const provider = _miniAppProvider || (await initMiniApp({ timeout: timeoutMs }));
     _miniAppProvider = provider;
+    recordNimiqBoundary("provider initialized", "Mini App SDK provider ready.");
 
     // 1. Try getActiveAccount() if exposed directly
     if (typeof (provider as any).getActiveAccount === "function") {
@@ -150,6 +153,11 @@ export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string
           _connectionMode = "mini-app";
           localStorage.setItem("nimiq_arena_wallet_address", formatted);
           localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+          recordNimiqBoundary("account received", `Direct active account detected: ${formatted.slice(0, 4)}…${formatted.slice(-4)}`, {
+            accountCount: 1,
+            address: `${formatted.slice(0, 4)}…${formatted.slice(-4)}`,
+            addressLength: formatted.replace(/\s+/g, "").length,
+          });
           return formatted;
         }
       } catch {
@@ -158,14 +166,22 @@ export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string
     }
 
     // 2. Query listAccounts()
+    recordNimiqBoundary("account received", "Calling provider.listAccounts()...");
     const accounts = await provider.listAccounts();
-    if (!accounts || (accounts as any).error) return null;
+    if (!accounts || (accounts as any).error) {
+      const errMsg = (accounts as any)?.error?.message || "No accounts returned";
+      recordNimiqBoundary("account received", `listAccounts returned error or empty: ${errMsg}`);
+      return null;
+    }
 
     let rawAddr: string | null = null;
+    let count = 0;
     if (Array.isArray(accounts) && accounts.length > 0) {
+      count = accounts.length;
       const first = accounts[0];
       rawAddr = typeof first === "string" ? first : (first as any)?.address;
     } else if (typeof accounts === "object" && Array.isArray((accounts as any).accounts)) {
+      count = (accounts as any).accounts.length;
       const first = (accounts as any).accounts[0];
       rawAddr = typeof first === "string" ? first : (first as any)?.address;
     }
@@ -176,10 +192,17 @@ export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string
       _connectionMode = "mini-app";
       localStorage.setItem("nimiq_arena_wallet_address", formatted);
       localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+      recordNimiqBoundary("account received", `Received ${count} account(s), connected: ${formatted.slice(0, 4)}…${formatted.slice(-4)}`, {
+        accountCount: count,
+        address: `${formatted.slice(0, 4)}…${formatted.slice(-4)}`,
+        addressLength: formatted.replace(/\s+/g, "").length,
+      });
       return formatted;
+    } else {
+      recordNimiqBoundary("account received", `listAccounts returned ${count} account(s) but no valid Nimiq address extracted`);
     }
-  } catch {
-    // Not running inside Nimiq Pay or timed out
+  } catch (err: any) {
+    recordNimiqBoundary("provider initialized", `Exception resolving Nimiq Pay account: ${err?.message || err}`);
   }
   return null;
 }
@@ -388,6 +411,8 @@ export async function fetchNimiqAccountInfo(
   if (!address || !isValidNimiqAddress(address)) return defaultInfo;
   const clean = address.replace(/\s+/g, "").toUpperCase();
 
+  recordNimiqBoundary("balance request started", `Fetching balance for ${clean.slice(0, 4)}…${clean.slice(-4)} (${targetNetwork})`);
+
   // 1. Primary: Server Proxy (/api/nimiq/account/:address?network=...) with fast multi-RPC fallback & price
   try {
     const controller = new AbortController();
@@ -401,8 +426,10 @@ export async function fetchNimiqAccountInfo(
     clearTimeout(timeout);
     if (res.ok) {
       const json = await res.json();
+      recordNimiqBoundary("balance response received", `Server proxy responded status=${json.status}, balance=${json.balanceNim} NIM`);
       if (json.status !== "unavailable") {
         const nim = Number(json.balanceNim) || 0;
+        recordNimiqBoundary("balance parsed", `${nim} NIM (${json.balanceLuna} Luna) via server proxy`);
         return {
           balanceNim: nim,
           balanceLuna: Number(json.balanceLuna) || 0,
@@ -416,8 +443,8 @@ export async function fetchNimiqAccountInfo(
         };
       }
     }
-  } catch {
-    // Server proxy fetch failed, fall through to client RPC
+  } catch (err: any) {
+    recordNimiqBoundary("balance response received", `Server proxy error: ${err?.message || err}, falling back to direct RPC`);
   }
 
   // 2. Direct Fallback: Client-side JSON-RPC
@@ -439,11 +466,13 @@ export async function fetchNimiqAccountInfo(
     clearTimeout(timeout);
     if (res.ok) {
       const json = await res.json();
+      recordNimiqBoundary("balance response received", `Direct RPC responded from ${new URL(targetRpc).host}`);
       if (!json.error) {
         const rawAccount = json?.result?.data ?? json?.result;
         if (rawAccount && typeof rawAccount === "object" && rawAccount.balance !== undefined) {
           const luna = Number(rawAccount.balance);
           const nim = luna / 100_000;
+          recordNimiqBoundary("balance parsed", `${nim} NIM (${luna} Luna) via direct RPC`);
           return {
             balanceNim: nim,
             balanceLuna: luna,
@@ -459,7 +488,7 @@ export async function fetchNimiqAccountInfo(
       }
     }
   } catch (err: any) {
-    console.warn(`[NimiqWallet] Direct client RPC query failed for ${clean}:`, err);
+    recordNimiqBoundary("balance response received", `Direct RPC failed for ${clean}: ${err?.message || err}`);
   }
 
   // If both server proxy and direct client RPC failed: return explicit "unavailable", NEVER fake 0 NIM!

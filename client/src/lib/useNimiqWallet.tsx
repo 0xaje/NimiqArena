@@ -15,6 +15,7 @@ import {
 } from "./nimiq-wallet";
 import { trpc } from "@/lib/trpc";
 import { getNimiqNetworkConfig, type NimiqNetworkConfig } from "@shared/nimiq-network";
+import { recordNimiqBoundary } from "./nimiq-diagnostics";
 
 interface NimiqWalletContextValue {
   address: string | null;
@@ -105,9 +106,14 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
     try {
       const info = await fetchNimiqAccountInfo(addr, activeNet);
       setAccountInfo(info);
+      recordNimiqBoundary(
+        "balance state updated",
+        `React state updated: ${info.balanceNim} NIM (Status: ${info.status}) for ${addr.slice(0, 4)}…${addr.slice(-4)}`
+      );
     } catch (e) {
       console.warn("[useNimiqWallet] Balance fetch error:", e);
       setAccountInfo(prev => prev ? { ...prev, status: "unavailable" } : null);
+      recordNimiqBoundary("balance state updated", `Balance fetch exception: ${e instanceof Error ? e.message : e}`);
     } finally {
       setIsLoadingBalance(false);
     }
