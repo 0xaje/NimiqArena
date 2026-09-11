@@ -28,6 +28,7 @@ import {
   NIMIQ_TESTNET_RPC_URL,
   type WalletConnectionMode,
 } from "@/lib/nimiq-wallet";
+import { useNimiqWallet } from "@/lib/useNimiqWallet";
 import { toast } from "sonner";
 import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 
@@ -50,17 +51,22 @@ export function WalletConnectModal({
 }: WalletConnectModalProps) {
   useModalBackHandler(isOpen, onClose);
   const inApp = isRunningInNimiqPay();
+  const { network, setNetwork } = useNimiqWallet();
   const [isConnectingHub, setIsConnectingHub] = useState(false);
-  const [useTestnet, setUseTestnet] = useState(!inApp);
+  const [useTestnet, setUseTestnet] = useState<boolean>(() => network === "testnet");
   const [balance, setBalance] = useState<number | null>(null);
   const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  const refreshBalance = async () => {
+  useEffect(() => {
+    setUseTestnet(network === "testnet");
+  }, [network]);
+
+  const refreshBalance = async (targetNet?: "testnet" | "mainnet") => {
     if (!connectedAddress) return;
     setIsLoadingBalance(true);
     try {
-      const preferredNet = useTestnet ? "testnet" : "mainnet";
+      const preferredNet = targetNet || (useTestnet ? "testnet" : "mainnet");
       const info = await fetchNimiqAccountInfo(connectedAddress, preferredNet);
       setAccountInfo(info);
       setBalance(info.balanceNim);
@@ -69,6 +75,13 @@ export function WalletConnectModal({
     } finally {
       setIsLoadingBalance(false);
     }
+  };
+
+  const handleNetworkChange = (net: "testnet" | "mainnet") => {
+    const isTest = net === "testnet";
+    setUseTestnet(isTest);
+    setNetwork(net);
+    void refreshBalance(net);
   };
 
   useEffect(() => {
@@ -265,6 +278,60 @@ export function WalletConnectModal({
                 {formatNimiqAddress(connectedAddress)}
               </div>
 
+              {/* Active Network Selector Row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: "#0d1117",
+                  padding: "8px 12px",
+                  borderRadius: "10px",
+                  border: "1px solid #21262d",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Globe size={13} style={{ color: "#8b949e" }} />
+                  <span style={{ fontSize: "12px", color: "#8b949e", fontWeight: 600 }}>Active Network:</span>
+                </div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleNetworkChange("testnet")}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      backgroundColor: useTestnet ? "#EC9918" : "#21262d",
+                      color: useTestnet ? "#000" : "#8b949e",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    ● Testnet (PoS)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNetworkChange("mainnet")}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      backgroundColor: !useTestnet ? "#EC9918" : "#21262d",
+                      color: !useTestnet ? "#000" : "#8b949e",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Mainnet
+                  </button>
+                </div>
+              </div>
+
               {/* Live Balance Row */}
               <div
                 style={{
@@ -322,7 +389,7 @@ export function WalletConnectModal({
                   </span>
                   <button
                     type="button"
-                    onClick={refreshBalance}
+                    onClick={() => void refreshBalance()}
                     disabled={isLoadingBalance}
                     title="Refresh Balance"
                     style={{
@@ -587,7 +654,7 @@ export function WalletConnectModal({
                     <div style={{ display: "flex", gap: "4px" }}>
                       <button
                         type="button"
-                        onClick={() => setUseTestnet(false)}
+                        onClick={() => handleNetworkChange("mainnet")}
                         style={{
                           padding: "4px 8px",
                           borderRadius: "6px",
@@ -603,7 +670,7 @@ export function WalletConnectModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setUseTestnet(true)}
+                        onClick={() => handleNetworkChange("testnet")}
                         style={{
                           padding: "4px 8px",
                           borderRadius: "6px",
@@ -615,7 +682,7 @@ export function WalletConnectModal({
                           color: useTestnet ? "#000" : "#8b949e",
                         }}
                       >
-                        Testnet
+                        ● Testnet
                       </button>
                     </div>
                   </div>

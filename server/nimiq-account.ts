@@ -75,7 +75,6 @@ async function queryRpcAccount(rpcUrl: string, address: string, timeoutMs = 5000
 
 const TESTNET_RPCS = [
   "https://rpc.testnet.nimiqwatch.com",
-  "https://testnet.nimiq.network:8443",
 ];
 const MAINNET_RPCS = [
   "https://rpc.nimiqwatch.com",
@@ -111,38 +110,15 @@ export async function getLiveAccountBalance(
   let network: "testnet" | "mainnet" = preferredNetwork;
 
   if (preferredNetwork === "testnet") {
-    // Prioritize Testnet RPC query
+    // Query Testnet RPC directly
     const testnetLuna = await queryRpcWithFallbacks(TESTNET_RPCS, clean, 6000);
-    if (testnetLuna !== null) {
-      balanceLuna = testnetLuna;
-      network = "testnet";
-    } else {
-      // Fallback: check mainnet if testnet RPC is unreachable
-      const mainnetLuna = await queryRpcWithFallbacks(MAINNET_RPCS, clean, 4000);
-      if (mainnetLuna !== null && mainnetLuna > 0) {
-        balanceLuna = mainnetLuna;
-        network = "mainnet";
-      } else {
-        balanceLuna = 0;
-        network = "testnet";
-      }
-    }
+    balanceLuna = testnetLuna ?? 0;
+    network = "testnet";
   } else {
-    // Prioritize Mainnet RPC query
+    // Query Mainnet RPC directly
     const mainnetLuna = await queryRpcWithFallbacks(MAINNET_RPCS, clean, 6000);
-    if (mainnetLuna !== null) {
-      balanceLuna = mainnetLuna;
-      network = "mainnet";
-    } else {
-      const testnetLuna = await queryRpcWithFallbacks(TESTNET_RPCS, clean, 4000);
-      if (testnetLuna !== null && testnetLuna > 0) {
-        balanceLuna = testnetLuna;
-        network = "testnet";
-      } else {
-        balanceLuna = 0;
-        network = "mainnet";
-      }
-    }
+    balanceLuna = mainnetLuna ?? 0;
+    network = "mainnet";
   }
 
   const finalLuna = balanceLuna ?? 0;

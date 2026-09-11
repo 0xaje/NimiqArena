@@ -283,6 +283,19 @@ export async function signIdentityMessage(message: string, signerAddress?: strin
   return "verified_wallet_session";
 }
 
+export function getSavedNimiqNetwork(): "testnet" | "mainnet" {
+  if (typeof window === "undefined") return "testnet";
+  const saved = localStorage.getItem("nimiq_arena_network");
+  if (saved === "mainnet" || saved === "testnet") return saved;
+  return "testnet";
+}
+
+export function setSavedNimiqNetwork(network: "testnet" | "mainnet"): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("nimiq_arena_network", network);
+  }
+}
+
 /**
  * Fetches the live balance and USD valuation for an address.
  * Queries high-performance server proxy first, then falls back to direct JSON-RPC.
@@ -291,8 +304,7 @@ export async function fetchNimiqAccountInfo(
   address: string,
   preferredNetwork?: "testnet" | "mainnet"
 ): Promise<NimiqAccountInfo> {
-  const inApp = isRunningInNimiqPay();
-  const targetNetwork = preferredNetwork || (inApp ? "mainnet" : "testnet");
+  const targetNetwork = preferredNetwork || getSavedNimiqNetwork();
   const defaultInfo: NimiqAccountInfo = {
     balanceNim: 0,
     balanceLuna: 0,
@@ -323,7 +335,7 @@ export async function fetchNimiqAccountInfo(
           balanceLuna: Number(json.balanceLuna) || 0,
           usdValue: Number(json.usdValue) || 0,
           usdPrice: Number(json.usdPrice) || 0.0004,
-          network: json.network || targetNetwork,
+          network: targetNetwork,
         };
       }
     }
@@ -331,7 +343,7 @@ export async function fetchNimiqAccountInfo(
     // Server proxy fetch failed, fall through to client RPC
   }
 
-  // 2. Direct Fallback: Client-side JSON-RPC (Parallel Mainnet & Testnet)
+  // 2. Direct Fallback: Client-side JSON-RPC
   const queryEndpoint = async (url: string, net: "mainnet" | "testnet") => {
     try {
       const controller = new AbortController();
@@ -360,21 +372,10 @@ export async function fetchNimiqAccountInfo(
     return null;
   };
 
-  const [mainnetResult, testnetResult] = await Promise.all([
-    queryEndpoint(NIMIQ_MAINNET_RPC_URL, "mainnet"),
-    queryEndpoint(NIMIQ_TESTNET_RPC_URL, "testnet"),
-  ]);
+  const directRpcUrl = targetNetwork === "testnet" ? NIMIQ_TESTNET_RPC_URL : NIMIQ_MAINNET_RPC_URL;
+  const rpcResult = await queryEndpoint(directRpcUrl, targetNetwork);
 
-  const bestResult =
-    targetNetwork === "testnet"
-      ? (testnetResult && testnetResult.balanceLuna > 0 ? testnetResult : null) ||
-        (mainnetResult && mainnetResult.balanceLuna > 0 ? mainnetResult : null) ||
-        testnetResult ||
-        mainnetResult
-      : (mainnetResult && mainnetResult.balanceLuna > 0 ? mainnetResult : null) ||
-        (testnetResult && testnetResult.balanceLuna > 0 ? testnetResult : null) ||
-        mainnetResult ||
-        testnetResult;
+  const bestResult = rpcResult || { balanceLuna: 0, network: targetNetwork };
 
   if (bestResult) {
     const balanceNim = bestResult.balanceLuna / 100_000;

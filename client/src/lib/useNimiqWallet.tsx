@@ -8,6 +8,8 @@ import {
   isRunningInNimiqPay,
   fetchNimiqAccountInfo,
   type NimiqAccountInfo,
+  getSavedNimiqNetwork,
+  setSavedNimiqNetwork,
 } from "./nimiq-wallet";
 
 interface NimiqWalletContextValue {
@@ -16,6 +18,7 @@ interface NimiqWalletContextValue {
   balanceNim: number;
   usdValue: number;
   network: "mainnet" | "testnet";
+  setNetwork: (net: "mainnet" | "testnet") => void;
   isConnected: boolean;
   isInsideNimiqPay: boolean;
   refreshBalance: () => Promise<void>;
@@ -30,6 +33,7 @@ const NimiqWalletContext = createContext<NimiqWalletContextValue>({
   balanceNim: 0,
   usdValue: 0,
   network: "testnet",
+  setNetwork: () => {},
   isConnected: false,
   isInsideNimiqPay: false,
   refreshBalance: async () => {},
@@ -44,22 +48,32 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
     return getActiveWalletAddress() || restoreSavedWallet();
   });
 
+  const [network, setNetworkState] = useState<"testnet" | "mainnet">(() => {
+    return getSavedNimiqNetwork();
+  });
+
+  const setNetwork = useCallback((net: "testnet" | "mainnet") => {
+    setNetworkState(net);
+    setSavedNimiqNetwork(net);
+  }, []);
+
   const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const insideNimiqPay = isRunningInNimiqPay();
 
-  const refreshBalance = useCallback(async (targetAddr?: string | null) => {
+  const refreshBalance = useCallback(async (targetAddr?: string | null, targetNet?: "testnet" | "mainnet") => {
     const addr = targetAddr || address;
     if (!addr) {
       setAccountInfo(null);
       return;
     }
+    const activeNet = targetNet || network;
     try {
-      const info = await fetchNimiqAccountInfo(addr);
+      const info = await fetchNimiqAccountInfo(addr, activeNet);
       setAccountInfo(info);
     } catch (e) {
       console.warn("[useNimiqWallet] Balance fetch error:", e);
     }
-  }, [address]);
+  }, [address, network]);
 
   // Auto-connect inside Nimiq Pay Mini App if available
   useEffect(() => {
@@ -116,10 +130,11 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
     accountInfo,
     balanceNim: accountInfo?.balanceNim ?? 0,
     usdValue: accountInfo?.usdValue ?? 0,
-    network: accountInfo?.network ?? "testnet",
+    network,
+    setNetwork,
     isConnected: Boolean(address),
     isInsideNimiqPay: insideNimiqPay,
-    refreshBalance: () => refreshBalance(address),
+    refreshBalance: () => refreshBalance(address, network),
     connectMiniApp,
     setAddress,
     disconnect,
