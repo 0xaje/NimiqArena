@@ -194,10 +194,8 @@ export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string
     const saved = localStorage.getItem("nimiq_arena_wallet_address");
     let chosen = allAddrs[0];
 
-    if (saved && allAddrs.some(a => formatNimiqAddress(a) === formatNimiqAddress(saved))) {
-      chosen = saved;
-    } else if (allAddrs.length > 1) {
-      // Multi-account wallet: Check which account holds Testnet NIM!
+    if (allAddrs.length > 1) {
+      // Multi-account wallet: Check balances across accounts
       try {
         const balanceChecks = await Promise.all(
           allAddrs.map(async addr => {
@@ -209,17 +207,31 @@ export async function getNimiqPayActiveAccount(timeoutMs = 4000): Promise<string
             }
           })
         );
-        const funded = balanceChecks.find(b => b.balanceNim > 0);
-        if (funded) {
-          chosen = funded.addr;
-          recordNimiqBoundary(
-            "account received",
-            `Auto-selected funded account among ${allAddrs.length} accounts: ${chosen.slice(0, 4)}…${chosen.slice(-4)} (${funded.balanceNim} NIM)`
-          );
+
+        // If saved address exists AND has a positive balance, preserve it
+        const savedFunded = saved && balanceChecks.find(b => formatNimiqAddress(b.addr) === formatNimiqAddress(saved) && b.balanceNim > 0);
+        if (savedFunded) {
+          chosen = savedFunded.addr;
+        } else {
+          // Otherwise, auto-select the account that holds Testnet funds!
+          const anyFunded = balanceChecks.find(b => b.balanceNim > 0);
+          if (anyFunded) {
+            chosen = anyFunded.addr;
+            recordNimiqBoundary(
+              "account received",
+              `Auto-selected funded account among ${allAddrs.length} accounts: ${chosen.slice(0, 4)}…${chosen.slice(-4)} (${anyFunded.balanceNim} NIM)`
+            );
+          } else if (saved && allAddrs.some(a => formatNimiqAddress(a) === formatNimiqAddress(saved))) {
+            chosen = saved;
+          }
         }
       } catch {
-        // Fall back to first account
+        if (saved && allAddrs.some(a => formatNimiqAddress(a) === formatNimiqAddress(saved))) {
+          chosen = saved;
+        }
       }
+    } else if (saved && allAddrs.some(a => formatNimiqAddress(a) === formatNimiqAddress(saved))) {
+      chosen = saved;
     }
 
     const formatted = formatNimiqAddress(chosen);
