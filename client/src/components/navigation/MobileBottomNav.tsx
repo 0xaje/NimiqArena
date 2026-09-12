@@ -27,7 +27,7 @@ export function MobileBottomNav({ activeMatchesCount = 0 }: MobileBottomNavProps
     {
       id: "matches",
       label: "Matches",
-      href: "/#live-matches",
+      href: "/matches",
       icon: Swords,
       isActive: location.startsWith("/matches"),
       badge: activeMatchesCount > 0,
