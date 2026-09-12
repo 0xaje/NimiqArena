@@ -34,6 +34,7 @@ import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { ConfirmEntrySheet } from "@/components/game/ConfirmEntrySheet";
 
 type GameMode = "match" | "friend" | "bot";
 
@@ -74,6 +75,7 @@ export default function LudoDetail() {
   const [isHouseBotWager, setIsHouseBotWager] = useState<boolean>(false);
 
   // Modals
+  const [isConfirmEntryOpen, setIsConfirmEntryOpen] = useState(false);
   const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
   const [isEntryFlowOpen, setIsEntryFlowOpen] = useState(false);
   const [isTournamentOpen, setIsTournamentOpen] = useState(false);
@@ -217,7 +219,11 @@ export default function LudoDetail() {
       return;
     }
 
-    // Matchmaking Mode: Real Wager Match
+    // Matchmaking Mode: Open Confirm Entry Sheet
+    setIsConfirmEntryOpen(true);
+  }
+
+  async function handleConfirmMatchEntry() {
     try {
       setIsConnecting(true);
       await ensureAuthenticated("Player 1 (Gladiator)");
@@ -228,7 +234,6 @@ export default function LudoDetail() {
           description: `You need at least ${selectedStake} NIM to enter. Use 1-Click Faucet in wallet.`,
         });
         setIsConnecting(false);
-        setIsWalletSheetOpen(true);
         return;
       }
 
@@ -243,6 +248,7 @@ export default function LudoDetail() {
         toast.success("Match Ready!", {
           description: `Entering Match Table #${res.id.slice(0, 8)}…`,
         });
+        setIsConfirmEntryOpen(false);
         navigate(`/matches/${res.id}`);
       }, 700);
     } catch (err) {
@@ -316,7 +322,11 @@ export default function LudoDetail() {
         {/* ========================================================================= */}
         {/* MAIN SCROLLABLE CONTENT AREA                                              */}
         {/* ========================================================================= */}
-        <main className="flex-1 flex flex-col w-full pt-20 pb-28 space-y-4">
+        <main
+          className={`flex-1 flex flex-col w-full pt-20 pb-28 space-y-4 transition-all duration-300 ${
+            isConfirmEntryOpen ? "opacity-40 blur-[1px] pointer-events-none filter" : ""
+          }`}
+        >
           
           {/* Sub-Header: Back Nav & Quick Status */}
           <div className="flex items-center justify-between px-4 pt-1">
@@ -900,6 +910,18 @@ export default function LudoDetail() {
         {/* ========================================================================= */}
         {/* FUNCTIONAL DIALOGS & MODALS                                               */}
         {/* ========================================================================= */}
+        <ConfirmEntrySheet
+          isOpen={isConfirmEntryOpen}
+          onClose={() => setIsConfirmEntryOpen(false)}
+          gameTitle="Ludo Arena — 1v1"
+          stakeNim={selectedStake}
+          walletAddress={address}
+          balanceNim={balanceNim}
+          isConfirming={isConnecting}
+          onConfirm={handleConfirmMatchEntry}
+          onRefreshBalance={refreshBalance}
+        />
+
         <PlayWithFriendModal
           isOpen={isPlayWithFriendOpen}
           onClose={() => setIsPlayWithFriendOpen(false)}

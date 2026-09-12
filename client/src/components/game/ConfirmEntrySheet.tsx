@@ -1,83 +1,78 @@
-import React, { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
+import React, { useState } from "react";
 import { useModalBackHandler } from "@/hooks/useModalBackHandler";
 import {
   ShieldCheck,
-  Coins,
-  CheckCircle2,
-  AlertTriangle,
   X,
-  Copy,
-  ExternalLink,
-  Wallet,
-  Sparkles,
-  Check,
-  RotateCw,
   Lock,
   ArrowRight,
   Zap,
   Info,
+  RotateCw,
+  CheckCircle2,
 } from "lucide-react";
-import { createPaymentNonce } from "@/lib/payment-state";
-import {
-  sendNimiqPayment,
-  getActiveWalletAddress,
-  getNimiqPayActiveAccount,
-  fetchNimiqAccountInfo,
-  type NimiqAccountInfo,
-  formatNimiqAddress,
-  connectViaNimiqHub,
-} from "@/lib/nimiq-wallet";
+import { formatNim } from "@shared/game/pot-distribution";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
-interface EscrowDepositModalProps {
+interface ConfirmEntrySheetProps {
   isOpen: boolean;
   onClose: () => void;
-  matchId: string;
-  stakeNim: number;
-  onDepositSuccess: () => void;
   gameTitle?: string;
+  stakeNim: number;
+  onConfirm: () => Promise<void> | void;
+  isConfirming?: boolean;
+  walletAddress?: string | null;
+  balanceNim?: number | null;
+  onRefreshBalance?: () => void;
 }
 
-export function EscrowDepositModal({
+export function ConfirmEntrySheet({
   isOpen,
   onClose,
-  matchId,
-  stakeNim,
-  onDepositSuccess,
   gameTitle = "Ludo Arena — 1v1",
-}: EscrowDepositModalProps) {
+  stakeNim = 50,
+  onConfirm,
+  isConfirming = false,
+  walletAddress,
+  balanceNim,
+  onRefreshBalance,
+}: ConfirmEntrySheetProps) {
   useModalBackHandler(isOpen, onClose);
-  const utils = trpc.useUtils();
-  const [step, setStep] = useState<
-    "idle" | "creating" | "paying" | "verifying" | "success" | "error"
-  >("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [txHash, setTxHash] = useState("");
-  const [userBalance, setUserBalance] = useState<number | null>(null);
-  const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const [activeWallet, setActiveWallet] = useState<string | null>(() =>
-    getActiveWalletAddress()
-  );
   const [isDripping, setIsDripping] = useState(false);
   const requestDrip = trpc.payment.requestTestnetDrip.useMutation();
 
+  if (!isOpen) return null;
+
+  const totalPot = stakeNim * 2;
+  const championWins = (totalPot * 0.9).toFixed(1).replace(/\.0$/, "");
+  const builderCut = (totalPot * 0.05).toFixed(1).replace(/\.0$/, "");
+  const ecosystemCut = (totalPot * 0.03).toFixed(1).replace(/\.0$/, "");
+  const publicGoodCut = (totalPot * 0.02).toFixed(1).replace(/\.0$/, "");
+
+  const shortWallet = walletAddress
+    ? `${walletAddress.slice(0, 4)} ···· ${walletAddress.slice(-4)}`
+    : "NQ07 ···· 32F1";
+
+  const balanceAfter =
+    balanceNim != null
+      ? Math.max(0, balanceNim - stakeNim).toFixed(2)
+      : "1,370.00";
+
   const handleRequestDrip = async () => {
-    if (!activeWallet) {
+    if (!walletAddress) {
       toast.error("Please connect your wallet first.");
       return;
     }
     try {
       setIsDripping(true);
       toast.info("Requesting 50 Testnet NIM drip from hot wallet…");
-      const res = await requestDrip.mutateAsync({ address: activeWallet });
+      const res = await requestDrip.mutateAsync({ address: walletAddress });
       if (res.success) {
         toast.success("50 Testnet NIM Received!", {
           description: `Tx: ${res.txHash.slice(0, 10)}… Checking balance.`,
         });
         setTimeout(() => {
-          if (activeWallet) void loadBalance(activeWallet);
+          onRefreshBalance?.();
         }, 2500);
       } else {
         toast.info("Direct drip standby", {
@@ -98,188 +93,10 @@ export function EscrowDepositModal({
     }
   };
 
-  const loadBalance = async (addr: string) => {
-    setIsLoadingBalance(true);
-    try {
-      const info = await fetchNimiqAccountInfo(addr, "testnet");
-      setAccountInfo(info);
-      setUserBalance(info.balanceNim);
-    } catch {
-      setAccountInfo(null);
-      setUserBalance(null);
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      setStep("idle");
-      setErrorMessage("");
-      setTxHash("");
-      getNimiqPayActiveAccount()
-        .then((detected) => {
-          const current = detected || getActiveWalletAddress();
-          setActiveWallet(current);
-          if (current) {
-            void loadBalance(current);
-          } else {
-            setUserBalance(null);
-            setAccountInfo(null);
-          }
-        })
-        .catch(() => {
-          const current = getActiveWalletAddress();
-          setActiveWallet(current);
-          if (current) void loadBalance(current);
-        });
-    }
-  }, [isOpen]);
-
-  const handleConnectWallet = async () => {
-    try {
-      const res = await connectViaNimiqHub();
-      setActiveWallet(res.address);
-      void loadBalance(res.address);
-      toast.success("Wallet connected!", { description: res.address });
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to connect wallet."
-      );
-    }
-  };
-
-  const createIntent = trpc.payment.createIntent.useMutation();
-  const markPending = trpc.payment.markConfirmationPending.useMutation();
-  const submitTx = trpc.payment.submitTransaction.useMutation();
-  const verifyPayment = trpc.payment.verify.useMutation();
-  const claimPayment = trpc.match.claimPayment.useMutation();
-
-  const modalEscrowQuery = trpc.match.escrowDetails.useQuery(
-    { matchId },
-    {
-      enabled: Boolean(isOpen && matchId && (!stakeNim || stakeNim <= 0)),
-      staleTime: 5_000,
-    }
-  );
-  const [intentStakeNim, setIntentStakeNim] = useState<number | null>(null);
-
-  if (!isOpen) return null;
-
-  const displayStakeNim =
-    intentStakeNim && intentStakeNim > 0
-      ? intentStakeNim
-      : stakeNim > 0
-      ? stakeNim
-      : modalEscrowQuery.data?.stakeNim && modalEscrowQuery.data.stakeNim > 0
-      ? modalEscrowQuery.data.stakeNim
-      : 50;
-
-  const totalPot = displayStakeNim * 2;
-  const championWins = (totalPot * 0.9).toFixed(1).replace(/\.0$/, "");
-  const builderCut = (totalPot * 0.05).toFixed(1).replace(/\.0$/, "");
-  const ecosystemCut = (totalPot * 0.03).toFixed(1).replace(/\.0$/, "");
-  const publicGoodCut = (totalPot * 0.02).toFixed(1).replace(/\.0$/, "");
-
-  const shortWallet = activeWallet
-    ? `${activeWallet.slice(0, 4)} ···· ${activeWallet.slice(-4)}`
-    : "NQ07 ···· 32F1";
-
-  const balanceAfter =
-    userBalance != null
-      ? Math.max(0, userBalance - displayStakeNim).toFixed(2)
-      : "1,370.00";
-
-  const handleStartDeposit = async () => {
-    if (accountInfo?.status === "wrong_network") {
-      toast.error("Network Mismatch", {
-        description: "Please switch Nimiq Pay to Testnet in developer settings.",
-      });
-      return;
-    }
-    if (
-      accountInfo?.status === "available" &&
-      userBalance !== null &&
-      displayStakeNim > 0 &&
-      userBalance < displayStakeNim
-    ) {
-      toast.error("Insufficient Balance", {
-        description: `You have ${userBalance.toFixed(
-          2
-        )} NIM but ${displayStakeNim} NIM is required for this match.`,
-      });
-      return;
-    }
-    try {
-      setStep("creating");
-      setErrorMessage("");
-
-      // 1. Create payment intent
-      const nonce = createPaymentNonce();
-      const intentRes = await createIntent.mutateAsync({
-        clientNonce: nonce,
-        matchId,
-      });
-      const intent = intentRes;
-      if (intent.valueLuna > 0) {
-        setIntentStakeNim(intent.valueLuna / 100_000);
-      }
-
-      setStep("paying");
-      await markPending.mutateAsync({ id: intent.id });
-
-      // 2. Authorize real on-chain transaction via Nimiq Pay or Nimiq Hub
-      const realTxHash = await sendNimiqPayment({
-        recipient: intent.recipient,
-        valueLuna: intent.valueLuna,
-        data: intent.id,
-      });
-
-      setTxHash(realTxHash);
-
-      await submitTx.mutateAsync({
-        id: intent.id,
-        transactionHash: realTxHash,
-      });
-
-      // 3. Verify on-chain authoritatively
-      setStep("verifying");
-      const verifyRes = await verifyPayment.mutateAsync({ id: intent.id });
-
-      if (verifyRes.intent.status !== "verified") {
-        throw new Error(
-          `Payment status was ${verifyRes.intent.status}. Expected verified.`
-        );
-      }
-
-      // 4. Claim verified payment for match seat
-      await claimPayment.mutateAsync({
-        matchId,
-        paymentIntentId: intent.id,
-      });
-
-      setStep("success");
-      toast.success("Stake Escrow Locked Successfully!");
-      await utils.match.escrowDetails.invalidate({ matchId });
-      await utils.match.state.invalidate({ id: matchId });
-
-      setTimeout(() => {
-        onDepositSuccess();
-        onClose();
-      }, 1200);
-    } catch (err) {
-      setStep("error");
-      setErrorMessage(
-        err instanceof Error ? err.message : "Deposit verification failed."
-      );
-      toast.error("Deposit Failed", { description: errorMessage });
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#080e1c]/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="fixed inset-0" onClick={onClose} />
-      
+
       {/* Elevated Bottom Sheet Surface */}
       <section
         className="w-full max-w-md bg-[#151b29] border-t border-[#2f3544] rounded-t-[28px] shadow-[0_-12px_40px_rgba(0,0,0,0.85)] flex flex-col relative overflow-hidden z-10 pb-safe animate-in slide-in-from-bottom duration-300"
@@ -345,7 +162,7 @@ export function EscrowDepositModal({
                 Your Stake
               </span>
               <span className="text-sm text-[#ffd78d] font-bold font-mono">
-                {displayStakeNim} NIM
+                {stakeNim} NIM
               </span>
             </div>
           </div>
@@ -482,7 +299,7 @@ export function EscrowDepositModal({
                 Available Balance
               </span>
               <span className="text-xs text-[#dde2f6] font-semibold font-mono">
-                {userBalance != null ? `${userBalance.toFixed(2)} NIM` : "1,420.00 NIM"}
+                {balanceNim != null ? `${formatNim(balanceNim)} NIM` : "1,420.00 NIM"}
               </span>
             </div>
             <div className="h-6 w-[1px] bg-[#333948]" />
@@ -497,10 +314,10 @@ export function EscrowDepositModal({
           </div>
 
           {/* Insufficient Balance / 1-Click Faucet Callout */}
-          {userBalance !== null && userBalance < displayStakeNim && (
+          {balanceNim !== null && balanceNim !== undefined && balanceNim < stakeNim && (
             <div className="p-2.5 rounded-xl bg-[#93000a]/20 border border-[#ffb4ab]/30 flex items-center justify-between gap-2">
               <span className="text-[11px] text-[#ffb4ab]">
-                Low balance: Need {displayStakeNim} NIM to enter.
+                Low balance: Need {stakeNim} NIM to enter.
               </span>
               <button
                 onClick={handleRequestDrip}
@@ -516,30 +333,19 @@ export function EscrowDepositModal({
           {/* Primary Call to Action Button & Cancel Option */}
           <div className="space-y-1.5 pt-1">
             <button
-              onClick={handleStartDeposit}
-              disabled={step === "creating" || step === "paying" || step === "verifying"}
-              className={`w-full h-13 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(243,183,44,0.35)] ${
-                step === "success"
-                  ? "bg-[#68f5b8] text-[#003824]"
-                  : step === "error"
-                  ? "bg-[#f3b72c] text-[#412d00]"
-                  : "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4]"
-              }`}
+              onClick={onConfirm}
+              disabled={isConfirming}
+              className="w-full h-13 py-3 rounded-xl font-bold text-sm bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(243,183,44,0.35)]"
             >
-              {step === "creating" || step === "paying" || step === "verifying" ? (
+              {isConfirming ? (
                 <>
                   <RotateCw size={18} className="animate-spin" />
                   <span>Signing Micro-Escrow…</span>
                 </>
-              ) : step === "success" ? (
-                <>
-                  <CheckCircle2 size={18} />
-                  <span>Match Joined! Entering Arena…</span>
-                </>
               ) : (
                 <>
                   <Lock size={18} className="font-bold" />
-                  <span>Pay {displayStakeNim} NIM &amp; Enter Match</span>
+                  <span>Pay {stakeNim} NIM &amp; Enter Match</span>
                   <ArrowRight size={18} />
                 </>
               )}
