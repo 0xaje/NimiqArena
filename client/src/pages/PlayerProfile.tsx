@@ -42,6 +42,7 @@ import {
   AVATAR_PRESETS,
   IdentityRegistrationModal,
 } from "@/components/profile/IdentityRegistrationModal";
+import { InstantCashoutSheet } from "@/components/wallet/InstantCashoutSheet";
 import { ReferralCard } from "@/components/referral/ReferralCard";
 
 export default function PlayerProfile() {
@@ -55,6 +56,7 @@ export default function PlayerProfile() {
     balanceStatus,
     networkName,
     syncNimiqPayAccount,
+    refreshBalance,
     disconnect,
   } = useNimiqWallet();
 
@@ -74,6 +76,7 @@ export default function PlayerProfile() {
   // State
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
+  const [isCashoutOpen, setIsCashoutOpen] = useState(false);
   const [isDripping, setIsDripping] = useState(false);
   const [audioHapticFx, setAudioHapticFx] = useState(true);
 
@@ -358,9 +361,7 @@ export default function PlayerProfile() {
               </button>
 
               <button
-                onClick={() => {
-                  toast.info("Instant Cashout is automated directly to your Nimiq address upon match victory.");
-                }}
+                onClick={() => setIsCashoutOpen(true)}
                 className="h-11 px-3 rounded-lg bg-[#2f3544] hover:bg-[#384052] text-[#dde2f6] text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
                 type="button"
               >
@@ -655,6 +656,18 @@ export default function PlayerProfile() {
         <IdentityRegistrationModal
           isOpen={isIdentityModalOpen}
           onClose={() => setIsIdentityModalOpen(false)}
+        />
+
+        {/* Instant Cashout Bottom Sheet */}
+        <InstantCashoutSheet
+          isOpen={isCashoutOpen}
+          onClose={() => setIsCashoutOpen(false)}
+          vaultBalanceNim={balanceNim || 1420}
+          lockedInDuelsNim={100}
+          connectedAddress={walletAddress || "NQ07 39F2 88KA 19BL 4920 32F1"}
+          onSuccess={() => {
+            refreshBalance?.();
+          }}
         />
 
         {/* Fixed Mobile Bottom Navigation Bar */}
