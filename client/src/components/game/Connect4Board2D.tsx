@@ -1,12 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   CONNECT4_COLS,
   CONNECT4_ROWS,
   getLowestEmptyRow,
+  checkConnect4Victory,
   type Connect4Cell,
   type Connect4PlayerId,
 } from "@/../../shared/game/connect4-engine";
-import { Sparkles, Trophy } from "lucide-react";
+import {
+  ArrowDown,
+  ChevronsDown,
+  Sparkles,
+  ShieldCheck,
+  Hexagon,
+  Disc,
+  Flame,
+  Coins,
+  Crosshair,
+} from "lucide-react";
 import { soundEngine } from "@/lib/audio";
 
 interface Connect4Board2DProps {
@@ -18,6 +29,8 @@ interface Connect4Board2DProps {
   isYourTurn: boolean;
   onDropDisc: (column: number) => void;
   disabled?: boolean;
+  onSendEmote?: (text: string) => void;
+  secondsLeft?: number;
 }
 
 export const Connect4Board2D = React.memo(function Connect4Board2D({
@@ -29,7 +42,11 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
   isYourTurn,
   onDropDisc,
   disabled = false,
+  onSendEmote,
+  secondsLeft = 24,
 }: Connect4Board2DProps) {
+  // Default selected column is column 3 (zero-indexed = column 4)
+  const [selectedCol, setSelectedCol] = useState<number>(3);
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
 
   const isWinningCell = (col: number, row: number) => {
@@ -37,7 +54,12 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
     return winningLine.some(([c, r]) => c === col && r === row);
   };
 
-  const handleColumnClick = (col: number) => {
+  const handleSelectColumn = (col: number) => {
+    setSelectedCol(col);
+  };
+
+  const handleDrop = (colToDrop?: number) => {
+    const col = colToDrop !== undefined ? colToDrop : selectedCol;
     if (disabled || !isYourTurn || winner !== null) return;
     const lowestRow = getLowestEmptyRow(board, col);
     if (lowestRow !== -1) {
@@ -46,204 +68,319 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
     }
   };
 
+  const activeCol = hoveredCol !== null ? hoveredCol : selectedCol;
+  const isSelectedColFull = getLowestEmptyRow(board, activeCol) === -1;
+  const canDropInActiveCol =
+    isYourTurn && !isSelectedColFull && winner === null && !disabled;
+
+  // Authoritative real-time threat analysis
+  const { winCol, threatCol } = useMemo(() => {
+    if (!board || board.length !== CONNECT4_COLS || winner !== null) {
+      return { winCol: null, threatCol: null };
+    }
+
+    const mySeat = (yourSeat === 0 || yourSeat === 1 ? yourSeat : 0) as Connect4PlayerId;
+    const oppSeat = (1 - mySeat) as Connect4PlayerId;
+
+    let detectedWinCol: number | null = null;
+    let detectedThreatCol: number | null = null;
+
+    // Clone board shallowly for fast simulation
+    const testBoard = board.map((col) => [...col]);
+
+    for (let c = 0; c < CONNECT4_COLS; c++) {
+      const r = getLowestEmptyRow(testBoard, c);
+      if (r !== -1) {
+        // Test my win
+        testBoard[c][r] = mySeat;
+        if (checkConnect4Victory(testBoard, c, r)) {
+          detectedWinCol = c + 1;
+        }
+        // Test opponent win
+        testBoard[c][r] = oppSeat;
+        if (checkConnect4Victory(testBoard, c, r)) {
+          detectedThreatCol = c + 1;
+        }
+        testBoard[c][r] = null;
+      }
+    }
+
+    return { winCol: detectedWinCol, threatCol: detectedThreatCol };
+  }, [board, yourSeat, winner]);
+
+  // Timer ring calculation (30s baseline)
+  const strokeOffset = Math.max(0, 88 - (88 * Math.min(30, secondsLeft)) / 30);
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        width: "100%",
-        maxWidth: "min(96vw, 540px)",
-        margin: "0 auto",
-      }}
-    >
-      {/* Column Hover / Tap Drop Indicator Strip */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${CONNECT4_COLS}, 1fr)`,
-          width: "100%",
-          gap: "clamp(3px, 1.2vw, 8px)",
-          height: "clamp(32px, 8vw, 42px)",
-          marginBottom: "6px",
-        }}
-      >
-        {Array.from({ length: CONNECT4_COLS }).map((_, col) => {
-          const isFull = getLowestEmptyRow(board, col) === -1;
-          const isHovered = hoveredCol === col;
-          const canDrop = isYourTurn && !isFull && winner === null && !disabled;
+    <div className="w-full flex flex-col items-center select-none">
+      {/* ARENA GRID CONTAINER (Connect 4 Board Hero) */}
+      <section className="relative w-full max-w-[390px] p-3 rounded-2xl bg-[#080e1c] border border-[#242a39] shadow-2xl overflow-hidden">
+        {/* Ambient Holographic Glow Backdrop */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#00d2ff]/10 via-transparent to-[#f3b72c]/10 pointer-events-none" />
 
-          return (
-            <button
-              key={`drop-btn-${col}`}
-              type="button"
-              onClick={() => handleColumnClick(col)}
-              onMouseEnter={() => setHoveredCol(col)}
-              onMouseLeave={() => setHoveredCol(null)}
-              disabled={!canDrop}
-              aria-label={`Drop disc in column ${col + 1}`}
-              style={{
-                background:
-                  isHovered && canDrop
-                    ? yourSeat === 0
-                      ? "rgba(230, 93, 35, 0.3)"
-                      : "rgba(52, 152, 219, 0.3)"
-                    : "transparent",
-                border: "1px dashed",
-                borderColor:
-                  isHovered && canDrop
-                    ? yourSeat === 0
-                      ? "var(--orange)"
-                      : "#3498db"
-                    : "transparent",
-                borderRadius: "6px",
-                cursor: canDrop ? "pointer" : "default",
-                display: "grid",
-                placeItems: "center",
-                transition: "all 0.15s ease",
-                padding: 0,
-              }}
-            >
-              {isHovered && canDrop && (
-                <div
-                  style={{
-                    width: "clamp(16px, 4.5vw, 26px)",
-                    height: "clamp(16px, 4.5vw, 26px)",
-                    borderRadius: "50%",
-                    background:
-                      yourSeat === 0
-                        ? "radial-gradient(circle at 35% 35%, #ff8a50 0%, #e65d23 100%)"
-                        : "radial-gradient(circle at 35% 35%, #5dade2 0%, #2980b9 100%)",
-                    boxShadow: "0 0 10px rgba(230, 93, 35, 0.6)",
-                  }}
+        {/* Aesthetic Arena Header Plate */}
+        <div className="relative z-10 flex items-center justify-between pb-2 mb-1 px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c] shadow-[0_0_6px_#f3b72c]" />
+            <span className="text-[10px] text-[#ffd78d] font-bold uppercase tracking-wider font-mono">
+              Tactical Matrix 7×6
+            </span>
+          </div>
+          <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
+            <ShieldCheck size={13} className="text-[#68f5b8]" />
+            State: Deterministic
+          </span>
+        </div>
+
+        {/* 7 Drop Triggers (Column Droppers) */}
+        <div className="relative z-10 grid grid-cols-7 gap-1.5 mb-2.5">
+          {Array.from({ length: CONNECT4_COLS }).map((_, col) => {
+            const isFull = getLowestEmptyRow(board, col) === -1;
+            const isTargeted = activeCol === col;
+            const canDropThis = isYourTurn && !isFull && winner === null && !disabled;
+
+            return (
+              <button
+                key={`drop-trigger-${col}`}
+                type="button"
+                onClick={() => {
+                  handleSelectColumn(col);
+                  if (canDropThis && isTargeted) {
+                    handleDrop(col);
+                  }
+                }}
+                onMouseEnter={() => setHoveredCol(col)}
+                onMouseLeave={() => setHoveredCol(null)}
+                disabled={isFull || disabled || winner !== null}
+                className={`drop-col-btn h-9 rounded-lg flex flex-col items-center justify-center transition-all ${
+                  isTargeted && canDropThis
+                    ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_14px_rgba(243,183,44,0.6)] scale-105 transform"
+                    : isFull
+                    ? "bg-[#151b29] text-[#4f4534] opacity-50 cursor-not-allowed border border-[#242a39]"
+                    : "bg-[#242a39] text-[#d4c5ad] hover:bg-[#2f3544] border border-[#2f3544] active:scale-95"
+                }`}
+                title={`Column ${col + 1}${isFull ? " (Full)" : ""}`}
+              >
+                <ArrowDown
+                  size={14}
+                  className={isTargeted && canDropThis ? "animate-bounce font-bold" : ""}
                 />
-              )}
-            </button>
-          );
-        })}
-      </div>
+                <span className="text-[10px] font-mono leading-none mt-0.5 font-bold">
+                  {col + 1}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-      {/* 7x6 Luxury Arcade Vertical Grid Board */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${CONNECT4_COLS}, 1fr)`,
-          gap: "clamp(3px, 1.2vw, 8px)",
-          width: "100%",
-          padding: "clamp(6px, 2vw, 14px)",
-          background: "linear-gradient(180deg, #102438 0%, #0a1724 100%)",
-          border: "2px solid #1a3854",
-          borderRadius: "clamp(10px, 3vw, 16px)",
-          boxShadow:
-            "0 14px 28px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        {Array.from({ length: CONNECT4_COLS }).map((_, col) => (
-          <div
-            key={`col-${col}`}
-            onClick={() => handleColumnClick(col)}
-            onMouseEnter={() => setHoveredCol(col)}
-            onMouseLeave={() => setHoveredCol(null)}
-            style={{
-              display: "flex",
-              flexDirection: "column-reverse", // row 0 at bottom, row 5 at top
-              gap: "clamp(3px, 1.2vw, 8px)",
-              touchAction: "manipulation",
-              userSelect: "none",
-              cursor:
-                isYourTurn &&
-                getLowestEmptyRow(board, col) !== -1 &&
-                winner === null &&
-                !disabled
-                  ? "pointer"
-                  : "default",
-            }}
-          >
-            {Array.from({ length: CONNECT4_ROWS }).map((_, row) => {
-              const cellValue = board[col][row];
-              const isWinning = isWinningCell(col, row);
+        {/* PHYSICAL CONNECT 4 VERTICAL GRID BOARD */}
+        <div className="relative p-2.5 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-2xl">
+          {/* High-Intensity Laser Guide Vector SVG if winning line is present */}
+          {winningLine && winningLine.length >= 4 && (
+            <div className="absolute z-20 pointer-events-none inset-0 flex items-center justify-center p-2.5">
+              <svg className="w-full h-full" fill="none" viewBox="0 0 350 280">
+                <line
+                  x1={`${((winningLine[0][0] + 0.5) / 7) * 350}`}
+                  y1={`${((5 - winningLine[0][1] + 0.5) / 6) * 280}`}
+                  x2={`${((winningLine[winningLine.length - 1][0] + 0.5) / 7) * 350}`}
+                  y2={`${((5 - winningLine[winningLine.length - 1][1] + 0.5) / 6) * 280}`}
+                  stroke="#f3b72c"
+                  strokeWidth="4"
+                  strokeDasharray="6 4"
+                  strokeLinecap="round"
+                  className="animate-pulse"
+                />
+                <line
+                  x1={`${((winningLine[0][0] + 0.5) / 7) * 350}`}
+                  y1={`${((5 - winningLine[0][1] + 0.5) / 6) * 280}`}
+                  x2={`${((winningLine[winningLine.length - 1][0] + 0.5) / 7) * 350}`}
+                  y2={`${((5 - winningLine[winningLine.length - 1][1] + 0.5) / 6) * 280}`}
+                  stroke="#ffffff"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          )}
 
-              return (
-                <div
-                  key={`cell-${col}-${row}`}
-                  style={{
-                    aspectRatio: "1/1",
-                    borderRadius: "50%",
-                    background:
+          {/* 7 columns x 6 rows Matrix Grid (rendered rows from top 5 down to 0) */}
+          <div className="grid grid-cols-7 gap-1.5 relative z-10">
+            {Array.from({ length: CONNECT4_ROWS }).map((_, rowRev) => {
+              const row = 5 - rowRev; // row 5 at top, row 0 at bottom
+              return Array.from({ length: CONNECT4_COLS }).map((_, col) => {
+                const cellValue = board[col]?.[row] ?? null;
+                const isWinning = isWinningCell(col, row);
+                const isLowestEmpty =
+                  cellValue === null && getLowestEmptyRow(board, col) === row;
+                const isTargetHover = isLowestEmpty && activeCol === col && isYourTurn;
+
+                return (
+                  <div
+                    key={`c4-${col}-${row}`}
+                    onClick={() => {
+                      handleSelectColumn(col);
+                      if (isYourTurn && !disabled && winner === null) {
+                        handleDrop(col);
+                      }
+                    }}
+                    className={`aspect-square rounded-full flex items-center justify-center transition-all cursor-pointer ${
                       cellValue === null
-                        ? "radial-gradient(circle, #060e17 0%, #03080e 100%)"
+                        ? "bg-[#080e1c] shadow-inner border border-black/40"
                         : cellValue === 0
-                          ? "radial-gradient(circle at 35% 35%, #ff8a50 0%, #e65d23 100%)"
-                          : "radial-gradient(circle at 35% 35%, #5dade2 0%, #2980b9 100%)",
-                    border: isWinning
-                      ? "3px solid #f1c40f"
-                      : cellValue !== null
-                        ? "2px solid rgba(255, 255, 255, 0.2)"
-                        : "2px solid rgba(0, 0, 0, 0.8)",
-                    boxShadow: isWinning
-                      ? "0 0 20px #f1c40f, 0 0 40px rgba(241, 196, 15, 0.6)"
-                      : cellValue === 0
-                        ? "0 4px 10px rgba(230, 93, 35, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.3)"
-                        : cellValue === 1
-                          ? "0 4px 10px rgba(41, 128, 185, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.3)"
-                          : "inset 0 3px 6px rgba(0, 0, 0, 0.8)",
-                    display: "grid",
-                    placeItems: "center",
-                    transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                    transform: isWinning ? "scale(1.08)" : "scale(1)",
-                  }}
-                >
-                  {isWinning && (
-                    <Sparkles size={16} color="#f1c40f" />
-                  )}
-                </div>
-              );
+                        ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.9)] transform scale-95 border border-white/20"
+                        : "bg-[#00d2ff] text-[#003543] shadow-[0_0_10px_rgba(0,210,255,0.7)] transform scale-95 border border-white/20"
+                    } ${isWinning ? "ring-2 ring-[#ffd78d] scale-105 shadow-[0_0_18px_#f3b72c]" : ""}`}
+                  >
+                    {isWinning ? (
+                      <Sparkles size={16} className="text-[#412d00] animate-spin" />
+                    ) : cellValue === 0 ? (
+                      <Hexagon size={16} className="fill-current" />
+                    ) : cellValue === 1 ? (
+                      <Disc size={16} className="fill-current" />
+                    ) : isTargetHover ? (
+                      <div className="relative flex items-center justify-center">
+                        <span className="w-3.5 h-3.5 rounded-full bg-[#f3b72c]/30 animate-ping absolute" />
+                        <span className="w-2 h-2 rounded-full bg-[#f3b72c]" />
+                      </div>
+                    ) : (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2f3544]" />
+                    )}
+                  </div>
+                );
+              });
             })}
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Legend & Seat Info */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          width: "100%",
-          marginTop: "clamp(8px, 2vw, 14px)",
-          padding: "clamp(6px, 1.5vw, 10px) clamp(8px, 2vw, 14px)",
-          background: "rgba(0, 0, 0, 0.2)",
-          borderRadius: "8px",
-          fontFamily: "IBM Plex Mono, monospace",
-          fontSize: "clamp(10px, 2.5vw, 12px)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "14px",
-              height: "14px",
-              borderRadius: "50%",
-              background: "var(--orange)",
-            }}
-          />
-          <span>
-            PLAYER 1 (GOLD) {yourSeat === 0 ? "— YOU" : ""}
+        {/* Micro Board Artwork Reference Preview Pill */}
+        <div className="relative mt-2 pt-1 flex items-center justify-between px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#68f5b8]" />
+            <span className="text-[10px] text-[#d4c5ad] font-mono">
+              Arena Engine v4.2 • Ranked Match
+            </span>
+          </div>
+          <span className="text-[10px] text-[#f3b72c] font-mono font-bold flex items-center gap-1">
+            <Flame size={12} className="text-[#f3b72c]" /> Active Duel
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "14px",
-              height: "14px",
-              borderRadius: "50%",
-              background: "#3498db",
-            }}
-          />
-          <span>
-            PLAYER 2 (BLUE) {yourSeat === 1 ? "— YOU" : ""}
-          </span>
+      </section>
+
+      {/* DYNAMIC ACTION & TURN HUD (Thumb Zone) */}
+      <section className="w-full max-w-[390px] mt-2.5 flex flex-col gap-2.5">
+        {/* YOUR TURN URGENCY BANNER */}
+        <div className="p-3 rounded-xl bg-[#242a39] border border-[#2f3544] shadow-lg flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            {/* Turn Urgency Timer Ring */}
+            <div className="relative w-11 h-11 flex items-center justify-center shrink-0">
+              <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" fill="none" r="14" stroke="#151b29" strokeWidth="3" />
+                <circle
+                  className="transition-all duration-1000"
+                  cx="18"
+                  cy="18"
+                  fill="none"
+                  r="14"
+                  stroke={secondsLeft <= 4 ? "#ffb4ab" : "#f3b72c"}
+                  strokeDasharray="88"
+                  strokeDashoffset={strokeOffset}
+                  strokeLinecap="round"
+                  strokeWidth="3"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span
+                  className={`text-xs font-mono font-bold leading-none ${
+                    secondsLeft <= 4 ? "text-[#ffb4ab]" : "text-[#f3b72c]"
+                  }`}
+                >
+                  {secondsLeft}
+                </span>
+                <span className="text-[8px] text-[#d4c5ad] font-mono leading-none mt-0.5">
+                  SEC
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-tight text-[#ffd78d]">
+                  {isYourTurn ? "YOUR TURN" : "OPPONENT'S TURN"}
+                </span>
+                {isYourTurn && (
+                  <span className="w-2 h-2 rounded-full bg-[#f3b72c] animate-pulse" />
+                )}
+              </div>
+              <span className="text-xs text-[#d4c5ad] leading-tight">
+                Align 4 tokens in any direction to win
+              </span>
+            </div>
+          </div>
+
+          {/* Quick column threat hint */}
+          <div className="px-2 py-1 rounded-lg bg-[#080e1c] border border-[#151b29] text-right shrink-0">
+            {threatCol ? (
+              <span className="text-[10px] text-[#00d2ff] font-mono block font-semibold">
+                Threat Col {threatCol}
+              </span>
+            ) : (
+              <span className="text-[10px] text-[#d4c5ad] font-mono block font-semibold">
+                Board Balanced
+              </span>
+            )}
+            {winCol ? (
+              <span className="text-[10px] text-[#68f5b8] font-mono font-semibold">
+                Drop Col {winCol} Win
+              </span>
+            ) : (
+              <span className="text-[10px] text-[#ffd78d] font-mono font-semibold">
+                Drop Col {activeCol + 1}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* PRIMARY ACTION COMMIT BUTTON */}
+        <button
+          onClick={() => handleDrop()}
+          disabled={!canDropInActiveCol}
+          className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(243,183,44,0.35)] ${
+            canDropInActiveCol
+              ? "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4] cursor-pointer"
+              : isSelectedColFull
+              ? "bg-[#191f2e] text-[#d4c5ad] border border-[#2f3544] cursor-not-allowed opacity-60"
+              : "bg-[#191f2e] text-[#d4c5ad] border border-[#2f3544] cursor-not-allowed opacity-70"
+          }`}
+        >
+          <Coins size={18} className="fill-current text-[#412d00]" />
+          <span>
+            {isSelectedColFull
+              ? `COLUMN ${activeCol + 1} IS FULL`
+              : isYourTurn
+              ? `DROP TOKEN IN COLUMN ${activeCol + 1}`
+              : "WAITING FOR OPPONENT…"}
+          </span>
+          <ChevronsDown size={18} />
+        </button>
+
+        {/* QUICK TAUNT / EMOTE BAR */}
+        <div className="flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl bg-[#151b29] border border-[#242a39]">
+          <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono pl-1">
+            Taunts:
+          </span>
+          <div className="flex items-center gap-1.5">
+            {["GG", "🔥", "Nice Move", "🤔"].map((taunt) => (
+              <button
+                key={taunt}
+                onClick={() => onSendEmote?.(taunt)}
+                className="px-2.5 py-1 rounded-lg bg-[#191f2e] border border-[#242a39] hover:bg-[#242a39] active:scale-95 text-xs font-mono text-[#dde2f6] transition-transform"
+              >
+                {taunt}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 });

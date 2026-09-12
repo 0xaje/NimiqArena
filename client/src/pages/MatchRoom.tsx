@@ -15,6 +15,8 @@ import {
   Wallet,
   RotateCw,
   CheckCircle2,
+  User,
+  Zap,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
@@ -698,6 +700,23 @@ export default function MatchRoom() {
     (p: any) => p.position >= 0 && p.position < 56
   ).length;
 
+  // Connect 4 Disc Counts
+  const c4Board = (snapshot as any)?.board as (0 | 1 | null)[][] | undefined;
+  let c4MyDiscsPlaced = 0;
+  let c4OppDiscsPlaced = 0;
+  if (isC4 && c4Board && Array.isArray(c4Board)) {
+    for (const col of c4Board) {
+      if (Array.isArray(col)) {
+        for (const cell of col) {
+          if (cell === yourSeat) c4MyDiscsPlaced++;
+          else if (cell !== null && cell !== undefined) c4OppDiscsPlaced++;
+        }
+      }
+    }
+  }
+  const c4MyDiscsLeft = Math.max(0, 21 - c4MyDiscsPlaced);
+  const c4OppDiscsLeft = Math.max(0, 21 - c4OppDiscsPlaced);
+
   const currentDice = (snapshot as any)?.dice ?? null;
   const canRoll =
     isYourTurn &&
@@ -853,59 +872,105 @@ export default function MatchRoom() {
           </header>
 
           {/* Opponent Strip */}
-          <section className="mx-4 mt-2 px-3 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative flex-shrink-0">
-                <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#a5e7ff] border border-white/5">
-                  <Bot size={18} />
-                </div>
-                <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-[#a5e7ff] text-[#003543] font-mono text-[9px] font-bold leading-none">
-                  L.42
-                </span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-[#dde2f6] truncate">
-                    {p2Name}
+          {isC4 ? (
+            <section className="mx-4 mt-2 p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[#2f3544] overflow-hidden shadow-inner flex items-center justify-center">
+                    <Bot size={22} className="text-[#a5e7ff]" />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#00d2ff] flex items-center justify-center shadow-[0_0_8px_#00d2ff]">
+                    <Zap size={10} className="text-[#003543] font-bold" />
                   </span>
-                  <Diamond size={13} className="text-[#a5e7ff] shrink-0" />
                 </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono">
-                  Cyan Legion · Rank Diamond
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-sm text-[#dde2f6] truncate leading-tight">
+                      {p2Name}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#2f3544] text-[10px] text-[#a5e7ff] font-mono">
+                      LVL 54
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#d4c5ad]">
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-[#a5e7ff]">
+                      <span className="w-2 h-2 rounded-full bg-[#00d2ff] shadow-[0_0_6px_#00d2ff]" />
+                      Cyan Discs
+                    </span>
+                    <span className="text-[#4f4534]">•</span>
+                    <span className="text-[11px] font-mono text-[#d4c5ad]">
+                      {c4OppDiscsLeft} Discs Left
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Opponent Status Pill */}
+              <div className="flex flex-col items-end shrink-0 pl-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2f3544]">
+                  <RotateCw
+                    size={12}
+                    className={`text-[#a5e7ff] ${!isYourTurn ? "animate-spin" : ""}`}
+                  />
+                  <span className="text-[11px] text-[#a5e7ff] font-mono font-medium">
+                    {!isYourTurn ? "Thinking…" : "Waiting…"}
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#d4c5ad] font-mono mt-0.5">
+                  Time: {secondsLeft}s
                 </span>
               </div>
-            </div>
-
-            {/* Opponent Pawn State Indicators */}
-            <div className="flex flex-col items-end shrink-0 pl-2">
-              <span className="text-[10px] text-[#a5e7ff] font-mono">
-                IN YARD: {oppYardCount}
-              </span>
-              <div className="flex items-center gap-1 mt-0.5">
-                {[0, 1, 2, 3].map((idx) => (
-                  <span
-                    key={idx}
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      idx < oppYardCount
-                        ? "bg-[#00d2ff] shadow-[0_0_6px_#00d2ff]"
-                        : "bg-[#2f3544]"
-                    }`}
-                  />
-                ))}
+            </section>
+          ) : (
+            <section className="mx-4 mt-2 px-3 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#a5e7ff] border border-white/5">
+                    <Bot size={18} />
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-[#a5e7ff] text-[#003543] font-mono text-[9px] font-bold leading-none">
+                    L.42
+                  </span>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-[#dde2f6] truncate">
+                      {p2Name}
+                    </span>
+                    <Diamond size={13} className="text-[#a5e7ff] shrink-0" />
+                  </div>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">
+                    Cyan Legion · Rank Diamond
+                  </span>
+                </div>
               </div>
-            </div>
-          </section>
+
+              {/* Opponent Pawn State Indicators */}
+              <div className="flex flex-col items-end shrink-0 pl-2">
+                <span className="text-[10px] text-[#a5e7ff] font-mono">
+                  IN YARD: {oppYardCount}
+                </span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  {[0, 1, 2, 3].map((idx) => (
+                    <span
+                      key={idx}
+                      className={`w-2.5 h-2.5 rounded-full transition-all ${
+                        idx < oppYardCount
+                          ? "bg-[#00d2ff] shadow-[0_0_6px_#00d2ff]"
+                          : "bg-[#2f3544]"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ========================================================================= */}
-          {/* TACTICAL ARENA VIEWPORT (Center Board Baseplate)                          */}
+          {/* TACTICAL ARENA VIEWPORT & ACTION ZONE                                     */}
           {/* ========================================================================= */}
-          <section className="relative px-4 my-2 flex flex-col items-center justify-center">
-            <div className="relative w-full max-w-[390px] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-2 shadow-[0_16px_40px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
-              
-              {/* Ambient Board Glow Elements */}
-              <div className="absolute -top-10 -left-10 w-36 h-36 rounded-full bg-[#00d2ff]/10 blur-2xl pointer-events-none" />
-              <div className="absolute -bottom-10 -right-10 w-36 h-36 rounded-full bg-[#f3b72c]/15 blur-2xl pointer-events-none" />
-
+          {isC4 ? (
+            <section className="relative px-4 my-2 flex flex-col items-center justify-center">
               {/* Emote Overlay */}
               <EmoteOverlay
                 emotes={activeEmotes}
@@ -913,260 +978,320 @@ export default function MatchRoom() {
                 yourSeat={yourSeat}
               />
 
-              {/* Live Interactive Board (Ludo or Connect 4) */}
-              {snapshot &&
-                (isC4 ? (
-                  <Connect4Board2D
-                    board={(snapshot as any).board || []}
-                    currentPlayer={(snapshot as any).currentPlayer ?? 0}
-                    winner={(snapshot as any).winner ?? null}
-                    winningLine={(snapshot as any).winningLine ?? null}
-                    yourSeat={yourSeat}
-                    isYourTurn={isYourTurn}
-                    onDropDisc={sendConnect4Drop}
-                    disabled={c4Command.isPending || isBotTurn}
-                  />
-                ) : (
-                  <LudoBoard2D
-                    players={(snapshot as any).players || []}
-                    currentPlayer={(snapshot as any).currentPlayer ?? 0}
-                    dice={(snapshot as any).dice ?? null}
-                    remainingDice={(snapshot as any)?.remainingDice}
-                    diceValues={
-                      (snapshot as any)?.diceValues ??
-                      (snapshot?.lastRoll as any)?.diceValues ??
-                      (snapshot?.dice
-                        ? [
-                            Math.ceil((snapshot.dice as number) / 2),
-                            Math.floor((snapshot.dice as number) / 2),
-                          ]
-                        : null)
-                    }
-                    yourSeat={yourSeat}
-                    isYourTurn={isYourTurn}
-                    onMovePiece={(pieceIndex, dieValue) =>
-                      sendCommand({ kind: "move", pieceIndex, dieValue })
-                    }
-                    onRoll={() => sendCommand({ kind: "roll" })}
-                    canRoll={canRoll}
-                    isRolling={command.isPending}
-                    disabled={command.isPending || isBotTurn}
-                    isBotMatch={isBotMatch}
-                  />
-                ))}
-
-              {/* Floating Tactical Overlay: LIVE SYNC Badge */}
-              <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#191f2e]/90 backdrop-blur-sm border border-white/10 shadow-md">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] animate-ping" />
-                <span className="text-[10px] text-[#a5e7ff] font-mono font-bold">
-                  LIVE SYNC
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* ========================================================================= */}
-          {/* TURN STATUS & ACTION HUD (Thumb Zone)                                     */}
-          {/* ========================================================================= */}
-          <section className="px-4 flex flex-col items-center">
-            
-            {/* Turn Announcement Bar */}
-            <div className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-2.5 h-2.5 rounded-full animate-pulse ${
-                    isYourTurn
-                      ? "bg-[#f3b72c] shadow-[0_0_10px_#f3b72c]"
-                      : "bg-[#00d2ff] shadow-[0_0_10px_#00d2ff]"
-                  }`}
+              {snapshot && (
+                <Connect4Board2D
+                  board={(snapshot as any).board || []}
+                  currentPlayer={(snapshot as any).currentPlayer ?? 0}
+                  winner={(snapshot as any).winner ?? null}
+                  winningLine={(snapshot as any).winningLine ?? null}
+                  yourSeat={yourSeat}
+                  isYourTurn={isYourTurn}
+                  onDropDisc={sendConnect4Drop}
+                  disabled={c4Command.isPending || isBotTurn}
+                  onSendEmote={sendQuickEmote}
+                  secondsLeft={secondsLeft}
                 />
-                <div className="flex flex-col">
-                  <span
-                    className={`text-sm font-extrabold tracking-wide leading-tight font-mono ${
-                      isYourTurn ? "text-[#ffd78d]" : "text-[#a5e7ff]"
+              )}
+            </section>
+          ) : (
+            <>
+              <section className="relative px-4 my-2 flex flex-col items-center justify-center">
+                <div className="relative w-full max-w-[390px] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-2 shadow-[0_16px_40px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
+                  {/* Ambient Board Glow Elements */}
+                  <div className="absolute -top-10 -left-10 w-36 h-36 rounded-full bg-[#00d2ff]/10 blur-2xl pointer-events-none" />
+                  <div className="absolute -bottom-10 -right-10 w-36 h-36 rounded-full bg-[#f3b72c]/15 blur-2xl pointer-events-none" />
+
+                  {/* Emote Overlay */}
+                  <EmoteOverlay
+                    emotes={activeEmotes}
+                    chats={activeChats}
+                    yourSeat={yourSeat}
+                  />
+
+                  {snapshot && (
+                    <LudoBoard2D
+                      players={(snapshot as any).players || []}
+                      currentPlayer={(snapshot as any).currentPlayer ?? 0}
+                      dice={(snapshot as any).dice ?? null}
+                      remainingDice={(snapshot as any)?.remainingDice}
+                      diceValues={
+                        (snapshot as any)?.diceValues ??
+                        (snapshot?.lastRoll as any)?.diceValues ??
+                        (snapshot?.dice
+                          ? [
+                              Math.ceil((snapshot.dice as number) / 2),
+                              Math.floor((snapshot.dice as number) / 2),
+                            ]
+                          : null)
+                      }
+                      yourSeat={yourSeat}
+                      isYourTurn={isYourTurn}
+                      onMovePiece={(pieceIndex, dieValue) =>
+                        sendCommand({ kind: "move", pieceIndex, dieValue })
+                      }
+                      onRoll={() => sendCommand({ kind: "roll" })}
+                      canRoll={canRoll}
+                      isRolling={command.isPending}
+                      disabled={command.isPending || isBotTurn}
+                      isBotMatch={isBotMatch}
+                    />
+                  )}
+
+                  {/* Floating Tactical Overlay: LIVE SYNC Badge */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#191f2e]/90 backdrop-blur-sm border border-white/10 shadow-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] animate-ping" />
+                    <span className="text-[10px] text-[#a5e7ff] font-mono font-bold">
+                      LIVE SYNC
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              {/* LUDO TURN STATUS & ACTION HUD (Thumb Zone) */}
+              <section className="px-4 flex flex-col items-center">
+                {/* Turn Announcement Bar */}
+                <div className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full animate-pulse ${
+                        isYourTurn
+                          ? "bg-[#f3b72c] shadow-[0_0_10px_#f3b72c]"
+                          : "bg-[#00d2ff] shadow-[0_0_10px_#00d2ff]"
+                      }`}
+                    />
+                    <div className="flex flex-col">
+                      <span
+                        className={`text-sm font-extrabold tracking-wide leading-tight font-mono ${
+                          isYourTurn ? "text-[#ffd78d]" : "text-[#a5e7ff]"
+                        }`}
+                      >
+                        {isYourTurn ? "YOUR TURN" : `${p2Name.toUpperCase()}'S TURN`}
+                      </span>
+                      <span className="text-xs text-[#d4c5ad] leading-none mt-0.5">
+                        {turnSubCaption}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Circular Countdown Timer Badge */}
+                  <div className="relative flex items-center justify-center w-10 h-10 flex-shrink-0">
+                    <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                      <circle
+                        cx="18"
+                        cy="18"
+                        fill="none"
+                        r="15"
+                        stroke="#242a39"
+                        strokeWidth="3"
+                      />
+                      <circle
+                        className="transition-all duration-1000"
+                        cx="18"
+                        cy="18"
+                        fill="none"
+                        id="timer-circle"
+                        r="15"
+                        stroke={secondsLeft <= 4 ? "#ffb4ab" : "#f3b72c"}
+                        strokeDasharray="94.2"
+                        strokeDashoffset={strokeOffset}
+                        strokeLinecap="round"
+                        strokeWidth="3"
+                      />
+                    </svg>
+                    <span
+                      className={`absolute text-xs font-bold font-mono ${
+                        secondsLeft <= 4 ? "text-[#ffb4ab]" : "text-[#ffd78d]"
+                      }`}
+                    >
+                      {secondsLeft}s
+                    </span>
+                  </div>
+                </div>
+
+                {/* Interactive Tactical Dice Roller Block */}
+                <div className="w-full mt-2 grid grid-cols-5 gap-2 items-center">
+                  {/* 3D Holographic Dice Visual Trigger */}
+                  <button
+                    onClick={() => {
+                      if (canRoll) void sendCommand({ kind: "roll" });
+                    }}
+                    disabled={!canRoll}
+                    aria-label="Tactile dice roll"
+                    className={`col-span-2 h-16 rounded-xl border flex items-center justify-center relative overflow-hidden group shadow-[0_4px_16px_rgba(0,0,0,0.5)] active:scale-95 transition-all ${
+                      canRoll
+                        ? "bg-[#242a39] border-[#f3b72c]/50 cursor-pointer hover:border-[#f3b72c]"
+                        : "bg-[#151b29] border-[#242a39] opacity-75"
                     }`}
                   >
-                    {isYourTurn ? "YOUR TURN" : `${p2Name.toUpperCase()}'S TURN`}
-                  </span>
-                  <span className="text-xs text-[#d4c5ad] leading-none mt-0.5">
-                    {turnSubCaption}
-                  </span>
-                </div>
-              </div>
-
-              {/* Circular Countdown Timer Badge */}
-              <div className="relative flex items-center justify-center w-10 h-10 flex-shrink-0">
-                <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                  <circle
-                    cx="18"
-                    cy="18"
-                    fill="none"
-                    r="15"
-                    stroke="#242a39"
-                    strokeWidth="3"
-                  />
-                  <circle
-                    className="transition-all duration-1000"
-                    cx="18"
-                    cy="18"
-                    fill="none"
-                    id="timer-circle"
-                    r="15"
-                    stroke={secondsLeft <= 4 ? "#ffb4ab" : "#f3b72c"}
-                    strokeDasharray="94.2"
-                    strokeDashoffset={strokeOffset}
-                    strokeLinecap="round"
-                    strokeWidth="3"
-                  />
-                </svg>
-                <span
-                  className={`absolute text-xs font-bold font-mono ${
-                    secondsLeft <= 4 ? "text-[#ffb4ab]" : "text-[#ffd78d]"
-                  }`}
-                >
-                  {secondsLeft}s
-                </span>
-              </div>
-            </div>
-
-            {/* Interactive Tactical Dice Roller Block */}
-            <div className="w-full mt-2 grid grid-cols-5 gap-2 items-center">
-              
-              {/* 3D Holographic Dice Visual Trigger */}
-              <button
-                onClick={() => {
-                  if (canRoll) void sendCommand({ kind: "roll" });
-                }}
-                disabled={!canRoll}
-                aria-label="Tactile dice roll"
-                className={`col-span-2 h-16 rounded-xl border flex items-center justify-center relative overflow-hidden group shadow-[0_4px_16px_rgba(0,0,0,0.5)] active:scale-95 transition-all ${
-                  canRoll
-                    ? "bg-[#242a39] border-[#f3b72c]/50 cursor-pointer hover:border-[#f3b72c]"
-                    : "bg-[#151b29] border-[#242a39] opacity-75"
-                }`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#f3b72c]/10 via-transparent to-transparent pointer-events-none" />
-                
-                {/* 3D Holographic Dice Face */}
-                <DiceFace
-                  value={currentDice}
-                  isRolling={command.isPending}
-                />
-                <div className="absolute bottom-1 right-2 text-[8px] text-[#f9bd32] font-mono tracking-widest uppercase">
-                  VRF ROLLED
-                </div>
-              </button>
-
-              {/* Primary Action CTA Button */}
-              <button
-                onClick={() => {
-                  if (canRoll) {
-                    void sendCommand({ kind: "roll" });
-                  } else if (currentDice !== null && isYourTurn) {
-                    // Quick advance: if only one piece is movable, click advances it!
-                    const movableIdx = myPieces.findIndex((p: any) => {
-                      if (p.position === -1) return currentDice === 6;
-                      return p.position + currentDice <= 56;
-                    });
-                    if (movableIdx !== -1) {
-                      void sendCommand({
-                        kind: "move",
-                        pieceIndex: movableIdx,
-                        dieValue: currentDice,
-                      });
-                    } else {
-                      toast.info("Select your pawn on the board to move");
-                    }
-                  }
-                }}
-                disabled={!isYourTurn || command.isPending}
-                className={`col-span-3 h-16 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] ${
-                  canRoll
-                    ? "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4] animate-pulse"
-                    : currentDice !== null && isYourTurn
-                    ? "bg-[#68f5b8] text-[#003824] hover:bg-[#46d89d]"
-                    : "bg-[#191f2e] text-[#d4c5ad] border border-[#242a39] opacity-70"
-                }`}
-              >
-                {command.isPending ? (
-                  <>
-                    <RotateCw size={20} className="animate-spin" />
-                    <span>RESOLVING VRF…</span>
-                  </>
-                ) : canRoll ? (
-                  <>
-                    <Dices size={22} />
-                    <span>ROLL DICE</span>
-                  </>
-                ) : currentDice !== null && isYourTurn ? (
-                  <>
-                    <Sparkles size={20} />
-                    <span>ADVANCE PAWN</span>
-                  </>
-                ) : (
-                  <>
-                    <span>WAITING…</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Quick-Sport Reaction Bar */}
-            <div className="w-full mt-2 flex items-center justify-between gap-1 px-2 py-1.5 rounded-xl bg-[#151b29] border border-[#242a39]">
-              <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono pl-1">
-                Taunt / Chat:
-              </span>
-              <div className="flex items-center gap-1.5">
-                {["GG", "🔥", "⚡", "🎲"].map((em) => (
-                  <button
-                    key={em}
-                    onClick={() => void sendQuickEmote(em)}
-                    className="px-2.5 py-1 rounded-lg bg-[#191f2e] border border-[#242a39] hover:bg-[#242a39] active:scale-90 transition-transform text-xs font-mono text-[#dde2f6]"
-                  >
-                    {em}
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#f3b72c]/10 via-transparent to-transparent pointer-events-none" />
+                    
+                    {/* 3D Holographic Dice Face */}
+                    <DiceFace
+                      value={currentDice}
+                      isRolling={command.isPending}
+                    />
+                    <div className="absolute bottom-1 right-2 text-[8px] text-[#f9bd32] font-mono tracking-widest uppercase">
+                      VRF ROLLED
+                    </div>
                   </button>
-                ))}
-              </div>
-            </div>
-          </section>
+
+                  {/* Primary Action CTA Button */}
+                  <button
+                    onClick={() => {
+                      if (canRoll) {
+                        void sendCommand({ kind: "roll" });
+                      } else if (currentDice !== null && isYourTurn) {
+                        const movableIdx = myPieces.findIndex((p: any) => {
+                          if (p.position === -1) return currentDice === 6;
+                          return p.position + currentDice <= 56;
+                        });
+                        if (movableIdx !== -1) {
+                          void sendCommand({
+                            kind: "move",
+                            pieceIndex: movableIdx,
+                            dieValue: currentDice,
+                          });
+                        } else {
+                          toast.info("Select your pawn on the board to move");
+                        }
+                      }
+                    }}
+                    disabled={!isYourTurn || command.isPending}
+                    className={`col-span-3 h-16 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] ${
+                      canRoll
+                        ? "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4] animate-pulse"
+                        : currentDice !== null && isYourTurn
+                        ? "bg-[#68f5b8] text-[#003824] hover:bg-[#46d89d]"
+                        : "bg-[#191f2e] text-[#d4c5ad] border border-[#242a39] opacity-70"
+                    }`}
+                  >
+                    {command.isPending ? (
+                      <>
+                        <RotateCw size={20} className="animate-spin" />
+                        <span>RESOLVING VRF…</span>
+                      </>
+                    ) : canRoll ? (
+                      <>
+                        <Dices size={22} />
+                        <span>ROLL DICE</span>
+                      </>
+                    ) : currentDice !== null && isYourTurn ? (
+                      <>
+                        <Sparkles size={20} />
+                        <span>ADVANCE PAWN</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>WAITING…</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Quick-Sport Reaction Bar */}
+                <div className="w-full mt-2 flex items-center justify-between gap-1 px-2 py-1.5 rounded-xl bg-[#151b29] border border-[#242a39]">
+                  <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono pl-1">
+                    Taunt / Chat:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {["GG", "🔥", "⚡", "🎲"].map((em) => (
+                      <button
+                        key={em}
+                        onClick={() => void sendQuickEmote(em)}
+                        className="px-2.5 py-1 rounded-lg bg-[#191f2e] border border-[#242a39] hover:bg-[#242a39] active:scale-90 transition-transform text-xs font-mono text-[#dde2f6]"
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
 
           {/* Player HUD Footer Bar */}
-          <footer className="mt-2 mx-4 mb-2 px-3.5 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex-shrink-0">
-                <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#f3b72c] border border-white/5">
-                  <ShieldCheck size={18} />
-                </div>
-                <span className="w-2 h-2 rounded-full bg-[#68f5b8] absolute -top-0.5 -right-0.5 shadow-[0_0_6px_#68f5b8]" />
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-[#ffd78d]">
-                    You
-                  </span>
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">
-                    ({p1Name})
+          {isC4 ? (
+            <footer className="mt-2 mx-4 mb-2 p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[#2f3544] flex items-center justify-center text-[#ffd78d] border border-white/5 shadow-inner">
+                    <User size={22} />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#f3b72c] flex items-center justify-center shadow-[0_0_8px_#f3b72c]">
+                    <Sparkles size={10} className="text-[#412d00] font-bold" />
                   </span>
                 </div>
-                <span className="text-[10px] text-[#4edea3] font-mono">
-                  {playerInArenaCount}/4 Pawns in Arena
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-sm text-[#ffd78d] leading-tight truncate">
+                      You ({p1Name})
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#2f3544] text-[10px] text-[#ffd78d] font-mono">
+                      Gold Legion
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#d4c5ad]">
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-[#ffd78d]">
+                      <span className="w-2 h-2 rounded-full bg-[#f3b72c] shadow-[0_0_6px_#f3b72c]" />
+                      {c4MyDiscsLeft} Discs in Mag
+                    </span>
+                    <span className="text-[#4f4534]">•</span>
+                    <span className="text-[11px] font-mono text-[#68f5b8]">Ready</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Stake Status Guard */}
-            <div className="flex flex-col items-end">
-              <div className="flex items-center gap-1">
-                <Lock size={13} className="text-[#f3b72c]" />
-                <span className="text-xs text-[#dde2f6] font-bold font-mono">
-                  {gameplayStakeNim} NIM
+              {/* Escrow Protection Badge */}
+              <div className="flex flex-col items-end shrink-0 pl-2">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2f3544]">
+                  <Lock size={12} className="text-[#68f5b8]" />
+                  <span className="text-[11px] text-[#dde2f6] font-semibold font-mono">
+                    {gameplayStakeNim} NIM Escrow
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#d4c5ad] font-mono mt-0.5">
+                  Protected Vault
                 </span>
               </div>
-              <span className="text-[10px] text-[#d4c5ad] font-mono">
-                Escrow Protected
-              </span>
-            </div>
-          </footer>
+            </footer>
+          ) : (
+            <footer className="mt-2 mx-4 mb-2 px-3.5 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#f3b72c] border border-white/5">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-[#68f5b8] absolute -top-0.5 -right-0.5 shadow-[0_0_6px_#68f5b8]" />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-[#ffd78d]">
+                      You
+                    </span>
+                    <span className="text-[10px] text-[#d4c5ad] font-mono">
+                      ({p1Name})
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[#4edea3] font-mono">
+                    {playerInArenaCount}/4 Pawns in Arena
+                  </span>
+                </div>
+              </div>
+
+              {/* Stake Status Guard */}
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-1">
+                  <Lock size={13} className="text-[#f3b72c]" />
+                  <span className="text-xs text-[#dde2f6] font-bold font-mono">
+                    {gameplayStakeNim} NIM
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#d4c5ad] font-mono">
+                  Escrow Protected
+                </span>
+              </div>
+            </footer>
+          )}
 
         </main>
 
