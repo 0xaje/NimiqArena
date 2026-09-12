@@ -3,6 +3,72 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@theme {
+  --color-background: #0d1321;
+  --color-surface: #0d1321;
+  --color-surface-dim: #0d1321;
+  --color-surface-bright: #333948;
+  --color-surface-variant: #2f3544;
+  --color-surface-container: #191f2e;
+  --color-surface-container-low: #151b29;
+  --color-surface-container-lowest: #080e1c;
+  --color-surface-container-high: #242a39;
+  --color-surface-container-highest: #2f3544;
+
+  --color-primary: #ffd78d;
+  --color-primary-container: #f3b72c;
+  --color-primary-fixed: #ffdea4;
+  --color-primary-fixed-dim: #f9bd32;
+  --color-on-primary: #412d00;
+  --color-on-primary-container: #674a00;
+
+  --color-secondary: #a5e7ff;
+  --color-secondary-container: #00d2ff;
+  --color-on-secondary: #003543;
+  --color-on-secondary-container: #00566a;
+
+  --color-tertiary: #68f5b8;
+  --color-tertiary-container: #46d89d;
+  --color-on-tertiary: #003824;
+
+  --color-on-surface: #dde2f6;
+  --color-on-surface-variant: #d4c5ad;
+  --color-outline: #9c8f7a;
+  --color-outline-variant: #4f4534;
+
+  --font-headline: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.px-gutter {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.gap-space-xs { gap: 0.25rem; }
+.gap-space-sm { gap: 0.5rem; }
+.gap-space-md { gap: 0.75rem; }
+.gap-space-lg { gap: 1rem; }
+.gap-space-xl { gap: 1.5rem; }
+.p-space-sm { padding: 0.5rem; }
+.p-space-md { padding: 0.75rem; }
+.p-space-lg { padding: 1rem; }
+.px-space-xs { padding-left: 0.25rem; padding-right: 0.25rem; }
+.px-space-sm { padding-left: 0.5rem; padding-right: 0.5rem; }
+.px-space-md { padding-left: 0.75rem; padding-right: 0.75rem; }
+.px-space-lg { padding-left: 1rem; padding-right: 1rem; }
+.mb-space-sm { margin-bottom: 0.5rem; }
+.mb-space-md { margin-bottom: 0.75rem; }
+.mb-space-lg { margin-bottom: 1rem; }
+.mb-space-xl { margin-bottom: 1.5rem; }
+.my-space-md { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+
 :root {
   --ink: #12283f;
   --ink-soft: #27445e;

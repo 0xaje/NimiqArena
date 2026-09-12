@@ -1,1136 +1,814 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { trpc } from "@/lib/trpc";
-import {
-  initializeNimiqMiniApp,
-  getNimiqProvider,
-  getHostLanguage,
-  runNimiqThreeRequests,
-} from "@/lib/nimiq-miniapp";
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ChevronRight,
-  CircleHelp,
-  Coins,
-  Gamepad2,
-  Gift,
-  Menu,
-  Radio,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Terminal,
-  Trophy,
-  User,
-  WalletCards,
-  X,
-  Zap,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
-import { MiniAppDevModal } from "@/components/game/MiniAppDevModal";
-import { WalletConnectModal } from "@/components/game/WalletConnectModal";
-import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
-import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
+import { trpc } from "@/lib/trpc";
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
+import { formatNim } from "@shared/game/pot-distribution";
+import { toast } from "sonner";
 import {
-  restoreSavedWallet,
-  getWalletConnectionMode,
-  getLiveTestnetStatus,
-  isRunningInNimiqPay,
-  sendNimiqPayment,
-  fetchNimiqBalance,
-  fetchNimiqAccountInfo,
-  formatNimiqAddress,
-  type NimiqAccountInfo,
-  type WalletConnectionMode,
-} from "@/lib/nimiq-wallet";
-
-type ProviderState = "checking" | "ready" | "browser" | "error";
-
-type GameCard = {
-  title: string;
-  genre: string;
-  status: "FEATURED" | "COMING SOON" | "CONCEPT" | "UNAVAILABLE";
-  image: string;
-  accent: string;
-  description: string;
-};
-
-function formatAddress(address: string, short: boolean = false) {
-  if (!address) return "";
-  if (short) {
-    return address.length > 9
-      ? `${address.slice(0, 4)}…${address.slice(-4)}`
-      : address;
-  }
-  return address.length > 14
-    ? `${address.slice(0, 7)}…${address.slice(-5)}`
-    : address;
-}
-
-function providerError(value: unknown) {
-  if (typeof value !== "object" || value === null || !("error" in value))
-    return null;
-  const error = (value as { error?: { message?: unknown } }).error;
-  return error && typeof error.message === "string"
-    ? error.message
-    : "Provider request failed.";
-}
-
-const LUDO_SLUG_INPUT = { slug: "ludo-league" } as const;
-const CONNECT4_SLUG_INPUT = { slug: "connect-four" } as const;
+  Wallet,
+  Users,
+  Eye,
+  Swords,
+  ChevronRight,
+  Copy,
+  Check,
+  Sparkles,
+  Trophy,
+  Zap,
+  ArrowRight,
+  ShieldCheck,
+  X,
+  Play,
+  RotateCw,
+  Plus,
+} from "lucide-react";
+import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
+import { WalletConnectModal } from "@/components/game/WalletConnectModal";
+import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
+import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
 
 export default function Home() {
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
-  const guestLogin = trpc.auth.guestLogin.useMutation();
   const user = authQuery.data;
-  const ludoQuery = trpc.game.getBySlug.useQuery(LUDO_SLUG_INPUT);
-  const connect4Query = trpc.game.getBySlug.useQuery(CONNECT4_SLUG_INPUT);
-  const gameCards: GameCard[] = [
-    {
-      title: ludoQuery.data?.name ?? "Ludo League",
-      genre: "STRATEGY / SOCIAL",
-      status: ludoQuery.data ? "FEATURED" : "UNAVAILABLE",
-      image:
-        "https://images.unsplash.com/photo-1605870445919-838d190e8e1b?auto=format&fit=crop&w=900&q=85",
-      accent: "orange",
-      description:
-        ludoQuery.data?.description ??
-        "The real Ludo game record is unavailable right now.",
-    },
-    {
-      title: connect4Query.data?.name ?? "Connect NIM",
-      genre: "TACTICAL / STRATEGY",
-      status: connect4Query.data ? "FEATURED" : "UNAVAILABLE",
-      image: "/images/connect-nim.jpg",
-      accent: "blue",
-      description:
-        connect4Query.data?.description ??
-        "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally.",
-    },
-  ];
-  const [providerState, setProviderState] = useState<ProviderState>(() =>
-    isRunningInNimiqPay() ? "checking" : "browser"
-  );
-  const [consensus, setConsensus] = useState<boolean | null>(null);
-  const [blockNumber, setBlockNumber] = useState<number | null>(null);
-  const [isDevModalOpen, setIsDevModalOpen] = useState(false);
-  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<WalletConnectionMode>(() =>
-    getWalletConnectionMode()
-  );
+
   const {
     address,
-    accountInfo,
     balanceNim,
-    usdValue,
     isConnected,
-    isInsideNimiqPay: insidePay,
-    refreshBalance: refreshAccountBalance,
+    isInsideNimiqPay,
+    refreshBalance,
     setAddress,
   } = useNimiqWallet();
 
-  const [language, setLanguage] = useState(() =>
-    getHostLanguage() || (typeof navigator !== "undefined" ? navigator.language?.split("-")[0] : "en") || "en"
+  // Authoritative data queries
+  const ludoQuery = trpc.game.getBySlug.useQuery({ slug: "ludo-league" });
+  const connect4Query = trpc.game.getBySlug.useQuery({ slug: "connect-four" });
+  const activeMatchesQuery = trpc.match.listActiveMatches.useQuery({ limit: 5 }, { refetchInterval: 5000 });
+  const leaderboardQuery = trpc.leaderboard.getTop.useQuery({ limit: 3 });
+
+  const [connectionMode, setConnectionMode] = useState<any>(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("nimiq_wallet_mode") || "none") : "none"
   );
-  const [providerMessage, setProviderMessage] = useState(() => {
-    if (isRunningInNimiqPay()) return "Checking Nimiq wallet provider…";
-    const saved = restoreSavedWallet();
-    return saved
-      ? "Connected via Official Nimiq Hub / Web Wallet."
-      : "Web Browser: Connect via Official Nimiq Hub.";
-  });
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [isGameLibraryOpen, setIsGameLibraryOpen] = useState(false);
-  const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
-  const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
-  const createSolo = trpc.match.createSoloMatch.useMutation();
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
 
-  // Auto-sync wallet session on mount if wallet is connected but current session is unauthenticated or guest
-  useEffect(() => {
-    if (address && (!user || user.loginMethod === "guest")) {
-      utils.client.auth.requestChallenge.query().then(challengeRes => {
-        return loginWithNimiq.mutateAsync({
-          address,
-          challenge: challengeRes.challenge,
-        });
-      }).then(loginRes => {
-        if (loginRes?.token) {
-          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-        }
-        if (loginRes?.user?.name && !loginRes.user.name.startsWith("Nimiq (") && !loginRes.user.name.startsWith("NQ")) {
-          try {
-            localStorage.setItem(`onboarding_completed_${address}`, "true");
-          } catch {}
-        }
-        void utils.auth.me.invalidate();
-      }).catch(err => {
-        console.warn("[Auth] Auto-sync wallet session:", err);
-      });
+  // Interactive UI state
+  const [selectedStake, setSelectedStake] = useState<number>(50);
+  const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
+  const [isWagerSheetOpen, setIsWagerSheetOpen] = useState(false);
+  const [isWalletSheetOpen, setIsWalletSheetOpen] = useState(false);
+  const [sheetGameTitle, setSheetGameTitle] = useState("Ludo Classic");
+  const [sheetStake, setSheetStake] = useState(50);
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [isDripping, setIsDripping] = useState(false);
+
+  const requestDrip = trpc.payment.requestTestnetDrip.useMutation();
+
+  const handleCopyAddress = () => {
+    if (!address) return;
+    void navigator.clipboard.writeText(address);
+    setCopiedAddress(true);
+    toast.success("Wallet Address Copied!");
+    setTimeout(() => setCopiedAddress(false), 2000);
+  };
+
+  const handleRequestDrip = async () => {
+    if (!address) {
+      toast.error("Please connect your wallet first.");
+      return;
     }
-  }, [address, user?.id, user?.loginMethod]);
-
-  // Auto-onboarding for newly connected wallets: prompt identity registration ONLY if never dismissed/completed
-  useEffect(() => {
-    if (!address || !user) return;
-
-    // Check if dismissed or already completed
     try {
-      const isDismissed =
-        sessionStorage.getItem("dismissed_identity_modal") === "true" ||
-        localStorage.getItem("dismissed_identity_modal") === "true";
-      const isCompleted =
-        localStorage.getItem(`onboarding_completed_${address}`) === "true";
-      if (isDismissed || isCompleted) return;
-    } catch {}
-
-    const name = user.name?.trim() || "";
-    // Only prompt if completely generic or anonymous guest
-    const isGenericGuest =
-      !name ||
-      name.startsWith("guest-") ||
-      name.startsWith("Player 1") ||
-      name.startsWith("Player 2");
-
-    if (isGenericGuest && !isIdentityModalOpen) {
-      setIsIdentityModalOpen(true);
-    }
-  }, [address, user, isIdentityModalOpen]);
-
-  async function handleStartSoloPractice() {
-    try {
-      if (!user) {
-        toast.info("Signing in as Player 1…");
-        const loginRes = await guestLogin.mutateAsync({
-          name: "Player 1 (Solo)",
+      setIsDripping(true);
+      toast.info("Requesting 50 Testnet NIM drip from hot wallet…");
+      const res = await requestDrip.mutateAsync({ address });
+      if (res.success) {
+        toast.success("50 Testnet NIM Received!", {
+          description: `Tx: ${res.txHash.slice(0, 10)}… Checking balance.`,
         });
-        if (loginRes.token) {
-          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+        setTimeout(() => {
+          void refreshBalance();
+        }, 2500);
+      } else {
+        toast.info("Direct drip standby", {
+          description: res.message || "Opening official Nimiq faucet…",
+        });
+        if (res.fallbackUrl) {
+          window.open(res.fallbackUrl, "_blank");
         }
-        await utils.auth.me.invalidate();
       }
-      toast.info("Launching Practice Table vs Arena Bot…");
-      const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
-      window.location.href = `/matches/${match.id}`;
-    } catch (err) {
-      toast.error("Failed to launch solo practice", {
-        description: err instanceof Error ? err.message : "Try again.",
+    } catch (err: any) {
+      toast.error("Faucet request failed", {
+        description: err instanceof Error ? err.message : "Visit official faucet.",
       });
+      window.open("https://testnet.nimiq.watch/#faucet", "_blank");
+    } finally {
+      setIsDripping(false);
     }
-  }
+  };
 
-  async function switchPlayer(name: string) {
-    try {
-      const res = await guestLogin.mutateAsync({ name, newIdentity: true });
-      if (res.token) {
-        sessionStorage.setItem("manus-cookie", `manus-session=${res.token}`);
-        localStorage.setItem("manus-cookie", `manus-session=${res.token}`);
-      }
-      await utils.auth.me.invalidate();
-      toast.success(`Signed in as ${name}`);
-    } catch (e) {
-      toast.error("Failed to switch player");
+  const openWagerConfirmation = (gameTitle: string, stake: number) => {
+    setSheetGameTitle(gameTitle);
+    setSheetStake(stake);
+    setIsWagerSheetOpen(true);
+  };
+
+  const confirmWagerAndLaunch = () => {
+    setIsWagerSheetOpen(false);
+    if (sheetGameTitle.toLowerCase().includes("connect")) {
+      window.location.href = `/games/connect-four`;
+    } else {
+      setIsLudoFlowOpen(true);
     }
-  }
+  };
 
-  useEffect(() => {
-    // 1. Query live on-chain Testnet status from public RPC
-    getLiveTestnetStatus().then(status => {
-      setConsensus(status.consensus);
-      setBlockNumber(status.blockNumber);
-    });
+  const activeMatches = activeMatchesQuery.data || [];
+  const topChampions = leaderboardQuery.data || [];
 
-    // 2. Connect to Nimiq Pay if running inside Mini App
-    if (isRunningInNimiqPay()) {
-      initializeNimiqMiniApp()
-        .then(({ provider, isInsideNimiqPay: inApp, error }) => {
-          if (inApp && provider) {
-            setProviderState("ready");
-            setProviderMessage("Connected to native Nimiq Pay mobile host.");
-            runNimiqThreeRequests(provider)
-              .then(res => {
-                if (res.accounts.length > 0) {
-                  const raw = res.accounts[0];
-                  const formatted = formatNimiqAddress(raw);
-                  setAddress(formatted);
-                  setConnectionMode("mini-app");
-                }
-              })
-              .catch(() => {});
-          } else {
-            setProviderState("browser");
-            setProviderMessage(error || "Nimiq Pay host not detected.");
-          }
-        })
-        .catch(() => {
-          setProviderState("browser");
-        });
-    }
-  }, []);
-
-  const providerLabel = useMemo(() => {
-    if (address) {
-      return connectionMode === "mini-app"
-        ? "NIMIQ PAY"
-        : connectionMode === "hub"
-          ? "NIMIQ HUB"
-          : "WALLET CONNECTED";
-    }
-    return isRunningInNimiqPay()
-      ? "NIMIQ PAY"
-      : "BROWSER (WEB WALLET)";
-  }, [providerState, address, connectionMode]);
-
-  async function connectWallet() {
-    setIsWalletModalOpen(true);
-  }
-
-  function unavailable(feature: string) {
-    toast(`${feature} is not implemented yet`, {
-      description:
-        "This control is visible for platform structure only; no simulated action was performed.",
-    });
-  }
+  // Short formatted address e.g. NQ07 ···· 32F1
+  const shortAddress = address
+    ? `${address.slice(0, 4)} ···· ${address.slice(-4)}`
+    : "Not Connected";
 
   return (
-    <div className="arena-app">
-      <LudoEntryFlowModal
-        isOpen={isLudoFlowOpen}
-        onClose={() => setIsLudoFlowOpen(false)}
-      />
-      <MiniAppDevModal
-        isOpen={isDevModalOpen}
-        onClose={() => setIsDevModalOpen(false)}
-      />
-      <IdentityRegistrationModal
-        isOpen={isIdentityModalOpen}
-        onClose={() => setIsIdentityModalOpen(false)}
-        currentName={user?.name}
-        currentAvatar={(user as any)?.avatar}
-        walletAddress={address || (user as any)?.walletAddress}
-      />
-      <WalletConnectModal
-        isOpen={isWalletModalOpen}
-        onClose={() => setIsWalletModalOpen(false)}
-        connectedAddress={address}
-        connectionMode={connectionMode}
-        onConnected={async (addr, mode) => {
-          setAddress(addr);
-          setConnectionMode(mode);
-          void refreshAccountBalance();
-          try {
-            const challengeRes = await utils.client.auth.requestChallenge.query();
-            const loginRes = await loginWithNimiq.mutateAsync({
-              address: addr,
-              challenge: challengeRes.challenge,
-            });
-            if (loginRes?.token) {
-              sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-              localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-            }
-            await utils.auth.me.invalidate();
-
-            const isCustom = Boolean(user?.name && !user.name.toLowerCase().startsWith("guest"));
-            const isCompleted =
-              localStorage.getItem(`onboarding_completed_${addr}`) === "true" ||
-              localStorage.getItem("dismissed_identity_modal") === "true";
-
-            if (!isCustom && !isCompleted) {
-              setIsIdentityModalOpen(true);
-            } else {
-              try {
-                localStorage.setItem(`onboarding_completed_${addr}`, "true");
-              } catch {}
-            }
-
-            toast.success("Signed in with Nimiq Wallet", {
-              description: `Session bound to ${addr.slice(0, 8)}...`,
-            });
-          } catch (e) {
-            console.warn("[Auth] Failed to sync session with wallet:", e);
-          }
-        }}
-        onDisconnected={async () => {
-          setAddress(null);
-          setConnectionMode("none");
-          try {
-            await logoutMutation.mutateAsync();
-            void utils.auth.me.invalidate();
-            toast.info("Wallet Disconnected", {
-              description: "Returned to guest session.",
-            });
-          } catch (e) {
-            console.warn("[Auth] Logout error:", e);
-          }
-        }}
-      />
-      <aside className={`arena-sidebar ${mobileMenu ? "is-open" : ""}`}>
-        <div className="sidebar-topline">
-          <div className="brand-lockup" aria-label="Nimiq Arena">
-            <NimiqArenaLogo size={36} showText={true} />
-          </div>
-          <button
-            className="icon-button mobile-close"
-            aria-label="Close navigation"
-            onClick={() => setMobileMenu(false)}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="sidebar-rule" />
-        <p className="sidebar-kicker">THE GAME ROOM / 001</p>
-        <nav className="side-nav" aria-label="Primary navigation">
-          <a
-            className="side-nav-link active"
-            href="#featured"
-            onClick={() => setMobileMenu(false)}
-          >
-            Discover <span>01</span>
-          </a>
-          <div className="side-nav-group">
-            <button
-              type="button"
-              className={`side-nav-link ${isGameLibraryOpen ? "active" : ""}`}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "12px 0",
-                fontFamily: "inherit",
-              }}
-              onClick={() => setIsGameLibraryOpen(!isGameLibraryOpen)}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                Game Library {isGameLibraryOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-              <span>02</span>
-            </button>
-            {isGameLibraryOpen && (
-              <div className="side-nav-sublinks">
-                <Link
-                  className="side-nav-sublink"
-                  href="/games/ludo-league"
-                  onClick={() => setMobileMenu(false)}
-                >
-                  <span className="side-nav-sublink-title">
-                    <span className="side-nav-dot ludo-dot" />
-                    Ludo League
-                  </span>
-                  <span className="side-nav-badge ludo-badge">LIVE</span>
-                </Link>
-                <Link
-                  className="side-nav-sublink"
-                  href="/games/connect-four"
-                  onClick={() => setMobileMenu(false)}
-                >
-                  <span className="side-nav-sublink-title">
-                    <span className="side-nav-dot c4-dot" />
-                    Connect NIM
-                  </span>
-                  <span className="side-nav-badge c4-badge">LIVE</span>
-                </Link>
+    <div className="min-h-screen bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans select-none overflow-x-hidden">
+      {/* Mobile-Only App Container */}
+      <div className="w-full max-w-md mx-auto min-h-screen bg-[#0d1321] flex flex-col relative shadow-2xl border-x border-[#1e2638]/40">
+        
+        {/* ========================================================================= */}
+        {/* TOP FIXED APP HEADER                                                      */}
+        {/* ========================================================================= */}
+        <header className="fixed top-0 max-w-md w-full z-40 bg-[#0d1321]/90 backdrop-blur-xl border-b border-[#242a39]/60 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
+          <div className="h-16 px-4 flex items-center justify-between">
+            {/* Left: Brand Identity */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#f3b72c] to-[#e67e22] flex items-center justify-center text-[#191f2e] font-black text-xs shadow-[0_0_12px_rgba(243,183,44,0.4)]">
+                {user?.name ? user.name.slice(0, 1).toUpperCase() : "NA"}
               </div>
-            )}
-          </div>
-          <Link
-            className="side-nav-link"
-            href="/leaderboard"
-            onClick={() => setMobileMenu(false)}
-          >
-            Leaderboard <span>03</span>
-          </Link>
-          <Link
-            className="side-nav-link"
-            href="/earn"
-            onClick={() => setMobileMenu(false)}
-          >
-            Earn & Rewards <span>04</span>
-          </Link>
-          <Link
-            className="side-nav-link"
-            href="/profile"
-            onClick={() => setMobileMenu(false)}
-          >
-            Player Profile <span>05</span>
-          </Link>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="mini-status">
-            <span
-              className={`status-dot ${providerState === "ready" ? "ready" : ""}`}
-            />
-            <div>
-              <strong>{providerLabel}</strong>
-              <span>
-                {providerState === "ready"
-                  ? "Nimiq Pay detected"
-                  : "Awaiting host wallet"}
-              </span>
-            </div>
-          </div>
-          <button
-            className="language-button"
-            onClick={() =>
-              toast(`Nimiq Pay language: ${language.toUpperCase()}`)
-            }
-          >
-            <span>Language</span>
-            <strong>{language.toUpperCase()}</strong>
-          </button>
-          <button
-            className="language-button"
-            onClick={() => setIsDevModalOpen(true)}
-            style={{ marginTop: 8 }}
-          >
-            <span>Mini App SDK</span>
-            <strong>INSPECT</strong>
-          </button>
-          <button
-            className="language-button"
-            onClick={() => {
-              switchPlayer(
-                user?.name?.includes("1")
-                  ? "Player 2 (Guest)"
-                  : "Player 1 (Host)"
-              );
-              setMobileMenu(false);
-            }}
-            style={{ marginTop: 8 }}
-            title="Switch between Player 1 and Player 2"
-          >
-            <span>Test Player Identity</span>
-            <strong>{user?.name || "PLAYER 1"}</strong>
-          </button>
-        </div>
-      </aside>
-      {mobileMenu && (
-        <div
-          className="sidebar-backdrop"
-          onClick={() => setMobileMenu(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      <main className="arena-main">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button
-              className="icon-button mobile-trigger"
-              aria-label="Open navigation"
-              onClick={() => setMobileMenu(true)}
-            >
-              <Menu size={20} />
-            </button>
-            <div className="topbar-brand">
-              <span className="topbar-kicker">NIMIQ ARENA</span>
-              <span className="topbar-title">
-                A place to play, meet, and compete.
-              </span>
-            </div>
-          </div>
-
-          <div className="top-actions">
-            {user?.name && !user.name.startsWith("Player 1") && !user.name.startsWith("guest-") && (
-              <Link
-                href="/profile"
-                className="topbar-profile-badge"
-                title="View Player Profile & Rewards"
-              >
-                <Sparkles size={13} className="sparkle-gold" />
-                <span className="profile-name">@{user.name}</span>
-              </Link>
-            )}
-
-            {/* Desktop-only player switcher */}
-            <button
-              className="search-button desktop-player-switch"
-              onClick={() =>
-                switchPlayer(
-                  user?.name?.includes("1")
-                    ? "Player 2 (Guest)"
-                    : "Player 1 (Host)"
-                )
-              }
-              title="Switch between Player 1 and Player 2 for testing"
-            >
-              <User size={14} /> {user?.name ? user.name : "Sign in as Player 1"}
-            </button>
-
-            {/* Mobile-only compact player indicator button */}
-            <button
-              className="mobile-player-icon-btn"
-              onClick={() =>
-                switchPlayer(
-                  user?.name?.includes("1")
-                    ? "Player 2 (Guest)"
-                    : "Player 1 (Host)"
-                )
-              }
-              title={`Switch Player (Active: ${user?.name || "Player 1"})`}
-              aria-label="Switch test player"
-            >
-              <User size={13} />
-              <span className="mobile-player-indicator">
-                {user?.name?.includes("2") ? "P2" : "P1"}
-              </span>
-            </button>
-
-            {/* Premium Web3 Connect & Balance Capsule */}
-            {address ? (
-              <button
-                className="topbar-wallet-capsule"
-                onClick={connectWallet}
-                title={`Connected: ${address}\nBalance: ${accountInfo ? accountInfo.balanceNim.toFixed(2) + " NIM (~$" + accountInfo.usdValue.toFixed(2) + " USD)" : "Fetching balance…"}\nNetwork: ${accountInfo?.network || "testnet"}\nClick to manage wallet`}
-              >
-                {accountInfo !== null && (
-                  <span className="capsule-balance-zone">
-                    <span
-                      className="balance-live-dot"
-                      style={{
-                        background:
-                          accountInfo.status === "available"
-                            ? "#2ecc71"
-                            : accountInfo.status === "unavailable"
-                            ? "#f59e0b"
-                            : "#94a3b8",
-                      }}
-                    />
-                    <strong className="balance-amount">
-                      {accountInfo.status === "unavailable"
-                        ? "N/A"
-                        : accountInfo.balanceNim.toFixed(1)}
-                    </strong>
-                    <span className="balance-ticker">NIM</span>
-                    {accountInfo.status === "available" && accountInfo.usdValue > 0 && (
-                      <span className="balance-usd" style={{ fontSize: "10px", opacity: 0.7, marginLeft: "4px" }}>
-                        (~${accountInfo.usdValue < 0.01 ? accountInfo.usdValue.toFixed(4) : accountInfo.usdValue.toFixed(2)})
-                      </span>
-                    )}
-                  </span>
-                )}
-                <span className="capsule-address-zone">
-                  <WalletCards size={13} className="capsule-wallet-icon" />
-                  <span className="capsule-address-desktop">{formatAddress(address)}</span>
-                  <span className="capsule-address-mobile">{formatAddress(address, true)}</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-[#ffdea4] text-base tracking-tight leading-none">
+                  NIMIQ ARENA
                 </span>
-              </button>
-            ) : (
-              <button className="topbar-connect-btn" onClick={connectWallet}>
-                <WalletCards size={14} />
-                <span className="connect-btn-text">Connect Wallet</span>
-                <span className="connect-btn-mobile-text">Connect</span>
-              </button>
-            )}
+                <span className="text-[10px] text-[#94a3b8] uppercase tracking-wider font-mono mt-0.5">
+                  {user?.name ? user.name : "Arena Home"}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Wallet Balance Pill */}
+            <button
+              onClick={() => {
+                if (isConnected) {
+                  setIsWalletSheetOpen(true);
+                } else {
+                  setIsWalletModalOpen(true);
+                }
+              }}
+              className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#2f3544] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-transform"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isConnected
+                    ? "bg-[#22c55e] shadow-[0_0_8px_#22c55e]"
+                    : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
+                }`}
+              />
+              <span className="text-xs font-semibold text-[#dde2f6]">
+                {balanceNim != null ? formatNim(balanceNim) : "0"}{" "}
+                <span className="text-[#ffd78d] font-bold">NIM</span>
+              </span>
+              <Wallet size={15} className="text-[#a5e7ff]" />
+            </button>
           </div>
         </header>
 
-        <section className="platform-intro" id="featured">
-          <div className="intro-copy">
-            <div className="stamp-row">
-              <span className="stamp orange">SEASON 01</span>
-              <span className="stamp">WEB3 MULTI-GAME ARENA</span>
-            </div>
-            <p className="eyebrow">ON-CHAIN MICRO-STAKES ESPORTS</p>
-            <h1>
-              Enter the Nimiq
-              <br />
-              <em>Gaming Arena.</em>
-            </h1>
-            <p className="hero-dek">
-              Provably fair multiplayer strategy games powered by the ultra-fast Nimiq blockchain.
-              Claim your Web3 identity, invite friends to earn 2% match commissions, and compete for on-chain pots.
-            </p>
-            <div className="hero-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
-              <a
-                href="#games"
-                className="primary-action"
-                style={{
-                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
-                  padding: "14px 24px",
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  textDecoration: "none",
-                }}
-              >
-                <Gamepad2 size={18} /> BROWSE GAMES
-              </a>
-              <button
-                type="button"
-                className="secondary-chip"
-                onClick={handleStartSoloPractice}
-                disabled={createSolo.isPending}
-                style={{
-                  padding: "12px 18px",
-                  background: "rgba(234, 179, 8, 0.15)",
-                  borderColor: "rgba(234, 179, 8, 0.4)",
-                  color: "#fbbf24",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <Zap size={16} /> {createSolo.isPending ? "Launching…" : "Practice"}
-              </button>
-            </div>
-            <div className="trust-line">
-              <ShieldCheck size={15} />
-              <span>
-                Live players, balances, and match results appear only when
-                verified systems are connected.
+        {/* ========================================================================= */}
+        {/* MAIN SCROLLABLE CONTENT AREA                                              */}
+        {/* ========================================================================= */}
+        <main className="flex-1 flex flex-col w-full pt-20 pb-28 px-4">
+          
+          {/* SECTION 1: FEATURED TITLE (Hero Game Showcase) */}
+          <section className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] uppercase tracking-widest text-[#ffd78d] font-bold font-mono">
+                Featured Title
               </span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#68f5b8]" />
+                <span className="text-[11px] text-[#94a3b8] font-mono">SEASON 02</span>
+              </div>
             </div>
-          </div>
-          <div className="feature-stage">
-            <div className="feature-art">
-              <img src={gameCards[0].image} alt="Ludo table preview" />
-              <div className="feature-wash" />
-              <div className="feature-copy">
-                <span className="card-label">01 / FEATURED GAME</span>
-                <h2>
-                  {ludoQuery.data?.name ?? "Ludo"}
-                  <br />
-                  <em>League</em>
-                </h2>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
-                  <Link className="stage-button" href="/games/ludo-league">
-                    <Gamepad2 size={15} /> Play Arena
-                  </Link>
-                  <button
-                    type="button"
-                    className="stage-button"
-                    onClick={handleStartSoloPractice}
-                    disabled={createSolo.isPending}
-                    style={{
-                      background: "rgba(245, 158, 11, 0.2)",
-                      border: "1px solid rgba(245, 158, 11, 0.4)",
-                      color: "#fbbf24",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    <Zap size={14} /> {createSolo.isPending ? "Loading…" : "Practice"}
-                  </button>
-                  <Link
-                    className="stage-button"
-                    href="/games/ludo-league"
-                    style={{ background: "rgba(234, 179, 8, 0.2)", border: "1px solid rgba(234, 179, 8, 0.4)", color: "#facc15" }}
-                  >
-                    <Coins size={14} /> Wager Escrow
-                  </Link>
+
+            {/* Apple Arcade / Console Style Launcher Card */}
+            <div className="relative w-full rounded-2xl overflow-hidden bg-[#151b29] border border-[#2f3544] shadow-2xl flex flex-col">
+              {/* Media Container */}
+              <div className="relative w-full h-64 overflow-hidden">
+                <img
+                  className="w-full h-full object-cover scale-105 transition-transform duration-500 hover:scale-110"
+                  alt="Ludo Arena Luxury Obsidian Render"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZuABU9HEKvn6QmmNqTQOLN6DIHNcLlY0_SIt8Re7OVzHRmSfe2ft_9dd3Jid8RymZzUctXUhwjSXK-4usymr5Q_7oZ_ZbkSJqMi3kJIwdhoMstQnHnVfebmBgdcCz_SOgnUvuledCRdzrNY7RR2pUas7XTTXd_JuINRku8ppQOUYgOgyS_qq4xHlx_wqlsHawKPH0iBka0pIkkSwbqNpBVT5G5aUyK0hWQD_Zu75BwH_nYUBhRlw8sQ"
+                />
+                {/* Scrim Gradients */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#151b29] via-[#151b29]/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#080e1c]/70 via-transparent to-transparent" />
+
+                {/* Floating Badges */}
+                <div className="absolute top-3 inset-x-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2f3544]/90 backdrop-blur-md shadow-md">
+                    <Users size={12} className="text-[#a5e7ff]" />
+                    <span className="text-[11px] text-[#dde2f6] font-semibold">2–4 Players</span>
+                  </div>
+                  <div className="px-2.5 py-1 rounded-full bg-[#f3b72c]/20 border border-[#f3b72c]/30 backdrop-blur-md">
+                    <span className="text-[10px] text-[#ffd78d] font-bold tracking-wide">
+                      ARENA EXCLUSIVE
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cover Details */}
+                <div className="absolute bottom-3 inset-x-3 flex flex-col gap-1">
+                  <div className="inline-flex items-center gap-1.5 w-fit px-2 py-0.5 rounded bg-[#242a39]/80 backdrop-blur-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c]" />
+                    <span className="text-[10px] text-[#ffdea4] uppercase tracking-wider font-mono font-semibold">
+                      Competitive Multiplayer
+                    </span>
+                  </div>
+                  <h1 className="text-2xl font-black text-[#ffffff] tracking-tight">
+                    Ludo Arena
+                  </h1>
                 </div>
               </div>
-              <span className="feature-chip" style={{ background: "rgba(34, 197, 94, 0.2)", color: "#4ade80", border: "1px solid rgba(34, 197, 94, 0.4)" }}>● LIVE ON NIMIQ TESTNET</span>
-            </div>
-            <div className="feature-footer">
-              <span>
-                <Zap size={13} /> FIRST ON THE TABLE
-              </span>
-              <span>STRATEGY / SOCIAL</span>
-            </div>
-          </div>
-        </section>
 
-        <section className="section-block" id="games">
-          <div className="section-topline">
-            <div>
-              <p className="eyebrow">THE ARENA INDEX</p>
-              <h2>
-                Pick a room.
-                <br />
-                <em>Stay for the games.</em>
-              </h2>
-            </div>
-            <button
-              className="browse-link"
-              onClick={() => unavailable("Full game library")}
-            >
-              <span>View all games</span>
-              <ArrowUpRight size={15} />
-            </button>
-          </div>
-          <div className="game-grid">
-            {gameCards.map((game, index) => (
-              <article
-                className={`game-card ${game.status === "FEATURED" ? "featured-card" : ""}`}
-                key={game.title}
-                onClick={() => {
-                  if (game.title.includes("Ludo")) {
-                    window.location.href = "/games/ludo-league";
-                  } else if (game.title.includes("Connect")) {
-                    window.location.href = "/games/connect-four";
-                  }
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                <div className={`game-card-art ${game.accent}`}>
-                  <img src={game.image} alt="" />
-                  <div className="game-card-shade" />
-                  <span className="game-status">{game.status}</span>
-                  <span className="game-index">0{index + 1}</span>
-                </div>
-                <div className="game-card-body">
-                  <div>
-                    <span className="card-label">{game.genre}</span>
-                    <h3>{game.title}</h3>
+              {/* Card Action Deck */}
+              <div className="p-3.5 bg-[#151b29] flex items-center justify-between gap-3 border-t border-[#242a39]">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">
+                    Current Match Pool
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-sm text-[#f3b72c] font-bold">100</span>
+                    <span className="text-xs text-[#ffd78d] font-semibold">NIM STANDARD</span>
                   </div>
-                  <button
-                    className="round-arrow"
-                    onClick={() => {
-                      if (game.title.includes("Ludo")) {
-                        window.location.href = "/games/ludo-league";
-                      } else if (game.title.includes("Connect")) {
-                        window.location.href = "/games/connect-four";
-                      }
-                    }}
-                    aria-label={`Open ${game.title}`}
-                  >
-                    <ArrowUpRight size={15} />
-                  </button>
-                  <p>{game.description}</p>
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
 
-        {/* Arena Ecosystem Navigation Grid */}
-        <section className="section-block" id="hub-navigation" style={{ marginTop: "36px" }}>
-          <div className="section-topline">
-            <div>
-              <p className="eyebrow">ARENA ECOSYSTEM</p>
-              <h2>
-                Standings, records,
-                <br />
-                <em>and community tables.</em>
-              </h2>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: "20px",
-              marginTop: "20px",
-            }}
-          >
-            {/* Leaderboard Card */}
-            <div
-              style={{
-                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "16px",
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "10px",
-                    background: "rgba(245, 158, 11, 0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fbbf24",
-                    marginBottom: "16px",
-                  }}
+                <button
+                  onClick={() => openWagerConfirmation("Ludo Classic", selectedStake)}
+                  className="h-11 px-5 flex items-center justify-center gap-2 bg-[#f3b72c] hover:bg-[#ffc107] text-[#412d00] rounded-xl text-xs font-black shadow-[0_4px_20px_-2px_rgba(243,183,44,0.4)] active:scale-95 transition-all"
                 >
-                  <Trophy size={22} />
+                  <span>PLAY NOW</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* SECTION 2: CHOOSE YOUR GAME */}
+          <section className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col">
+                <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">
+                  Choose Your Game
+                </h2>
+                <span className="text-xs text-[#94a3b8]">Direct instant-wager titles</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {/* Game Card 1: Ludo */}
+              <div className="bg-[#191f2e] border border-[#2f3544] p-3 rounded-2xl shadow-lg flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-14 h-14 rounded-xl bg-[#2f3544] flex-shrink-0 relative overflow-hidden flex items-center justify-center shadow-inner">
+                    <img
+                      className="w-full h-full object-cover"
+                      alt="Ludo Token 3D"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkTvJ9uzBhh7kyzsasy-vXXornODY7DMCcSZaQPvNUhJ6ZYYUlx6gJ0gHP7DQf_xMi1StB3Iam-30FhREOTt9_uavfbrSVq_WRnzAwajTB4LcBxbxRJwoNlZ-1v1IqvTHruoGmc498cH6fR26VgMUWOm1wgUlQEpflPbqTpp7jcs1EtThpIqys8gj35Uytz9DsJJobs-2BBZvxf98xZZueXafL_AVVqel7cjIB4S9JbGTrSs4zmUBeCg"
+                    />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-[#dde2f6] text-sm truncate">
+                        Ludo Classic
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded bg-[#2f3544] text-[#a5e7ff] text-[10px] font-bold font-mono">
+                        2–4P
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#94a3b8] mt-0.5 truncate">
+                      Classic tactical race board game
+                    </p>
+                  </div>
                 </div>
-                <span className="card-label" style={{ color: "#fbbf24" }}>SEASON 01 RANKINGS</span>
-                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
-                  Global Leaderboards
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
-                  Explore top competitive Elo rankings, win streaks, and seasonal champion crowns across all Arena games.
-                </p>
+
+                <Link
+                  href="/games/ludo-league"
+                  className="h-10 px-4 flex-shrink-0 bg-[#2f3544] hover:bg-[#3b4356] text-[#dde2f6] hover:text-[#ffd78d] rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <span>Play</span>
+                  <Play size={13} fill="currentColor" />
+                </Link>
+              </div>
+
+              {/* Game Card 2: Connect 4 */}
+              <div className="bg-[#191f2e] border border-[#2f3544] p-3 rounded-2xl shadow-lg flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-14 h-14 rounded-xl bg-[#2f3544] flex-shrink-0 relative overflow-hidden flex items-center justify-center shadow-inner">
+                    <img
+                      className="w-full h-full object-cover"
+                      alt="Connect 4 Grid 3D"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm8Od4RcOx9iRzCyQLZsYOjftOIctc0ZlwKjc8wf2W9DFfzeP_MaWj-vVqznduGf-PG-j-0MHVZabJtqdE26RDmJ8HEluuNsmnH_2QoPwiqb7NP47LiL3tHdg8f_PBW7Kddj6Wbv_N5j06DqJMbhfYMFyDyjTcCl2UbUoNanQHoHzAFwtbzo7T-Yu7Bl3TV4jBVDF5waShdneBu7WgDs-2o-FXSJSlXaNr56DBu2NjK_gkm_aoJBvHLg"
+                    />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-[#dde2f6] text-sm truncate">
+                        Connect NIM
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded bg-[#2f3544] text-[#ffd78d] text-[10px] font-bold font-mono">
+                        1v1
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#94a3b8] mt-0.5 truncate">
+                      Vertical alignment showdown
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/games/connect-four"
+                  className="h-10 px-4 flex-shrink-0 bg-[#2f3544] hover:bg-[#3b4356] text-[#dde2f6] hover:text-[#ffd78d] rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <span>Play</span>
+                  <Play size={13} fill="currentColor" />
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          {/* SECTION 3: QUICK PLAY MATCHMAKER */}
+          <section className="mb-6">
+            <div className="p-4 rounded-2xl bg-[#151b29] border border-[#2f3544] shadow-xl">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-[#dde2f6]">Quick Play</span>
+                  <span className="text-xs text-[#94a3b8]">Instant entry into queue</span>
+                </div>
+                <Zap size={20} className="text-[#f3b72c]" />
+              </div>
+
+              {/* Stake Chips Selector */}
+              <div className="grid grid-cols-4 gap-2 my-3">
+                {[10, 50, 100, 500].map(amount => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setSelectedStake(amount)}
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center font-mono text-xs transition-all active:scale-95 ${
+                      selectedStake === amount
+                        ? "bg-[#f3b72c] text-[#412d00] font-bold shadow-[0_0_16px_rgba(243,183,44,0.35)]"
+                        : "bg-[#191f2e] text-[#94a3b8] border border-[#2f3544] hover:border-[#4f4534]"
+                    }`}
+                  >
+                    <span className="font-bold">{amount}</span>
+                    <span className="text-[9px] opacity-75">NIM</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Primary Action CTA */}
+              <button
+                onClick={() => openWagerConfirmation("Ludo Classic", selectedStake)}
+                className="w-full h-12 rounded-xl bg-[#f3b72c] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-98 transition-all"
+              >
+                <Play size={16} fill="currentColor" />
+                <span>Enter Matchmaking ({selectedStake} NIM)</span>
+              </button>
+            </div>
+          </section>
+
+          {/* SECTION 4: LIVE NOW (Real Authoritative Directory) */}
+          <section className="mb-6" id="live-matches">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">
+                  Live Now
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-[#00d2ff]/15 text-[#00d2ff] text-[10px] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] shadow-[0_0_8px_#00d2ff] animate-pulse" />
+                  <span>{activeMatches.length} ACTIVE</span>
+                </span>
+              </div>
+              <Link href="/games/ludo-league" className="text-xs text-[#a5e7ff] hover:underline font-mono">
+                See all
+              </Link>
+            </div>
+
+            {activeMatches.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {activeMatches.map((match: any) => (
+                  <div
+                    key={match.id}
+                    className="bg-[#191f2e] border border-[#2f3544] p-3 rounded-2xl flex items-center justify-between gap-3 shadow-md"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#dde2f6]">
+                          {match.gameSlug === "ludo-league" ? "Ludo Arena" : "Connect NIM"}
+                        </span>
+                        <span className="text-[10px] text-[#94a3b8] font-mono">
+                          · v{match.stateVersion || 1}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-[#94a3b8] truncate max-w-[140px]">
+                          Table #{match.joinCode}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-[#4f4534]" />
+                        <span className="text-xs text-[#ffd78d] font-mono font-bold">
+                          {match.stakeNim ? `${match.stakeNim * 2} NIM POT` : "FREE PLAY"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Link
+                      href={`/matches/${match.id}`}
+                      className="h-9 px-3 flex-shrink-0 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#a5e7ff] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+                    >
+                      <Eye size={13} />
+                      <span>Watch</span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#151b29] border border-[#2f3544] rounded-2xl p-5 flex flex-col items-center justify-center text-center">
+                <Swords size={28} className="text-[#94a3b8] mb-2 opacity-50" />
+                <span className="text-xs font-bold text-[#dde2f6]">
+                  No Active Public Tables
+                </span>
+                <span className="text-[11px] text-[#94a3b8] mt-1 max-w-[240px]">
+                  Be the gladiator to open a table and challenge rivals for the prize pot!
+                </span>
+                <button
+                  onClick={() => setIsLudoFlowOpen(true)}
+                  className="mt-3 h-8 px-4 bg-[#242a39] hover:bg-[#2f3544] text-[#ffd78d] text-xs font-bold rounded-lg border border-[#f3b72c]/30"
+                >
+                  Create Match Table
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* SECTION 5: TOP ARENA CHAMPIONS (Real Authoritative Ranks) */}
+          <section className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col">
+                <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">
+                  Top Arena Champions
+                </h2>
+                <span className="text-xs text-[#94a3b8]">Global competitive leaderboards</span>
               </div>
               <Link
                 href="/leaderboard"
-                style={{
-                  marginTop: "20px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  padding: "10px 16px",
-                  borderRadius: "8px",
-                  background: "rgba(245, 158, 11, 0.15)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                  color: "#fbbf24",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
+                className="text-xs text-[#ffd78d] hover:underline flex items-center gap-0.5 font-mono"
               >
-                View Standings <ArrowUpRight size={15} />
+                <span>Ranks</span>
+                <ChevronRight size={14} />
               </Link>
             </div>
 
-            {/* Profile Card */}
-            <div
-              style={{
-                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "16px",
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "10px",
-                    background: "rgba(56, 189, 248, 0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#38bdf8",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <ShieldCheck size={22} />
+            <div className="bg-[#151b29] border border-[#2f3544] rounded-2xl p-2 flex flex-col gap-1 shadow-lg">
+              {topChampions.length > 0 ? (
+                topChampions.map((player: any, idx: number) => (
+                  <div
+                    key={player.id || idx}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-[#191f2e]/60 hover:bg-[#191f2e] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-5 text-center text-xs font-mono font-bold ${
+                          idx === 0
+                            ? "text-[#ffd78d]"
+                            : idx === 1
+                            ? "text-[#a5e7ff]"
+                            : "text-[#94a3b8]"
+                        }`}
+                      >
+                        0{idx + 1}
+                      </div>
+                      <div className="relative">
+                        <div className="w-9 h-9 rounded-full bg-[#2f3544] overflow-hidden flex items-center justify-center text-xs font-bold text-[#ffd78d]">
+                          {(player.name || player.username || "P").slice(0, 1).toUpperCase()}
+                        </div>
+                        {idx === 0 && (
+                          <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#f3b72c] text-[#412d00] text-[8px] flex items-center justify-center font-bold">
+                            ★
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-[#dde2f6]">
+                          {player.name || player.username || `Player #${player.id || idx + 1}`}
+                        </span>
+                        <span className="text-[10px] text-[#68f5b8] font-mono">
+                          {player.wins || 0} Wins · Elo {player.rating || 1000}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs font-mono font-bold text-[#ffd78d]">
+                        {player.matchesPlayed > 0
+                          ? `${Math.round(((player.wins || 0) / player.matchesPlayed) * 100)}%`
+                          : "100%"}
+                      </span>
+                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">
+                        Win Rate
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center">
+                  <Trophy size={24} className="text-[#ffd78d] mx-auto mb-1 opacity-60" />
+                  <span className="text-xs font-bold text-[#dde2f6] block">
+                    Season 02 Leaderboard Initializing
+                  </span>
+                  <span className="text-[11px] text-[#94a3b8] mt-0.5 block">
+                    Compete in ranked matches to establish your glory!
+                  </span>
                 </div>
-                <span className="card-label" style={{ color: "#38bdf8" }}>YOUR WEB3 RECORD</span>
-                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
-                  Player Profile & Identity
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
-                  Review your personal win-loss ratio, lifetime NIM earned, rating tier, and cryptographic match receipts.
-                </p>
-              </div>
-              <Link
-                href="/profile"
-                style={{
-                  marginTop: "20px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  padding: "10px 16px",
-                  borderRadius: "8px",
-                  background: "rgba(56, 189, 248, 0.15)",
-                  border: "1px solid rgba(56, 189, 248, 0.3)",
-                  color: "#38bdf8",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                Open Profile <ArrowUpRight size={15} />
-              </Link>
+              )}
             </div>
+          </section>
 
-            {/* Join Private Match Card */}
-            <div
-              style={{
-                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "16px",
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "10px",
-                    background: "rgba(34, 197, 94, 0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#4ade80",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <Coins size={22} />
-                </div>
-                <span className="card-label" style={{ color: "#4ade80" }}>CHALLENGE ROOMS</span>
-                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
-                  Join Friend by Code
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
-                  Have an invite code from a friend? Enter directly into a private match table with zero waiting time.
-                </p>
-              </div>
-              <Link
-                href="/join"
-                style={{
-                  marginTop: "20px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  padding: "10px 16px",
-                  borderRadius: "8px",
-                  background: "rgba(34, 197, 94, 0.15)",
-                  border: "1px solid rgba(34, 197, 94, 0.3)",
-                  color: "#4ade80",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                Enter Room <ArrowUpRight size={15} />
-              </Link>
-            </div>
-
-            {/* Earn & Referral Rewards Card */}
-            <div
-              style={{
-                background: "linear-gradient(145deg, #131b2e 0%, #0d121f 100%)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "16px",
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "10px",
-                    background: "rgba(168, 85, 247, 0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#c084fc",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <Gift size={22} />
-                </div>
-                <span className="card-label" style={{ color: "#c084fc" }}>ARENA REWARDS</span>
-                <h3 style={{ fontSize: "1.25rem", margin: "6px 0 10px 0", color: "#f8fafc" }}>
-                  Earn & Referrals
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.5" }}>
-                  Claim your +1,000 pts welcome bonus, invite friends for +500 pts each, and earn 5% commissions on all match pots.
-                </p>
-              </div>
-              <Link
-                href="/earn"
-                style={{
-                  marginTop: "20px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  padding: "10px 16px",
-                  borderRadius: "8px",
-                  background: "rgba(168, 85, 247, 0.15)",
-                  border: "1px solid rgba(168, 85, 247, 0.3)",
-                  color: "#c084fc",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                Claim & Invite <ArrowUpRight size={15} />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="arena-rails" style={{ marginTop: "36px" }}>
-          <div className="rail-card rail-dark">
-            <span className="card-label">THE POINT OF THE ARENA</span>
-            <h3>
-              Play something
-              <br />
-              <em>worth coming back to.</em>
-            </h3>
-            <p>
-              Games are the beginning. Community, progression, and fair
-              competition are the long game.
-            </p>
+          {/* QUICK ACCESS ACTION STRIP: WALLET & VAULT STATUS */}
+          <section className="mb-4">
             <button
-              className="rail-link"
-              onClick={() => unavailable("Arena community")}
+              onClick={() => {
+                if (isConnected) {
+                  setIsWalletSheetOpen(true);
+                } else {
+                  setIsWalletModalOpen(true);
+                }
+              }}
+              className="w-full p-3.5 rounded-2xl bg-[#191f2e] border border-[#2f3544] flex items-center justify-between active:bg-[#242a39] transition-colors shadow-md"
             >
-              <Sparkles size={14} /> Explore the vision
-            </button>
-          </div>
-          <div className="rail-card">
-            <span className="card-label">NIMIQ WALLET / LIVE STATUS</span>
-            <div className="rail-status">
-              <span
-                className={`status-dot ${address || providerState === "ready" ? "ready" : ""}`}
-              />
-              <strong>{providerLabel}</strong>
-            </div>
-            <h3>
-              {address
-                ? `Connected: ${formatAddress(address)}`
-                : providerState === "ready"
-                  ? "Nimiq Pay mobile host ready."
-                  : "Connect via Nimiq Hub or enter address."}
-            </h3>
-            <p>{providerMessage}</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className="rail-link" onClick={connectWallet}>
-                <WalletCards size={14} />{" "}
-                {address ? "Manage Wallet" : "Connect Nimiq Wallet"}
-              </button>
-              <button className="rail-link" onClick={() => setIsDevModalOpen(true)}>
-                <Terminal size={14} /> Inspect Host
-              </button>
-            </div>
-          </div>
-        </section>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#00d2ff]/10 flex items-center justify-center text-[#00d2ff]">
+                  <Wallet size={18} />
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">
+                    {isConnected ? "Connected Nimiq Wallet" : "Connect Nimiq Wallet"}
+                  </span>
+                  <span className="text-xs text-[#dde2f6] font-mono font-semibold">
+                    {shortAddress}
+                  </span>
+                </div>
+              </div>
 
-        <footer className="arena-footer">
-          <div className="footer-mark">
-            <img
-              src="/manus-storage/nimiq-arena-mark_d1d871ea.png"
-              alt=""
-              className="footer-brand-mark"
+              <div className="flex items-center gap-1.5 text-[#ffd78d]">
+                <span className="text-xs font-mono font-bold">
+                  {balanceNim != null ? formatNim(balanceNim) : "0"} NIM
+                </span>
+                <ChevronRight size={16} />
+              </div>
+            </button>
+          </section>
+        </main>
+
+        {/* ========================================================================= */}
+        {/* FIXED BOTTOM NAVIGATION                                                   */}
+        {/* ========================================================================= */}
+        <MobileBottomNav activeMatchesCount={activeMatches.length} />
+
+        {/* ========================================================================= */}
+        {/* MODAL BOTTOM SHEET 1: WAGER CONFIRMATION SHEET                            */}
+        {/* ========================================================================= */}
+        {isWagerSheetOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-[#080e1c]/80 backdrop-blur-sm"
+              onClick={() => setIsWagerSheetOpen(false)}
             />
-            <Sparkles size={15} />
-            <span>THE GAME ROOM IS OPENING</span>
+            {/* Sheet Container */}
+            <div className="relative w-full max-w-md bg-[#242a39] rounded-t-3xl p-5 shadow-2xl z-10 border-t border-[#333948] animate-in slide-in-from-bottom duration-200">
+              {/* Handle */}
+              <div className="w-12 h-1 bg-[#4f4534] rounded-full mx-auto mb-4" />
+
+              {/* Sheet Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-[#ffd78d] uppercase font-mono font-bold tracking-wider">
+                    Stake & Match
+                  </span>
+                  <h3 className="text-base font-bold text-[#dde2f6]">
+                    Confirm Entry: {sheetGameTitle}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsWagerSheetOpen(false)}
+                  className="w-8 h-8 rounded-full bg-[#2f3544] flex items-center justify-center text-[#94a3b8] active:scale-90"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Stake Summary Card */}
+              <div className="bg-[#080e1c] p-3.5 rounded-xl mb-3 flex flex-col gap-2 border border-[#2f3544]">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[#94a3b8]">Your Stake</span>
+                  <span className="text-[#ffd78d] font-mono font-bold">
+                    {sheetStake} NIM
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[#94a3b8]">Available Balance</span>
+                  <span className="text-[#dde2f6] font-mono">
+                    {balanceNim != null ? formatNim(balanceNim) : "0"} NIM
+                  </span>
+                </div>
+                <div className="h-px bg-[#2f3544] my-0.5" />
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[#94a3b8]">Total Match Pot</span>
+                  <span className="text-[#a5e7ff] font-mono font-bold">
+                    {sheetStake * 2} NIM
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[#68f5b8] font-semibold">1st Place Payout (90%)</span>
+                  <span className="text-[#68f5b8] font-mono font-bold">
+                    {(sheetStake * 2 * 0.9).toFixed(1)} NIM
+                  </span>
+                </div>
+              </div>
+
+              {/* Pot Distribution Breakdown */}
+              <div className="p-2.5 rounded-xl bg-[#191f2e] mb-4 flex items-center justify-between text-[11px] text-[#94a3b8] border border-[#2f3544]">
+                <span>Allocation:</span>
+                <span className="text-[#dde2f6] font-mono font-semibold">
+                  90% Winner · 5–7% Builder · 2% Referrer · 1% Charity
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={confirmWagerAndLaunch}
+                  className="w-full h-12 bg-[#f3b72c] hover:bg-[#ffc107] text-[#412d00] rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_20px_-2px_rgba(243,183,44,0.4)] active:scale-98 transition-all"
+                >
+                  <Wallet size={16} />
+                  <span>Deposit Escrow & Start Battle</span>
+                </button>
+                <button
+                  onClick={() => setIsWagerSheetOpen(false)}
+                  className="w-full h-10 bg-transparent text-[#94a3b8] hover:text-[#dde2f6] text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
-          <span>Nimiq Arena / Multi-game platform foundation / 2026</span>
-          <button onClick={() => unavailable("Terms and safeguards")}>
-            <ShieldCheck size={14} /> Safeguards <ArrowUpRight size={13} />
-          </button>
-        </footer>
-      </main>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL BOTTOM SHEET 2: WALLET PREVIEW SHEET                                */}
+        {/* ========================================================================= */}
+        {isWalletSheetOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <div
+              className="absolute inset-0 bg-[#080e1c]/80 backdrop-blur-sm"
+              onClick={() => setIsWalletSheetOpen(false)}
+            />
+            <div className="relative w-full max-w-md bg-[#242a39] rounded-t-3xl p-5 shadow-2xl z-10 border-t border-[#333948] animate-in slide-in-from-bottom duration-200">
+              <div className="w-12 h-1 bg-[#4f4534] rounded-full mx-auto mb-4" />
+
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#68f5b8] shadow-[0_0_8px_#68f5b8]" />
+                  <h3 className="text-base font-bold text-[#dde2f6]">Nimiq Safe Vault</h3>
+                </div>
+                <button
+                  onClick={() => setIsWalletSheetOpen(false)}
+                  className="w-8 h-8 rounded-full bg-[#2f3544] flex items-center justify-center text-[#94a3b8] active:scale-90"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Address Box */}
+              <div className="p-3.5 rounded-xl bg-[#080e1c] border border-[#2f3544] flex items-center justify-between mb-3">
+                <div className="flex flex-col min-w-0 mr-2">
+                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">
+                    Active Address (Testnet)
+                  </span>
+                  <span className="text-xs text-[#dde2f6] font-mono mt-0.5 truncate">
+                    {address || "NQ07 ..."}
+                  </span>
+                </div>
+                <button
+                  onClick={handleCopyAddress}
+                  className="p-2 rounded-lg bg-[#2f3544] text-[#a5e7ff] active:scale-90 transition-transform"
+                  title="Copy Address"
+                >
+                  {copiedAddress ? <Check size={16} className="text-[#22c55e]" /> : <Copy size={16} />}
+                </button>
+              </div>
+
+              {/* Balance Card */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="p-3 rounded-xl bg-[#191f2e] border border-[#2f3544]">
+                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">Available</span>
+                  <p className="text-base text-[#ffd78d] font-mono font-bold mt-0.5">
+                    {balanceNim != null ? formatNim(balanceNim) : "0"}{" "}
+                    <span className="text-xs">NIM</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#191f2e] border border-[#2f3544]">
+                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">Status</span>
+                  <p className="text-xs text-[#68f5b8] font-mono font-bold mt-1">
+                    Ready to Play
+                  </p>
+                </div>
+              </div>
+
+              {/* 1-Click Faucet Quick Action */}
+              <button
+                onClick={handleRequestDrip}
+                disabled={isDripping}
+                className="w-full mb-3 h-10 bg-[#1e293b] hover:bg-[#334155] border border-[#38bdf8]/30 rounded-xl text-xs font-bold text-[#38bdf8] flex items-center justify-center gap-2 active:scale-98 transition-all"
+              >
+                <RotateCw size={14} className={isDripping ? "animate-spin" : ""} />
+                <span>{isDripping ? "Dripping 50 NIM…" : "Get 50 Free Testnet NIM (1-Click)"}</span>
+              </button>
+
+              <button
+                onClick={() => setIsWalletSheetOpen(false)}
+                className="w-full h-11 bg-[#2f3544] hover:bg-[#3b4356] text-[#dde2f6] rounded-xl text-xs font-bold active:scale-98 transition-all"
+              >
+                Close Vault
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Existing Functional Modals */}
+        <LudoEntryFlowModal
+          isOpen={isLudoFlowOpen}
+          onClose={() => setIsLudoFlowOpen(false)}
+        />
+        <WalletConnectModal
+          isOpen={isWalletModalOpen}
+          onClose={() => setIsWalletModalOpen(false)}
+          connectedAddress={address}
+          connectionMode={connectionMode}
+          onConnected={async (addr, mode) => {
+            setAddress(addr);
+            setConnectionMode(mode);
+            void refreshBalance();
+            try {
+              const challengeRes = await utils.client.auth.requestChallenge.query();
+              const loginRes = await loginWithNimiq.mutateAsync({
+                address: addr,
+                challenge: challengeRes.challenge,
+              });
+              if (loginRes?.token) {
+                sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+                localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+              }
+              await utils.auth.me.invalidate();
+              toast.success("Signed in with Nimiq Wallet", {
+                description: `Session bound to ${addr.slice(0, 8)}...`,
+              });
+            } catch (e) {
+              console.warn("[Auth] Failed to sync session with wallet:", e);
+            }
+          }}
+          onDisconnected={async () => {
+            setAddress(null);
+            setConnectionMode("none");
+            try {
+              await logoutMutation.mutateAsync();
+              void utils.auth.me.invalidate();
+              toast.info("Wallet Disconnected", {
+                description: "Returned to guest session.",
+              });
+            } catch (e) {
+              console.warn("[Auth] Logout error:", e);
+            }
+          }}
+        />
+        <IdentityRegistrationModal
+          isOpen={isIdentityModalOpen}
+          onClose={() => setIsIdentityModalOpen(false)}
+          currentName={user?.name}
+          currentAvatar={(user as any)?.avatar}
+          walletAddress={address || (user as any)?.walletAddress}
+        />
+      </div>
     </div>
   );
 }
