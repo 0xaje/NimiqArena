@@ -24,6 +24,7 @@ import {
   verifyNimiqPayment,
   normalizeNimiqAddress,
 } from "./nimiq-verifier";
+import { ENV } from "./_core/env";
 
 const TEST_DB_URL =
   process.env.NIMIQ_ARENA_TEST_DATABASE_URL ||
@@ -57,9 +58,7 @@ function stubBoundTransaction(intentId: string, valueLuna: number) {
             timestamp: Date.now(),
             confirmations: 30,
             from: "NQ11 SOME SEND ER00 0000 0000 0000 0000 0000",
-            to: normalizeNimiqAddress(
-              process.env.NIMIQ_PAYMENT_RECIPIENT as string
-            ),
+            to: normalizeNimiqAddress(ENV.nimiqPaymentRecipient),
             value: valueLuna,
             fee: 0,
             networkId: 5,
@@ -169,8 +168,7 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DB_URL;
-    process.env.NIMIQ_PAYMENT_RECIPIENT =
-      "NQ07 0000 0000 0000 0000 0000 0000 0000 0000";
+    process.env.NIMIQ_PAYMENT_RECIPIENT = ENV.nimiqPaymentRecipient;
     process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA = "400000";
     process.env.NIMIQ_NETWORK_ID = "5";
     process.env.NIMIQ_RPC_URL = REAL_TESTNET_RPC;
@@ -416,10 +414,10 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
   });
 
   it("refuses a real on-chain transfer that is not bound to the intent", async () => {
-    // Against the live chain: this transaction exists, pays the right address
-    // and confirms - and is still not a payment for this intent, because it
-    // carries no reference to it. Anyone can read a hash off a public
-    // explorer, so an unbound transfer proves nothing about who is claiming.
+    // A transfer on chain that confirms and pays the right recipient,
+    // but carries no reference to this intent (recipientData is empty or mismatched).
+    // Anyone can read a hash off a public explorer, so an unbound transfer proves
+    // nothing about who is claiming.
     const intent = await createPaymentIntent({
       userId: hostUserId,
       clientNonce: `pv-nonce-unbound-${Date.now()}`,
@@ -429,6 +427,31 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
       status: "submitted",
       transactionHash: REAL_TESTNET_TX_HASH,
     });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          result: {
+            data: {
+              hash: REAL_TESTNET_TX_HASH,
+              blockNumber: 4_120_000,
+              timestamp: Date.now(),
+              confirmations: 30,
+              from: "NQ11 SOME SEND ER00 0000 0000 0000 0000 0000",
+              to: normalizeNimiqAddress(ENV.nimiqPaymentRecipient),
+              value: intent.valueLuna,
+              fee: 0,
+              networkId: 5,
+              executionResult: true,
+              recipientData: "",
+            },
+          },
+        }),
+      })
+    );
 
     const verification = await verifyPaymentIntent({
       id: intent.id,
@@ -449,7 +472,7 @@ dbSuite("Gated Database & Live Nimiq Verification Lifecycle Matrix", () => {
     });
 
     expect(intent.status).toBe("created");
-    expect(intent.recipient).toBe(process.env.NIMIQ_PAYMENT_RECIPIENT);
+    expect(intent.recipient).toBe(ENV.nimiqPaymentRecipient);
     expect(intent.valueLuna).toBeGreaterThan(0);
 
     // Transition to submitted

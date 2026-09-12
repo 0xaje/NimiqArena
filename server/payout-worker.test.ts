@@ -12,6 +12,51 @@ vi.mock("./db", async () => {
   return { ...actual, ...dbMocks };
 });
 
+vi.mock("@nimiq/core", () => ({
+  PrivateKey: {
+    fromHex: () => ({}),
+  },
+  KeyPair: {
+    derive: () => ({
+      publicKey: {
+        toAddress: () => ({
+          toUserFriendlyAddress: () => "NQ0700000000000000000000000000000000",
+        }),
+      },
+    }),
+  },
+  Address: {
+    fromUserFriendlyAddress: () => ({}),
+  },
+  TransactionBuilder: {
+    newBasic: () => ({
+      sign: () => {},
+      toHex: () => "dummy-hex",
+      toPlain: () => ({ transactionHash: "dummy-payout-tx-hash-12345" }),
+    }),
+  },
+}));
+
+function createMockDb(userData: any = null) {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => (userData ? [userData] : []),
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: () => Promise.resolve(),
+    }),
+    update: () => ({
+      set: () => ({
+        where: () => Promise.resolve(),
+      }),
+    }),
+  };
+}
+
 describe("Payout Worker & Circuit Breakers", () => {
   const mockConfig: PayoutWorkerConfig = {
     enabled: true,
@@ -26,7 +71,7 @@ describe("Payout Worker & Circuit Breakers", () => {
   });
 
   it("fails fast when match is not finished", async () => {
-    dbMocks.getDb.mockResolvedValue({});
+    dbMocks.getDb.mockResolvedValue(createMockDb());
     dbMocks.getMatchById.mockResolvedValue({
       id: "match-unfinished",
       status: "in_progress",
@@ -39,7 +84,13 @@ describe("Payout Worker & Circuit Breakers", () => {
   });
 
   it("trips circuit breaker if net payout exceeds maxPayoutPerMatchNim", async () => {
-    dbMocks.getDb.mockResolvedValue({});
+    dbMocks.getDb.mockResolvedValue(
+      createMockDb({
+        id: 99,
+        name: "Whale Winner",
+        address: "NQ0700000000000000000000000000000000",
+      })
+    );
     dbMocks.getMatchById.mockResolvedValue({
       id: "match-whale",
       status: "finished",
@@ -56,16 +107,9 @@ describe("Payout Worker & Circuit Breakers", () => {
   });
 
   it("requests winner address if winner has not bound a Nimiq wallet", async () => {
-    const mockDb = {
-      select: () => ({
-        from: () => ({
-          where: () => ({
-            limit: () => [{ id: 88, name: "Guest Winner", address: null }],
-          }),
-        }),
-      }),
-    };
-    dbMocks.getDb.mockResolvedValue(mockDb);
+    dbMocks.getDb.mockResolvedValue(
+      createMockDb({ id: 88, name: "Guest Winner", address: null })
+    );
     dbMocks.getMatchById.mockResolvedValue({
       id: "match-guest-win",
       status: "finished",
@@ -78,24 +122,19 @@ describe("Payout Worker & Circuit Breakers", () => {
 
     const result = await processMatchPayout("match-guest-win", mockConfig);
     expect(result.status).toBe("awaiting_winner_address");
-    expect(result.errorMessage).toContain("not bound a persistent Nimiq wallet address");
+    expect(result.errorMessage).toContain(
+      "not bound a persistent Nimiq wallet address"
+    );
   });
 
   it("falls back to Option A (ledger entitlement) when automated payouts are disabled", async () => {
-    const mockDb = {
-      select: () => ({
-        from: () => ({
-          where: () => ({
-            limit: () => [{
-              id: 77,
-              name: "Nimiq Winner",
-              address: "NQ0700000000000000000000000000000000",
-            }],
-          }),
-        }),
-      }),
-    };
-    dbMocks.getDb.mockResolvedValue(mockDb);
+    dbMocks.getDb.mockResolvedValue(
+      createMockDb({
+        id: 77,
+        name: "Nimiq Winner",
+        address: "NQ0700000000000000000000000000000000",
+      })
+    );
     dbMocks.getMatchById.mockResolvedValue({
       id: "match-ledger-pilot",
       status: "finished",
@@ -119,20 +158,27 @@ describe("Payout Worker & Circuit Breakers", () => {
   });
 
   it("processes automated payout (Option B) when enabled with hot-wallet key", async () => {
-    const mockDb = {
-      select: () => ({
-        from: () => ({
-          where: () => ({
-            limit: () => [{
-              id: 77,
-              name: "Nimiq Winner",
-              address: "NQ0700000000000000000000000000000000",
-            }],
-          }),
-        }),
-      }),
-    };
-    dbMocks.getDb.mockResolvedValue(mockDb);
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      const body = JSON.parse(opts?.body || "{}");
+      if (body.method === "getBlockNumber") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ result: { data: 500000 } }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ result: { data: "success" } }),
+      });
+    });
+
+    dbMocks.getDb.mockResolvedValue(
+      createMockDb({
+        id: 77,
+        name: "Nimiq Winner",
+        address: "NQ0700000000000000000000000000000000",
+      })
+    );
     dbMocks.getMatchById.mockResolvedValue({
       id: "match-hot-wallet",
       status: "finished",
@@ -147,5 +193,6 @@ describe("Payout Worker & Circuit Breakers", () => {
     expect(result.status).toBe("settled_on_chain");
     expect(result.winnerAddress).toBe("NQ0700000000000000000000000000000000");
     expect(result.netPayoutNim).toBe(18);
+    expect(result.payoutTxHash).toBe("dummy-payout-tx-hash-12345");
   });
 });

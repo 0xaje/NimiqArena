@@ -528,10 +528,12 @@ export default function MatchRoom() {
         ? (state as any).stakeNim
         : 0;
     const effectiveTotalPotNim = escrow?.totalPotNim || (effectiveStakeNim * 2);
+    const hostStatus = escrow?.playerStatuses?.find(p => p.seat === 0);
+    const guestStatus = escrow?.playerStatuses?.find(p => p.seat === 1);
     const allVerified = !isWageredMatchTable || Boolean(escrow?.allVerified);
     const myDepositVerified = Boolean(
       !isWageredMatchTable ||
-      escrow?.playerStatuses.find(p => p.seat === yourSeat)?.verified
+      escrow?.playerStatuses?.find(p => p.seat === yourSeat)?.verified
     );
     const isDepositNeeded = Boolean(isWageredMatchTable && !myDepositVerified);
 
@@ -544,6 +546,13 @@ export default function MatchRoom() {
           guestName={guestName}
           stakeNim={effectiveStakeNim}
           totalPotNim={effectiveTotalPotNim}
+          totalFundedNim={escrow?.totalFundedNim ?? (hostStatus?.verified && guestStatus?.verified ? effectiveTotalPotNim : hostStatus?.verified || guestStatus?.verified ? effectiveStakeNim : 0)}
+          fundingProgress={escrow?.fundingProgress ?? (allVerified ? "FUNDED" : "NOT_FUNDED")}
+          hostCommittedNim={hostStatus?.committedNim ?? (hostStatus?.verified ? effectiveStakeNim : 0)}
+          guestCommittedNim={guestStatus?.committedNim ?? (guestStatus?.verified ? effectiveStakeNim : 0)}
+          hostFundingStatus={hostStatus?.fundingStatus ?? (hostStatus?.verified ? "FUNDED" : "NOT_FUNDED")}
+          guestFundingStatus={guestStatus?.fundingStatus ?? (guestStatus?.verified ? "FUNDED" : "NOT_FUNDED")}
+          escrowError={(state as any)?.escrowError || (escrowQuery.error ? escrowQuery.error.message : null)}
           isHost={yourSeat === 0}
           onLeave={() => {
             if (confirm("Are you sure you want to leave this table?")) {

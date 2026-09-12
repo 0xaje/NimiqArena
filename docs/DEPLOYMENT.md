@@ -23,7 +23,7 @@
 | `JWT_SECRET` | 32+ character random string for session tokens | `openssl rand -base64 32` |
 | `VITE_APP_ID` | Application identifier | `nimiq-arena-app` |
 | `NIMIQ_PAYMENT_RECIPIENT` | Arena Nimiq treasury address | `NQ25 7E5E BR06 Q5HY Q10V S7KD T230 H6U1 W91T` |
-| `NIMIQ_ARENA_ENTRY_VALUE_LUNA` | Entry stake per match in Luna (1 NIM = $10^8$ Luna) | `100000000` |
+| `NIMIQ_ARENA_ENTRY_VALUE_LUNA` | Entry stake per match in Luna (1 NIM = 100,000 Luna / $10^5$ Luna) | `100000` |
 | `NIMIQ_NETWORK_ID` | Nimiq Network ID (`5` for Testnet, `42` for Mainnet) | `5` |
 | `NIMIQ_RPC_URL` | Public or dedicated Nimiq JSON-RPC endpoint | `https://rpc.testnet.nimiqwatch.com` |
 | `NODE_ENV` | Environment mode | `production` |

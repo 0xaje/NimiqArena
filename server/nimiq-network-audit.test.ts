@@ -153,22 +153,39 @@ describe("Nimiq Network Audit & Integrity", () => {
   });
 
   describe("5. Pot Distribution Economic Model (Section 16)", () => {
-    it("distributes 20,000 NIM pot into 90% Winner, 5% Builder, 3% Ecosystem, 2% Charity", () => {
+    it("distributes 20,000 NIM pot adhering to 90/5/2/1/2 model", () => {
       const totalPotNim = 20_000;
-      const dist = calculatePotDistribution(totalPotNim);
 
-      expect(dist.winnerNim).toBe(18_000);
-      expect(dist.builderNim).toBe(1_000);
-      expect(dist.ecosystemNim).toBe(600);
-      expect(dist.charityNim).toBe(400);
+      // Case A: Winner with eligible referrer (5% Builder, 2% Referrer)
+      const distWithRef = calculatePotDistribution(totalPotNim, true);
+      expect(distWithRef.winnerNim).toBe(18_000);
+      expect(distWithRef.builderNim).toBe(1_000);
+      expect(distWithRef.ecosystemNim).toBe(400);
+      expect(distWithRef.charityNim).toBe(200);
+      expect(distWithRef.referrerNim).toBe(400);
 
-      // Verify exact integer sum in Luna
-      const sumLuna =
-        BigInt(dist.winnerLuna) +
-        BigInt(dist.builderLuna) +
-        BigInt(dist.ecosystemLuna) +
-        BigInt(dist.charityLuna);
-      expect(sumLuna).toBe(BigInt(dist.totalPotLuna));
+      const sumWithRef =
+        BigInt(distWithRef.winnerLuna) +
+        BigInt(distWithRef.builderLuna) +
+        BigInt(distWithRef.ecosystemLuna) +
+        BigInt(distWithRef.charityLuna) +
+        BigInt(distWithRef.referrerLuna);
+      expect(sumWithRef).toBe(BigInt(distWithRef.totalPotLuna));
+
+      // Case B: Winner without referrer (Option A: Builder retains 7%)
+      const distNoRef = calculatePotDistribution(totalPotNim, false);
+      expect(distNoRef.winnerNim).toBe(18_000);
+      expect(distNoRef.builderNim).toBe(1_400);
+      expect(distNoRef.ecosystemNim).toBe(400);
+      expect(distNoRef.charityNim).toBe(200);
+      expect(distNoRef.referrerNim).toBe(0);
+
+      const sumNoRef =
+        BigInt(distNoRef.winnerLuna) +
+        BigInt(distNoRef.builderLuna) +
+        BigInt(distNoRef.ecosystemLuna) +
+        BigInt(distNoRef.charityLuna);
+      expect(sumNoRef).toBe(BigInt(distNoRef.totalPotLuna));
     });
 
     it("handles odd amounts without losing Luna via remainder allocation to charity/winner", () => {

@@ -249,6 +249,7 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
       \`networkId\` int,
       \`failureCode\` varchar(64),
       \`verifiedAt\` timestamp NULL,
+      \`verifiedTransactionHash\` varchar(128) GENERATED ALWAYS AS ((case when \`status\` = 'verified' then \`transactionHash\` else null end)) STORED,
       \`expiresAt\` timestamp NOT NULL,
       \`createdAt\` timestamp NOT NULL DEFAULT (now()),
       \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
@@ -306,9 +307,46 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
   }
 }
 
+/**
+ * Ensures schema migration drift between the Drizzle model and live database
+ * is resolved automatically at startup, preventing ER_BAD_FIELD_ERROR in production.
+ */
+async function synchronizeSchemaMigrations(db: ReturnType<typeof drizzle>) {
+  try {
+    // 1. Ensure verifiedTransactionHash column exists on payment_intents
+    const [cols]: any = await db.execute(
+      sql`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_intents' AND COLUMN_NAME = 'verifiedTransactionHash'`
+    );
+    const rows = Array.isArray(cols) ? cols : (cols as any)?.rows || [];
+    if (rows.length === 0) {
+      console.log("[DatabaseMigration] Adding verifiedTransactionHash column to payment_intents...");
+      await db.execute(
+        sql`ALTER TABLE \`payment_intents\` ADD COLUMN \`verifiedTransactionHash\` varchar(128) GENERATED ALWAYS AS ((case when \`status\` = 'verified' then \`transactionHash\` else null end)) STORED`
+      );
+      console.log("[DatabaseMigration] verifiedTransactionHash column added successfully.");
+    }
+
+    // 2. Ensure unique index on verifiedTransactionHash exists
+    const [indexes]: any = await db.execute(
+      sql`SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_intents' AND INDEX_NAME = 'payment_intents_verified_tx_hash_idx'`
+    );
+    const indexRows = Array.isArray(indexes) ? indexes : (indexes as any)?.rows || [];
+    if (indexRows.length === 0) {
+      console.log("[DatabaseMigration] Adding payment_intents_verified_tx_hash_idx unique index...");
+      await db.execute(
+        sql`ALTER TABLE \`payment_intents\` ADD CONSTRAINT \`payment_intents_verified_tx_hash_idx\` UNIQUE (\`verifiedTransactionHash\`)`
+      );
+      console.log("[DatabaseMigration] payment_intents_verified_tx_hash_idx created successfully.");
+    }
+  } catch (err: any) {
+    console.warn("[DatabaseMigration] Schema synchronization notice:", err.message);
+  }
+}
+
 async function bootstrapDatabase(db: ReturnType<typeof drizzle>) {
   try {
     await ensureTablesExist(db);
+    await synchronizeSchemaMigrations(db);
     await ensureDefaultGamesSeeded(db);
     await ensureDefaultSeasonsSeeded(db);
   } catch (err) {
@@ -2521,7 +2559,13 @@ export async function requiredEntryLunaForMatch(
       .limit(1)
   )[0];
 
-  return rootIntent?.valueLuna ?? ENV.nimiqArenaEntryValueLuna;
+  if (!rootIntent) {
+    throw new Error(
+      `Root payment intent "${match.paymentIntentId}" for match "${match.id}" was not found in the database. Cannot determine required entry stake.`
+    );
+  }
+
+  return rootIntent.valueLuna;
 }
 
 /** A wagered match is one created with a stake attached. */
@@ -3265,7 +3309,10 @@ export async function getMatchEscrowDetails(matchId: string) {
   );
 
   let stakeNim = 0;
-  let totalPotNim = 0;
+  let stakeLuna = 0;
+  let targetTotalPotNim = 0;
+  let targetTotalPotLuna = 0;
+
   const playerStatuses: {
     userId: number;
     seat: number;
@@ -3273,6 +3320,16 @@ export async function getMatchEscrowDetails(matchId: string) {
     status: string;
     verified: boolean;
     txHash: string | null;
+    committedNim: number;
+    committedLuna: number;
+    fundingStatus:
+      | "NOT_FUNDED"
+      | "PAYMENT_PENDING"
+      | "PAYMENT_SUBMITTED"
+      | "VERIFYING"
+      | "FUNDED"
+      | "VERIFICATION_FAILED"
+      | "DATABASE_ERROR";
   }[] = [];
 
   if (isWagered) {
@@ -3290,8 +3347,10 @@ export async function getMatchEscrowDetails(matchId: string) {
       )[0];
 
       if (rootIntent) {
+        stakeLuna = rootIntent.valueLuna;
         stakeNim = rootIntent.valueLuna / 100_000;
-        totalPotNim = stakeNim * 2;
+        targetTotalPotNim = stakeNim * 2;
+        targetTotalPotLuna = stakeLuna * 2;
       }
     }
   }
@@ -3300,19 +3359,58 @@ export async function getMatchEscrowDetails(matchId: string) {
     let verified = false;
     let status = "unpaid";
     let txHash: string | null = null;
+    let committedNim = 0;
+    let committedLuna = 0;
+    let fundingStatus:
+      | "NOT_FUNDED"
+      | "PAYMENT_PENDING"
+      | "PAYMENT_SUBMITTED"
+      | "VERIFYING"
+      | "FUNDED"
+      | "VERIFICATION_FAILED"
+      | "DATABASE_ERROR" = "NOT_FUNDED";
 
     if (p.paymentIntentId) {
-      const pIntent = (
-        await db
-          .select()
-          .from(paymentIntents)
-          .where(eq(paymentIntents.id, p.paymentIntentId))
-          .limit(1)
-      )[0];
-      if (pIntent) {
-        status = pIntent.status;
-        verified = pIntent.status === "verified";
-        txHash = pIntent.transactionHash ?? null;
+      try {
+        const pIntent = (
+          await db
+            .select()
+            .from(paymentIntents)
+            .where(eq(paymentIntents.id, p.paymentIntentId))
+            .limit(1)
+        )[0];
+
+        if (pIntent) {
+          status = pIntent.status;
+          txHash = pIntent.transactionHash ?? null;
+          if (pIntent.status === "verified") {
+            verified = true;
+            committedLuna = pIntent.valueLuna;
+            committedNim = pIntent.valueLuna / 100_000;
+            fundingStatus = "FUNDED";
+          } else if (pIntent.status === "submitted") {
+            fundingStatus = "PAYMENT_SUBMITTED";
+          } else if (pIntent.status === "verifying") {
+            fundingStatus = "VERIFYING";
+          } else if (
+            [
+              "failed",
+              "invalid",
+              "underpaid",
+              "wrong_recipient",
+              "duplicate",
+              "verification_failed",
+            ].includes(pIntent.status)
+          ) {
+            fundingStatus = "VERIFICATION_FAILED";
+          } else if (
+            ["created", "confirmation_pending"].includes(pIntent.status)
+          ) {
+            fundingStatus = "PAYMENT_PENDING";
+          }
+        }
+      } catch {
+        fundingStatus = "DATABASE_ERROR";
       }
     }
 
@@ -3323,11 +3421,29 @@ export async function getMatchEscrowDetails(matchId: string) {
       status,
       verified,
       txHash,
+      committedNim,
+      committedLuna,
+      fundingStatus,
     });
+  }
+
+  let totalFundedNim = 0;
+  let totalFundedLuna = 0;
+  for (const p of playerStatuses) {
+    totalFundedNim += p.committedNim;
+    totalFundedLuna += p.committedLuna;
   }
 
   const allVerified =
     playerStatuses.length === 2 && playerStatuses.every(p => p.verified);
+  const fundingProgress = !isWagered
+    ? "NOT_WAGERED"
+    : allVerified
+      ? "FUNDED"
+      : totalFundedNim > 0
+        ? "PARTIALLY_FUNDED"
+        : "NOT_FUNDED";
+
   const escrowState = !isWagered
     ? "not_wagered"
     : match.status === "finished"
@@ -3340,7 +3456,13 @@ export async function getMatchEscrowDetails(matchId: string) {
     matchId,
     isWagered,
     stakeNim,
-    totalPotNim,
+    stakeLuna,
+    totalPotNim: targetTotalPotNim,
+    targetTotalPotNim,
+    targetTotalPotLuna,
+    totalFundedNim,
+    totalFundedLuna,
+    fundingProgress,
     escrowState,
     allVerified,
     playerStatuses,

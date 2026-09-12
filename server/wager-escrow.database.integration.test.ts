@@ -231,4 +231,128 @@ describe.skipIf(!runDatabaseIntegration)("wagered escrow", () => {
       await cleanup();
     }
   });
+
+  it("executes full 2-player 5,000 NIM challenge match end-to-end with atomic NOT_FUNDED -> PARTIALLY_FUNDED -> FUNDED transitions", async () => {
+    const { db, host, joiner, cleanup, markVerified } = await setup();
+    const WAGER_5000_NIM = 5_000;
+    const WAGER_5000_LUNA = 500_000_000; // 5,000 NIM * 100,000 Luna per NIM (10^5 invariant)
+    const TOTAL_POT_NIM = 10_000;
+    const TOTAL_POT_LUNA = 1_000_000_000;
+
+    const match5000 = await createWageredChallengeMatch({
+      userId: host.id,
+      gameSlug: "ludo-league",
+      stakeNim: WAGER_5000_NIM,
+    });
+
+    try {
+      // 1. Initial State: Host created 5,000 NIM match, guest not joined yet
+      let escrow = await getMatchEscrowDetails(match5000.match.id);
+      expect(escrow.stakeNim).toBe(WAGER_5000_NIM);
+      expect(escrow.totalFundedNim).toBe(0);
+      expect(escrow.totalFundedLuna).toBe(0);
+      expect(escrow.fundingProgress).toBe("NOT_FUNDED");
+      expect(escrow.allVerified).toBe(false);
+      expect(escrow.playerStatuses.length).toBe(1);
+      expect(escrow.playerStatuses[0].userId).toBe(host.id);
+      expect(escrow.playerStatuses[0].fundingStatus).toBe("PAYMENT_PENDING");
+      expect(escrow.playerStatuses[0].committedNim).toBe(0);
+      expect(escrow.playerStatuses[0].committedLuna).toBe(0);
+
+      // 2. Guest joins match via joinCode
+      await joinMatchByCode({
+        userId: joiner.id,
+        joinCode: match5000.match.joinCode,
+      });
+
+      // Match remains waiting, NOT_FUNDED
+      const afterJoinMatch = await getMatchById(match5000.match.id);
+      expect(afterJoinMatch?.status).toBe("waiting");
+
+      escrow = await getMatchEscrowDetails(match5000.match.id);
+      expect(escrow.stakeNim).toBe(WAGER_5000_NIM);
+      expect(escrow.totalFundedNim).toBe(0);
+      expect(escrow.totalFundedLuna).toBe(0);
+      expect(escrow.fundingProgress).toBe("NOT_FUNDED");
+      expect(escrow.allVerified).toBe(false);
+
+      const hostP1 = escrow.playerStatuses.find((p) => p.userId === host.id);
+      const joinerP2 = escrow.playerStatuses.find((p) => p.userId === joiner.id);
+      expect(hostP1?.fundingStatus).toBe("PAYMENT_PENDING");
+      expect(hostP1?.committedNim).toBe(0);
+      expect(joinerP2?.fundingStatus).toBe("NOT_FUNDED");
+      expect(joinerP2?.committedNim).toBe(0);
+
+      // 3. Host deposits & verifies 5,000 NIM (500,000,000 Luna)
+      await markVerified(match5000.hostPaymentIntentId);
+      const hostClaim = await claimVerifiedPaymentForMatch({
+        matchId: match5000.match.id,
+        userId: host.id,
+        paymentIntentId: match5000.hostPaymentIntentId,
+      });
+
+      expect(hostClaim.escrowFunded).toBe(false);
+      expect((await getMatchById(match5000.match.id))?.status).toBe("waiting");
+
+      // Escrow is now PARTIALLY_FUNDED (5,000 NIM out of 10,000 NIM)
+      escrow = await getMatchEscrowDetails(match5000.match.id);
+      expect(escrow.totalFundedNim).toBe(WAGER_5000_NIM);
+      expect(escrow.totalFundedLuna).toBe(WAGER_5000_LUNA);
+      expect(escrow.fundingProgress).toBe("PARTIALLY_FUNDED");
+      expect(escrow.allVerified).toBe(false);
+
+      const hostP1Funded = escrow.playerStatuses.find((p) => p.userId === host.id);
+      const joinerP2Unfunded = escrow.playerStatuses.find((p) => p.userId === joiner.id);
+      expect(hostP1Funded?.fundingStatus).toBe("FUNDED");
+      expect(hostP1Funded?.committedNim).toBe(WAGER_5000_NIM);
+      expect(hostP1Funded?.committedLuna).toBe(WAGER_5000_LUNA);
+      expect(joinerP2Unfunded?.fundingStatus).toBe("NOT_FUNDED");
+      expect(joinerP2Unfunded?.committedNim).toBe(0);
+
+      // 4. Guest creates 5,000 NIM payment intent
+      const joinerIntent = await createPaymentIntent({
+        userId: joiner.id,
+        clientNonce: `wager-5k-joiner-${Date.now()}`.slice(0, 40),
+        matchId: match5000.match.id,
+      });
+
+      expect(joinerIntent.valueLuna).toBe(WAGER_5000_LUNA);
+
+      // 5. Guest deposits & verifies
+      await markVerified(joinerIntent.id);
+      const joinerClaim = await claimVerifiedPaymentForMatch({
+        matchId: match5000.match.id,
+        userId: joiner.id,
+        paymentIntentId: joinerIntent.id,
+      });
+
+      // Escrow is now completely FUNDED -> Match atomically transitions to in_progress!
+      expect(joinerClaim.escrowFunded).toBe(true);
+      const finalMatch = await getMatchById(match5000.match.id);
+      expect(finalMatch?.status).toBe("in_progress");
+
+      escrow = await getMatchEscrowDetails(match5000.match.id);
+      expect(escrow.totalFundedNim).toBe(TOTAL_POT_NIM);
+      expect(escrow.totalFundedLuna).toBe(TOTAL_POT_LUNA);
+      expect(escrow.totalPotNim).toBe(TOTAL_POT_NIM);
+      expect(escrow.fundingProgress).toBe("FUNDED");
+      expect(escrow.allVerified).toBe(true);
+      expect(escrow.escrowState).toBe("locked_in_escrow");
+
+      const hostFinal = escrow.playerStatuses.find((p) => p.userId === host.id);
+      const joinerFinal = escrow.playerStatuses.find((p) => p.userId === joiner.id);
+      expect(hostFinal?.fundingStatus).toBe("FUNDED");
+      expect(hostFinal?.committedNim).toBe(WAGER_5000_NIM);
+      expect(hostFinal?.committedLuna).toBe(WAGER_5000_LUNA);
+      expect(joinerFinal?.fundingStatus).toBe("FUNDED");
+      expect(joinerFinal?.committedNim).toBe(WAGER_5000_NIM);
+      expect(joinerFinal?.committedLuna).toBe(WAGER_5000_LUNA);
+    } finally {
+      await db.delete(matchEvents).where(eq(matchEvents.matchId, match5000.match.id));
+      await db.delete(matchPlayers).where(eq(matchPlayers.matchId, match5000.match.id));
+      await db.delete(matches).where(eq(matches.id, match5000.match.id));
+      await db.delete(paymentIntents).where(eq(paymentIntents.id, match5000.hostPaymentIntentId));
+      await cleanup();
+    }
+  });
 });

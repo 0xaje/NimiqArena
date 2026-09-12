@@ -196,7 +196,7 @@ describeDb("Complete 30-Step Real User Journey Validation (A to Z)", () => {
       currentPlayer: 0,
       dice: 6,
       players: [
-        { id: 0, pieces: [{ position: 57 }, { position: 57 }, { position: 57 }, { position: 51 }] },
+        { id: 0, pieces: [{ position: 56 }, { position: 56 }, { position: 56 }, { position: 50 }] },
         { id: 1, pieces: [{ position: 0 }, { position: -1 }, { position: -1 }, { position: -1 }] },
       ],
       winner: null,
@@ -374,7 +374,7 @@ describeDb("Complete 30-Step Real User Journey Validation (A to Z)", () => {
   // Step 22-26: Payment Intent creation, Real Nimiq RPC verification, Match Gating, Anti-Replay
   it("Step 22-26 [PASS]: Real Nimiq RPC verification, Match-entry gating, and anti-replay enforcement", async () => {
     process.env.NIMIQ_PAYMENT_RECIPIENT = "NQ25 7E5E BR06 Q5HY Q10V S7KD T230 H6U1 W91T";
-    process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA = "100000000";
+    process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA = "100000";
 
     const clientNonce = `pay-nonce-${Date.now()}`;
     const intent = await createPaymentIntent({

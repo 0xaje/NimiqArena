@@ -713,12 +713,18 @@ export const appRouter = router({
           match.paymentIntentId || match.joinCode.startsWith("WAG")
         );
         let stakeNim: number | null = null;
+        let escrowError: string | null = null;
         if (isWagered) {
           try {
             const escrow = await getMatchEscrowDetails(input.id);
             stakeNim = escrow.stakeNim;
-          } catch {
-            // fallback
+          } catch (err: any) {
+            console.error(
+              `[MatchRouter] Failed to load escrow details for wagered match ${input.id}:`,
+              err
+            );
+            escrowError =
+              err?.message || "Failed to retrieve table escrow details";
           }
         }
         return {
@@ -729,6 +735,7 @@ export const appRouter = router({
           stateVersion: match.stateVersion,
           isWagered,
           stakeNim,
+          escrowError,
           snapshot: JSON.parse(match.stateJson),
           players: players.map(current => ({
             seat: current.seat,
