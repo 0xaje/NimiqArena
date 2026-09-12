@@ -125,6 +125,17 @@ export function resolveNimiqPaymentRecipient(network: NimiqNetworkConfig): strin
   return raw;
 }
 
+export function resolveOptionalNimiqAddress(rawAddress?: string): string {
+  const raw = (rawAddress || "").trim();
+  if (!raw) return "";
+  const clean = raw.replace(/\s+/g, "").toUpperCase();
+  if (!/^NQ\d{2}[0-9A-Z]{32}$/.test(clean)) {
+    console.warn(`[NimiqArena] Invalid Nimiq address supplied: "${raw}"`);
+    return "";
+  }
+  return raw;
+}
+
 const resolvedRecipient = resolveNimiqPaymentRecipient(nimiqNetwork);
 
 export const ENV = {
@@ -138,6 +149,12 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   nimiqPaymentRecipient: resolvedRecipient,
   nimiqSettlementAddress: resolvedRecipient,
+  nimiqBuilderAddress:
+    resolveOptionalNimiqAddress(process.env.NIMIQ_BUILDER_ADDRESS) || resolvedRecipient,
+  nimiqCharityAddress:
+    resolveOptionalNimiqAddress(process.env.NIMIQ_CHARITY_ADDRESS),
+  nimiqEcosystemAddress:
+    resolveOptionalNimiqAddress(process.env.NIMIQ_ECOSYSTEM_ADDRESS),
   nimiqArenaEntryValueLuna: Number(
     process.env.NIMIQ_ARENA_ENTRY_VALUE_LUNA || 100_000
   ),

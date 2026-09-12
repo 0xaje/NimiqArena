@@ -27,3 +27,9 @@ services:
         value: "true"
       - key: NIMIQ_PAYOUT_PRIVATE_KEY
         sync: false
+      - key: NIMIQ_BUILDER_ADDRESS
+        value: "NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX"
+      - key: NIMIQ_CHARITY_ADDRESS
+        value: "NQ44 KUSA 4K5M 5LMJ JKET 1GLB 0T8R 9J63 LMJ3"
+      - key: NIMIQ_ECOSYSTEM_ADDRESS
+        value: "NQ26 DH1P 5F4E H3PE 6STN 54MH 8296 G0UK 29AE"

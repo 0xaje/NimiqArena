@@ -441,47 +441,27 @@ export function applyCommand(
 
   let capturedPiece: { playerId: LudoPlayerId; pieceIndex: number } | undefined;
 
-  // Intermediate capture check for combined 2-dice move (e.g. 6 + 5: capture on 6, continue to 11)
-  if (isCombinedMove && from >= 0 && remaining.length === 2) {
-    const d1 = remaining[0];
-    const interTo = from + d1;
-    if (interTo < TRACK_CELLS_BEFORE_HOME) {
-      const interLanding = globalTrackPosition(command.playerId, interTo, command.pieceIndex, mode);
-      if (!LUDO_SAFE_SQUARES.has(interLanding)) {
-        for (const opponent of next.players) {
-          if (opponent.id === command.playerId) continue;
-          opponent.pieces.forEach((oppPiece, oppIdx) => {
-            if (
-              oppPiece.position >= 0 &&
-              oppPiece.position < TRACK_CELLS_BEFORE_HOME &&
-              globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === interLanding
-            ) {
-              oppPiece.position = -1;
-              capturedPiece = { playerId: opponent.id, pieceIndex: oppIdx };
-            }
-          });
-        }
-      }
-    }
-  }
-
-  // Final landing capture check
+  // Final landing capture check (captures occur ONLY on the final landing square)
   if (to < TRACK_CELLS_BEFORE_HOME) {
     const landing = globalTrackPosition(command.playerId, to, command.pieceIndex, mode);
 
     if (!LUDO_SAFE_SQUARES.has(landing)) {
       for (const opponent of next.players) {
         if (opponent.id === command.playerId) continue;
-        opponent.pieces.forEach((oppPiece, oppIdx) => {
+        for (let oppIdx = 0; oppIdx < opponent.pieces.length; oppIdx++) {
+          const oppPiece = opponent.pieces[oppIdx];
           if (
             oppPiece.position >= 0 &&
             oppPiece.position < TRACK_CELLS_BEFORE_HOME &&
             globalTrackPosition(opponent.id, oppPiece.position, oppIdx, mode) === landing
           ) {
+            // Capture ONLY ONE piece even if multiple opponent pieces are stacked on this tile
             oppPiece.position = -1;
             capturedPiece = { playerId: opponent.id, pieceIndex: oppIdx };
+            break;
           }
-        });
+        }
+        if (capturedPiece) break;
       }
     }
   }

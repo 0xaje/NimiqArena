@@ -407,7 +407,7 @@ describe("ludo engine", () => {
       expect(moveRes2.snapshot.currentPlayer).toBe(0);
     });
 
-    it("captures opponent at intermediate step (0+5=5) during dual dice roll [5, 3] and scores to home", () => {
+    it("does not capture opponent at intermediate step during combined roll and moves to full landing square", () => {
       const snapshot = createLudoSnapshot("match-dual-sole", "2p_single", 2);
       snapshot.players[0].pieces[0].position = 0; // Sole piece on track
       // Opponent at global track 5 (which is position 31 for Player 1: (26 + 31) % 52 = 5)
@@ -431,7 +431,7 @@ describe("ludo engine", () => {
       if (!rollRes.ok) return;
       expect(rollRes.snapshot.diceValues).toEqual([5, 3]);
 
-      // Move sole piece: captures opponent on intermediate 5 and scores to home 56
+      // Move sole piece with full roll (8): leaps over square 5 to land on square 8
       const moveRes = applyCommand(
         rollRes.snapshot,
         {
@@ -448,12 +448,63 @@ describe("ludo engine", () => {
 
       expect(moveRes.ok).toBe(true);
       if (!moveRes.ok) return;
-      // Capturing piece scored to center 56!
+      // Piece advances full 8 steps to position 8 (did not trigger intermediate capture or score to 56)
+      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(8);
+      // Opponent at intermediate position 5 was NOT captured! Remains at position 31!
+      expect(moveRes.snapshot.players[1].pieces[0].position).toBe(31);
+    });
+
+    it("captures only ONE opponent piece when landing on a tile with multiple stacked opponent pieces", () => {
+      const snapshot = createLudoSnapshot("match-stacked-capture", "2p_single", 2);
+      snapshot.players[0].pieces[0].position = 0; // Moving piece
+      // Opponent has TWO pieces on global track 5 (position 31 for Player 1)
+      snapshot.players[1].pieces[0].position = 31;
+      snapshot.players[1].pieces[1].position = 31;
+      snapshot.players[1].pieces[2].position = 10;
+      snapshot.players[1].pieces[3].position = 20;
+
+      let rollIdx = 0;
+      const dice = [5, 2];
+      const rollRes = applyCommand(
+        snapshot,
+        {
+          kind: "roll",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: 0,
+          nonce: "roll-5",
+        },
+        () => dice[rollIdx++]
+      );
+
+      expect(rollRes.ok).toBe(true);
+      if (!rollRes.ok) return;
+
+      const moveRes = applyCommand(
+        rollRes.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: rollRes.snapshot.version,
+          nonce: "move-onto-stack",
+          pieceIndex: 0,
+          dieValue: 5,
+        },
+        () => 1
+      );
+
+      expect(moveRes.ok).toBe(true);
+      if (!moveRes.ok) return;
+
+      // Capturing piece scored to center 56
       expect(moveRes.snapshot.players[0].pieces[0].position).toBe(56);
-      // Opponent was captured (back to -1)
-      expect(moveRes.snapshot.players[1].pieces[0].position).toBe(-1);
-      // Under Rule B, the match continues! Winner is null until all pieces reach home
-      expect(moveRes.snapshot.winner).toBe(null);
+      // Exactly ONE opponent piece was sent back to yard (-1), the other remains on track 31
+      const p1Positions = moveRes.snapshot.players[1].pieces.map(p => p.position);
+      const capturedCount = p1Positions.filter(pos => pos === -1).length;
+      const remainingCount = p1Positions.filter(pos => pos === 31).length;
+      expect(capturedCount).toBe(1);
+      expect(remainingCount).toBe(1);
     });
 
     it("allows splitting dice [5, 3] when another piece is outside, capturing opponent at distance 5 and scoring to center", () => {

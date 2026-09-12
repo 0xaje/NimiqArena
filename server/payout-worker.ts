@@ -311,12 +311,87 @@ export async function processMatchPayout(
         networkId: ENV.nimiqNetworkId,
       });
 
+      // Secondary disbursements: Builder, Ecosystem, Charity, Referrer
+      let builderTxHash: string | undefined;
+      const builderDest = ENV.nimiqBuilderAddress || ENV.nimiqPaymentRecipient;
+      if (builderAmountLuna > BigInt(0) && builderDest && normalizeNimiqAddress(builderDest) !== normalizeNimiqAddress(winnerAddress)) {
+        try {
+          builderTxHash = await broadcastOnChainTransfer({
+            privateKeyHex: config.privateKey,
+            recipientAddress: builderDest,
+            amountLuna: builderAmountLuna,
+            rpcUrl: config.rpcUrl,
+            networkId: ENV.nimiqNetworkId,
+          });
+          console.log(`[PayoutWorker] Builder transfer dispatched: ${builderTxHash} (${dist.builderNim} NIM to ${builderDest})`);
+        } catch (builderErr) {
+          console.error(`[PayoutWorker] Failed to broadcast builder transfer:`, builderErr);
+        }
+      }
+
+      let ecosystemTxHash: string | undefined;
+      if (ecosystemAmountLuna > BigInt(0) && ENV.nimiqEcosystemAddress) {
+        try {
+          ecosystemTxHash = await broadcastOnChainTransfer({
+            privateKeyHex: config.privateKey,
+            recipientAddress: ENV.nimiqEcosystemAddress,
+            amountLuna: ecosystemAmountLuna,
+            rpcUrl: config.rpcUrl,
+            networkId: ENV.nimiqNetworkId,
+          });
+          console.log(`[PayoutWorker] Ecosystem transfer dispatched: ${ecosystemTxHash} (${dist.ecosystemNim} NIM to ${ENV.nimiqEcosystemAddress})`);
+        } catch (ecoErr) {
+          console.error(`[PayoutWorker] Failed to broadcast ecosystem transfer:`, ecoErr);
+        }
+      }
+
+      let charityTxHash: string | undefined;
+      if (charityAmountLuna > BigInt(0) && ENV.nimiqCharityAddress) {
+        try {
+          charityTxHash = await broadcastOnChainTransfer({
+            privateKeyHex: config.privateKey,
+            recipientAddress: ENV.nimiqCharityAddress,
+            amountLuna: charityAmountLuna,
+            rpcUrl: config.rpcUrl,
+            networkId: ENV.nimiqNetworkId,
+          });
+          console.log(`[PayoutWorker] Charity transfer dispatched: ${charityTxHash} (${dist.charityNim} NIM to ${ENV.nimiqCharityAddress})`);
+        } catch (charityErr) {
+          console.error(`[PayoutWorker] Failed to broadcast charity transfer:`, charityErr);
+        }
+      }
+
+      let referrerTxHash: string | undefined;
+      if (hasReferrer && referrerAmountLuna > BigInt(0) && referrerAddress) {
+        try {
+          referrerTxHash = await broadcastOnChainTransfer({
+            privateKeyHex: config.privateKey,
+            recipientAddress: referrerAddress,
+            amountLuna: referrerAmountLuna,
+            rpcUrl: config.rpcUrl,
+            networkId: ENV.nimiqNetworkId,
+          });
+          console.log(`[PayoutWorker] Referrer transfer dispatched: ${referrerTxHash} (${dist.referrerNim} NIM to ${referrerAddress})`);
+        } catch (refErr) {
+          console.error(`[PayoutWorker] Failed to broadcast referrer transfer:`, refErr);
+        }
+      }
+
+      const disbursementAudit = JSON.stringify({
+        winner: { address: winnerAddress, amountLuna: winnerAmountLuna.toString(), txHash: payoutTxHash },
+        builder: builderTxHash ? { address: builderDest, amountLuna: builderAmountLuna.toString(), txHash: builderTxHash } : undefined,
+        ecosystem: ecosystemTxHash ? { address: ENV.nimiqEcosystemAddress, amountLuna: ecosystemAmountLuna.toString(), txHash: ecosystemTxHash } : undefined,
+        charity: charityTxHash ? { address: ENV.nimiqCharityAddress, amountLuna: charityAmountLuna.toString(), txHash: charityTxHash } : undefined,
+        referrer: referrerTxHash ? { address: referrerAddress, amountLuna: referrerAmountLuna.toString(), txHash: referrerTxHash } : undefined,
+      });
+
       await db
         .update(settlements)
         .set({
           status: "settled_on_chain",
           payoutTxHash,
           settledAt: new Date(),
+          errorMessage: disbursementAudit,
         })
         .where(eq(settlements.id, settlementId));
 
