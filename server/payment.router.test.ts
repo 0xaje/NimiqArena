@@ -146,4 +146,21 @@ describe("payment procedures", () => {
       }
     }
   });
+
+  it("handles requestTestnetDrip with address validation and fallback", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    // Rejects invalid address format
+    await expect(
+      caller.payment.requestTestnetDrip({ address: "invalid-address" })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    // Valid testnet address returns result with fallback url when hot wallet is on standby
+    const res = await caller.payment.requestTestnetDrip({
+      address: "NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX",
+    });
+    expect(res).toBeDefined();
+    expect(typeof res.success).toBe("boolean");
+    expect(res.fallbackUrl).toBe("https://testnet.nimiq.watch/#faucet");
+  });
 });

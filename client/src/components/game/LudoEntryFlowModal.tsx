@@ -14,6 +14,7 @@ import {
   Users,
   X,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -40,6 +41,7 @@ export function LudoEntryFlowModal({
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
   const createChallenge = trpc.match.createChallenge.useMutation();
+  const createHouseWagered = trpc.match.createHouseWageredMatch.useMutation();
 
   const [activeTab, setActiveTab] = useState<"wager" | "practice">("wager");
   const [selectedStake, setSelectedStake] = useState<number>(defaultStake);
@@ -88,10 +90,13 @@ export function LudoEntryFlowModal({
       await ensureAuthenticated();
 
       if (selectedMode === "bot") {
-        toast.info("Entering Arena Table vs Nimiq AI Bot…");
-        const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
+        toast.info(`Creating ${formatNim(currentStake)} NIM Wagered Table vs Arena Bot (House Matched)…`);
+        const res = await createHouseWagered.mutateAsync({
+          gameSlug: "ludo-league",
+          stakeNim: currentStake,
+        });
         onClose();
-        window.location.href = `/matches/${match.id}`;
+        window.location.href = `/matches/${res.id}`;
         return;
       }
 
@@ -335,6 +340,28 @@ export function LudoEntryFlowModal({
                   <span>AI Bot</span>
                 </button>
               </div>
+
+              {selectedMode === "bot" && (
+                <div
+                  style={{
+                    marginTop: "10px",
+                    padding: "8px 12px",
+                    background: "rgba(245, 158, 11, 0.12)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    color: "#fde047",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Sparkles size={14} color="#f59e0b" />
+                  <span>
+                    <strong>Instant House Match:</strong> Platform bankroll matches your {formatNim(currentStake)} NIM stake! Beat the AI to win the on-chain pot.
+                  </span>
+                </div>
+              )}
 
               {selectedMode === "friend" && (
                 <div style={{ marginTop: "8px" }}>

@@ -66,7 +66,7 @@ function checkAndResetDailyLimit(amountNim: number, maxDailyNim: number): boolea
 /**
  * Broadcasts an on-chain transaction from the backend hot wallet using @nimiq/core.
  */
-async function broadcastOnChainTransfer(options: {
+export async function broadcastOnChainTransfer(options: {
   privateKeyHex: string;
   recipientAddress: string;
   amountLuna: bigint;

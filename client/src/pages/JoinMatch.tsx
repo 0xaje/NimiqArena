@@ -64,11 +64,38 @@ export default function JoinMatch() {
     try {
       const params = new URLSearchParams(window.location.search);
       const codeFromUrl = params.get("code") || params.get("joinCode");
+      const isAutoJoin = params.get("autoJoin") === "true";
       if (codeFromUrl) {
         const clean = codeFromUrl.replace(/[^a-z0-9]/gi, "").slice(0, 12).toUpperCase();
         setJoinCode(clean);
         setActiveTab("join");
-        toast.info("Invite code detected from link", { description: `Code: ${clean}` });
+
+        if (isAutoJoin) {
+          toast.info("Dual-play assistant: Joining as Player 2…");
+          void (async () => {
+            try {
+              const loginRes = await guestLogin.mutateAsync({
+                name: "Player 2 (Judge Tester)",
+                newIdentity: true,
+              });
+              if (loginRes.token) {
+                sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
+              }
+              await utils.auth.me.invalidate();
+              const result = await join.mutateAsync({ joinCode: clean });
+              toast.success("Joined match as Player 2!", {
+                description: "Entering arena table now…",
+              });
+              navigate(`/matches/${result.id}`);
+            } catch (err) {
+              toast.error("Auto-join failed", {
+                description: err instanceof Error ? err.message : "Please join manually.",
+              });
+            }
+          })();
+        } else {
+          toast.info("Invite code detected from link", { description: `Code: ${clean}` });
+        }
       }
     } catch {
       // Ignore URL parsing errors

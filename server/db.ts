@@ -1582,7 +1582,10 @@ export async function sweepMatchLifecycle(now = new Date()) {
     const result = await refreshMatchLifecycle(row.id, now);
     if (result?.status === "expired" || result?.status === "cancelled") {
       changed += 1;
-    } else if (result?.status === "in_progress" && result.joinCode?.startsWith("BOT")) {
+    } else if (
+      result?.status === "in_progress" &&
+      (result.joinCode?.startsWith("BOT") || result.joinCode?.startsWith("WAGBOT"))
+    ) {
       // Process Crash Recovery: Resurrect stranded bot turn if inactive for > 4s
       try {
         const snap = JSON.parse(result.stateJson);
@@ -3665,3 +3668,115 @@ export async function getActiveMatchesForDirectory(limit: number = 10) {
   return list;
 }
 
+export async function createHouseWageredMatch(input: {
+  userId: number;
+  gameSlug: string;
+  stakeNim: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+  const game = await getGameBySlug(input.gameSlug);
+  if (!game || game.status !== "active") {
+    throw new Error("This game is not available for wagered match creation.");
+  }
+  if (!ENV.nimiqPaymentRecipient || ENV.nimiqPaymentRecipient.includes("0000 0000")) {
+    throw new Error(
+      `Nimiq payment recipient is not configured for ${ENV.nimiqNetworkName}. Set NIMIQ_SETTLEMENT_ADDRESS or NIMIQ_PAYMENT_RECIPIENT in Render environment settings.`
+    );
+  }
+  if (input.stakeNim < 1 || input.stakeNim > 10_000_000) {
+    throw new Error("Stake must be between 1 and 10,000,000 NIM.");
+  }
+
+  const botUser = await getOrCreateBotUser();
+
+  const id = nanoid(20);
+  const joinCode = `WAGBOT${nanoid(6).replace(/[-_]/g, "A").toUpperCase()}`;
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const engineVersion = game.kind === "connect4" ? "connect4-v1" : "ludo-v1";
+  const snapshot =
+    game.kind === "connect4"
+      ? createConnect4Snapshot(id)
+      : createLudoSnapshot(id, "2p_double", 2);
+
+  const hostIntentId = nanoid(20);
+  const botIntentId = nanoid(20);
+  const lunaPerNim = 100_000;
+  const valueLuna = Math.floor(input.stakeNim * lunaPerNim);
+  const recipient = normalizeNimiqAddress(ENV.nimiqPaymentRecipient);
+  const houseEscrowAddress = normalizeNimiqAddress(
+    ENV.nimiqBuilderAddress || ENV.nimiqPaymentRecipient
+  );
+
+  await db.transaction(async tx => {
+    // 1. Host intent (requires real on-chain deposit by host)
+    await tx.insert(paymentIntents).values({
+      id: hostIntentId,
+      userId: input.userId,
+      recipient,
+      valueLuna,
+      status: "created",
+      clientNonce: nanoid(24),
+      expiresAt,
+    });
+
+    // 2. Bot / House matching escrow commitment (pre-verified house bankroll commitment)
+    await tx.insert(paymentIntents).values({
+      id: botIntentId,
+      userId: botUser.id,
+      recipient,
+      valueLuna,
+      status: "verified",
+      clientNonce: nanoid(24),
+      transactionHash: `house_escrow_${botIntentId}`,
+      senderAddress: houseEscrowAddress,
+      networkId: ENV.nimiqNetworkId,
+      verifiedAt: new Date(),
+      expiresAt,
+    });
+
+    // 3. Match record
+    await tx.insert(matches).values({
+      id,
+      gameId: game.id,
+      hostUserId: input.userId,
+      joinCode,
+      visibility: "challenge_friend",
+      status: "waiting", // Waiting for host deposit
+      paymentIntentId: hostIntentId,
+      engineVersion,
+      stateVersion: snapshot.version,
+      stateJson: JSON.stringify(snapshot),
+      expiresAt,
+    });
+
+    // 4. Seat 0: Host
+    await tx.insert(matchPlayers).values({
+      matchId: id,
+      userId: input.userId,
+      seat: 0,
+      paymentIntentId: hostIntentId,
+      status: "joined",
+    });
+
+    // 5. Seat 1: Bot (House)
+    await tx.insert(matchPlayers).values({
+      matchId: id,
+      userId: botUser.id,
+      seat: 1,
+      paymentIntentId: botIntentId,
+      status: "joined",
+    });
+  });
+
+  const match = await getMatchById(id);
+  if (!match) throw new Error("House wagered match could not be created.");
+
+  return {
+    match,
+    hostPaymentIntentId: hostIntentId,
+    botPaymentIntentId: botIntentId,
+    stakeNim: input.stakeNim,
+    valueLuna,
+  };
+}

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const dbMocks = vi.hoisted(() => ({
   getMatchPlayer: vi.fn(),
   createWageredChallengeMatch: vi.fn(),
+  createHouseWageredMatch: vi.fn(),
   getMatchEscrowDetails: vi.fn(),
   claimVerifiedPaymentForMatch: vi.fn(),
   settleMatchWinnerPayout: vi.fn(),
@@ -96,6 +97,38 @@ describe("Wagered NIM Matches & Escrow Router", () => {
     expect(res.id).toBe("match-wager-12345");
     expect(res.stakeNim).toBe(50);
     expect(res.hostPaymentIntentId).toBe("intent-host-123");
+  });
+
+  it("createHouseWageredMatch creates a house-backed match with bot and house intent", async () => {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    dbMocks.createHouseWageredMatch.mockResolvedValue({
+      match: {
+        id: "match-house-wager-999",
+        joinCode: "WAGBOTABC1",
+        status: "waiting",
+        expiresAt,
+      },
+      hostPaymentIntentId: "intent-host-999",
+      botPaymentIntentId: "intent-bot-999",
+      stakeNim: 25,
+      valueLuna: 2_500_000,
+    });
+
+    const caller = appRouter.createCaller(createContext(7701));
+    const res = await caller.match.createHouseWageredMatch({
+      gameSlug: "ludo-league",
+      stakeNim: 25,
+    });
+
+    expect(dbMocks.createHouseWageredMatch).toHaveBeenCalledWith({
+      userId: 7701,
+      gameSlug: "ludo-league",
+      stakeNim: 25,
+    });
+    expect(res.id).toBe("match-house-wager-999");
+    expect(res.joinCode).toBe("WAGBOTABC1");
+    expect(res.stakeNim).toBe(25);
+    expect(res.hostPaymentIntentId).toBe("intent-host-999");
   });
 
   it("escrowDetails returns real-time pot and deposit verification status", async () => {

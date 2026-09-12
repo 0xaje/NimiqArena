@@ -26,6 +26,7 @@ import {
   AVATAR_PRESETS,
   IdentityRegistrationModal,
 } from "@/components/profile/IdentityRegistrationModal";
+import { ReferralCard } from "@/components/referral/ReferralCard";
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
 
 export default function PlayerProfile() {
@@ -442,7 +443,12 @@ export default function PlayerProfile() {
           </section>
         )}
 
-        {/* 5. Rating & Match History Section */}
+        {/* 5. Viral Referral & Earnings Section */}
+        <section style={{ marginBottom: "20px" }}>
+          <ReferralCard />
+        </section>
+
+        {/* 6. Rating & Match History Section */}
         <section className="history-section" style={{ marginTop: "24px" }}>
           <div className="history-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <div>

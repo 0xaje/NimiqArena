@@ -11,7 +11,11 @@ import {
   ShieldCheck,
   Trophy,
   Users,
+  Copy,
+  Share2,
+  Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
 import { useNimiqPrice } from "@/lib/nimiq-price";
@@ -37,6 +41,10 @@ export function VictoryPayoutBanner({
 }: VictoryPayoutBannerProps) {
   const { formatUsd, nimToUsd } = useNimiqPrice();
   const isWinner = yourUserId === winnerUserId;
+  const { data: refStats } = trpc.auth.getReferralStats.useQuery(undefined, { enabled: isWinner });
+  const referralCode = refStats?.referralCode || "player";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://arena.nimiq.com";
+  const shareUrl = `${origin}/?ref=${referralCode}`;
   const settlePayout = trpc.match.settlePayout.useMutation();
   const [settlement, setSettlement] = useState<{
     netPayoutNim: number;
@@ -213,6 +221,118 @@ export function VictoryPayoutBanner({
           <p>
             Great game! Practice matches have zero stake and are designed to hone your tactical skills against the Nimiq AI.
           </p>
+        </div>
+      )}
+
+      {/* Viral Victory Share Card */}
+      {isWinner && (
+        <div
+          style={{
+            marginTop: "16px",
+            marginBottom: "16px",
+            padding: "14px 16px",
+            borderRadius: "12px",
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(56, 189, 248, 0.08))",
+            border: "1px solid rgba(245, 158, 11, 0.35)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <Sparkles size={16} color="#fbbf24" />
+              <strong style={{ fontSize: "13px", color: "#f8fafc" }}>
+                Share Victory &amp; Earn 2% On Challenges!
+              </strong>
+            </div>
+            <span style={{ fontSize: "10px", color: "#4ade80", fontWeight: 700 }}>
+              +2% LIFETIME COMMISSIONS
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => {
+                const text = encodeURIComponent(
+                  `⚔️ I just won ${totalPotNim > 0 ? formatNim(dist.winnerNim) + " NIM" : "a battle"} on Nimiq Arena! Think you can beat me? Challenge me now:`
+                );
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`, "_blank");
+              }}
+              style={{
+                flex: 1,
+                minWidth: "140px",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                background: "rgba(56, 189, 248, 0.2)",
+                border: "1px solid rgba(56, 189, 248, 0.4)",
+                color: "#38bdf8",
+                fontSize: "12px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                cursor: "pointer",
+              }}
+            >
+              <Share2 size={14} /> Telegram
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const text = encodeURIComponent(
+                  `⚔️ I just won ${totalPotNim > 0 ? formatNim(dist.winnerNim) + " NIM" : "a battle"} on @Nimiq Arena! Instant micro-stakes Web3 gaming. Challenge me: ${shareUrl}`
+                );
+                window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+              }}
+              style={{
+                flex: 1,
+                minWidth: "120px",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "#f8fafc",
+                fontSize: "12px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                cursor: "pointer",
+              }}
+            >
+              X / Twitter
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(shareUrl);
+                toast.success("Referral Link Copied!", {
+                  description: "Share it with friends to earn 2% of their match winnings!",
+                });
+              }}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "8px",
+                background: "rgba(245, 158, 11, 0.2)",
+                border: "1px solid rgba(245, 158, 11, 0.4)",
+                color: "#fbbf24",
+                fontSize: "12px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                cursor: "pointer",
+              }}
+            >
+              <Copy size={14} /> Copy Link
+            </button>
+          </div>
         </div>
       )}
 

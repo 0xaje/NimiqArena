@@ -387,6 +387,45 @@ export function MatchWaitingRoom({
         </div>
 
         {isHost && !guestName && (
+          <div style={{ marginTop: "8px" }}>
+            <button
+              type="button"
+              onClick={() => {
+                const origin = typeof window !== "undefined" ? window.location.origin : "";
+                window.open(
+                  `${origin}/join?code=${joinCode}&autoJoin=true`,
+                  "_blank",
+                  "width=520,height=840,menubar=no,status=no,toolbar=no"
+                );
+                toast.success("Player 2 Window Opened!", {
+                  description: "Opened opponent test window in separate session.",
+                });
+              }}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: "8px",
+                background: "rgba(56, 189, 248, 0.12)",
+                border: "1px solid rgba(56, 189, 248, 0.35)",
+                color: "#38bdf8",
+                fontSize: "12px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              title="Open a second window as Player 2 to test dual-player gameplay immediately"
+            >
+              <Users size={16} />
+              <span>Open Player 2 Window (Judge Dual-Play)</span>
+            </button>
+          </div>
+        )}
+
+        {isHost && !guestName && (
           <div className="waiting-bot-cta">
             <button
               type="button"

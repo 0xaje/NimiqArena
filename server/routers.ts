@@ -10,6 +10,7 @@ import {
   createPaymentIntent,
   createSoloPracticeMatch,
   createWageredChallengeMatch,
+  createHouseWageredMatch,
   checkUsernameAvailable,
   registerUserIdentity,
   claimWelcomeReward,
@@ -43,6 +44,7 @@ import {
   verifyPaymentIntent,
 } from "./db";
 import { normalizeNimiqAddress } from "./nimiq-verifier";
+import { DEFAULT_PAYOUT_CONFIG, broadcastOnChainTransfer } from "./payout-worker";
 import { broadcastEmote, broadcastQuickChat } from "./match-stream";
 import { nanoid } from "nanoid";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -564,6 +566,40 @@ export const appRouter = router({
           });
         }
       }),
+    createHouseWageredMatch: protectedProcedure
+      .use(paymentLimit)
+      .input(
+        z.object({
+          gameSlug: z.string().min(1).max(64),
+          stakeNim: z.number().int().min(1).max(10_000_000),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const res = await createHouseWageredMatch({
+            userId: ctx.user.id,
+            gameSlug: input.gameSlug,
+            stakeNim: input.stakeNim,
+          });
+          return {
+            id: res.match.id,
+            joinCode: res.match.joinCode,
+            status: res.match.status,
+            hostPaymentIntentId: res.hostPaymentIntentId,
+            stakeNim: res.stakeNim,
+            valueLuna: res.valueLuna,
+            expiresAt: res.match.expiresAt,
+          };
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to create house-wagered match.",
+          });
+        }
+      }),
     escrowDetails: protectedProcedure
       .input(z.object({ matchId: matchIdSchema }))
       .query(async ({ ctx, input }) => {
@@ -1077,6 +1113,63 @@ export const appRouter = router({
                 ? error.message
                 : "Could not claim payment for match entry.",
           });
+        }
+      }),
+    requestTestnetDrip: protectedProcedure
+      .use(paymentLimit)
+      .input(z.object({ address: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        if (!ENV.isTestnet || ENV.nimiqNetworkId !== 5) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "The automated faucet drip is strictly available on Nimiq Testnet.",
+          });
+        }
+        const cleanAddress = normalizeNimiqAddress(input.address);
+        if (!/^NQ\d{2}[0-9A-Z]{32}$/.test(cleanAddress)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid Nimiq address format.",
+          });
+        }
+
+        const privateKey = DEFAULT_PAYOUT_CONFIG.privateKey;
+        const fallbackUrl = "https://testnet.nimiq.watch/#faucet";
+
+        if (!privateKey) {
+          return {
+            success: false as const,
+            message: "Direct hot-wallet drip is on standby. Use the official testnet faucet.",
+            fallbackUrl,
+          };
+        }
+
+        try {
+          const dripAmountNim = 50;
+          const dripAmountLuna = BigInt(dripAmountNim * 100_000);
+          const txHash = await broadcastOnChainTransfer({
+            privateKeyHex: privateKey,
+            recipientAddress: cleanAddress,
+            amountLuna: dripAmountLuna,
+            rpcUrl: DEFAULT_PAYOUT_CONFIG.rpcUrl,
+            networkId: ENV.nimiqNetworkId,
+          });
+
+          return {
+            success: true as const,
+            amountNim: dripAmountNim,
+            txHash,
+            explorerUrl: `https://testnet.nimiqwatch.com/#${txHash}`,
+            message: `Successfully transferred ${dripAmountNim} Testnet NIM directly to your wallet!`,
+            fallbackUrl,
+          };
+        } catch (err: any) {
+          console.warn("[requestTestnetDrip] Failed to disburse hot-wallet drip:", err);
+          return {
+            success: false as const,
+            message: "Hot wallet testnet drip temporarily queued. Please use the official faucet link.",
+            fallbackUrl,
+          };
         }
       }),
   }),

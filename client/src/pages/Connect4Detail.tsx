@@ -12,6 +12,7 @@ import {
   WalletCards,
   X,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -34,6 +35,7 @@ export default function Connect4Detail() {
   const createChallenge = trpc.match.createChallenge.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
+  const createHouseWagered = trpc.match.createHouseWageredMatch.useMutation();
   const [createdMatch, setCreatedMatch] = useState<{
     id: string;
     joinCode: string;
@@ -100,6 +102,22 @@ export default function Connect4Detail() {
       navigate(`/matches/${res.id}`);
     } catch (err) {
       toast.error("Failed to create wagered match", {
+        description: err instanceof Error ? err.message : "Try again.",
+      });
+    }
+  }
+
+  async function handleStartHouseWageredMatch() {
+    try {
+      await ensureAuthenticated("Player 1 (Host)");
+      toast.info(`Setting up 50 NIM House Match vs Connect Bot…`);
+      const res = await createHouseWagered.mutateAsync({
+        gameSlug: "connect-four",
+        stakeNim: 50,
+      });
+      navigate(`/matches/${res.id}`);
+    } catch (err) {
+      toast.error("Failed to create house match", {
         description: err instanceof Error ? err.message : "Try again.",
       });
     }
@@ -304,6 +322,25 @@ export default function Connect4Detail() {
                 }}
               >
                 <Coins size={16} /> PLAY WAGER MATCH
+              </button>
+              <button
+                className="secondary-chip"
+                onClick={handleStartHouseWageredMatch}
+                disabled={createHouseWagered.isPending}
+                style={{
+                  padding: "12px 18px",
+                  background: "rgba(245, 158, 11, 0.18)",
+                  borderColor: "rgba(245, 158, 11, 0.45)",
+                  color: "#fbbf24",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+                title="Wager against Connect Bot — house matches your stake on Testnet!"
+              >
+                <Sparkles size={16} /> {createHouseWagered.isPending ? "Setting up…" : "Wager vs Bot"}
               </button>
               <button
                 className="secondary-chip"

@@ -54,6 +54,42 @@ export function EscrowDepositModal({
   const [accountInfo, setAccountInfo] = useState<NimiqAccountInfo | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [activeWallet, setActiveWallet] = useState<string | null>(() => getActiveWalletAddress());
+  const [isDripping, setIsDripping] = useState(false);
+  const requestDrip = trpc.payment.requestTestnetDrip.useMutation();
+
+  const handleRequestDrip = async () => {
+    if (!activeWallet) {
+      toast.error("Please connect your wallet first.");
+      return;
+    }
+    try {
+      setIsDripping(true);
+      toast.info("Requesting 50 Testnet NIM drip from hot wallet…");
+      const res = await requestDrip.mutateAsync({ address: activeWallet });
+      if (res.success) {
+        toast.success("50 Testnet NIM Received!", {
+          description: `Tx: ${res.txHash.slice(0, 10)}… Checking balance.`,
+        });
+        setTimeout(() => {
+          if (activeWallet) void loadBalance(activeWallet);
+        }, 2500);
+      } else {
+        toast.info("Direct drip standby", {
+          description: res.message || "Opening official Nimiq faucet…",
+        });
+        if (res.fallbackUrl) {
+          window.open(res.fallbackUrl, "_blank");
+        }
+      }
+    } catch (err: any) {
+      toast.error("Faucet request failed", {
+        description: err instanceof Error ? err.message : "Try again or visit official faucet.",
+      });
+      window.open("https://testnet.nimiq.watch/#faucet", "_blank");
+    } finally {
+      setIsDripping(false);
+    }
+  };
 
   const loadBalance = async (addr: string) => {
     setIsLoadingBalance(true);
@@ -607,73 +643,79 @@ export function EscrowDepositModal({
             </div>
           )}
 
-          {/* Real Insufficient Balance Alert (Only shown when balance is genuinely known and insufficient) */}
-          {accountInfo?.status === "available" && userBalance !== null && displayStakeNim > 0 && userBalance < displayStakeNim && (
+          {/* 1-Click Testnet Faucet Quick-Action when balance is 0 or insufficient */}
+          {((accountInfo?.status === "available" && userBalance !== null && displayStakeNim > 0 && userBalance < displayStakeNim) ||
+            accountInfo?.status === "zero") && (
             <div
               style={{
-                backgroundColor: "rgba(231, 76, 60, 0.12)",
-                border: "1px solid rgba(231, 76, 60, 0.35)",
-                borderRadius: "8px",
-                padding: "10px 14px",
+                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(234, 179, 8, 0.08))",
+                border: "1px solid rgba(245, 158, 11, 0.4)",
+                borderRadius: "12px",
+                padding: "12px 14px",
                 marginBottom: "16px",
-                fontSize: "12px",
-                color: "#ff7b72",
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
+                flexDirection: "column",
+                gap: "10px",
               }}
             >
-              <span>Balance ({userBalance.toFixed(2)} NIM) is below {displayStakeNim} NIM stake</span>
-              <a
-                href="https://testnet.nimiq.watch/#faucet"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "#EC9918",
-                  fontWeight: 700,
-                  textDecoration: "underline",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                Get Free NIM <ExternalLink size={11} />
-              </a>
-            </div>
-          )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "12px", color: "#fde047", fontWeight: 600 }}>
+                  {accountInfo?.status === "zero"
+                    ? "Account has 0 NIM on Testnet"
+                    : `Balance (${userBalance?.toFixed(2)} NIM) is below ${displayStakeNim} NIM stake`}
+                </span>
+                <span style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase" }}>
+                  TestAlbatross
+                </span>
+              </div>
 
-          {/* Real Zero Balance Alert */}
-          {accountInfo?.status === "zero" && (
-            <div
-              style={{
-                backgroundColor: "rgba(231, 76, 60, 0.12)",
-                border: "1px solid rgba(231, 76, 60, 0.35)",
-                borderRadius: "8px",
-                padding: "10px 14px",
-                marginBottom: "16px",
-                fontSize: "12px",
-                color: "#ff7b72",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>Account has 0 NIM on TestAlbatross</span>
-              <a
-                href="https://testnet.nimiq.watch/#faucet"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "#EC9918",
-                  fontWeight: 700,
-                  textDecoration: "underline",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                Get Free NIM <ExternalLink size={11} />
-              </a>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={handleRequestDrip}
+                  disabled={isDripping}
+                  style={{
+                    flex: 1,
+                    background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                    color: "#000000",
+                    fontWeight: 800,
+                    fontSize: "12px",
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    border: "none",
+                    cursor: isDripping ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 8px rgba(245, 158, 11, 0.3)",
+                  }}
+                >
+                  <Sparkles size={14} />
+                  {isDripping ? "Dripping 50 NIM…" : "Get 50 Free Testnet NIM (1-Click)"}
+                </button>
+
+                <a
+                  href="https://testnet.nimiq.watch/#faucet"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "8px 12px",
+                    background: "rgba(255, 255, 255, 0.06)",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    borderRadius: "8px",
+                    color: "#cbd5e1",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    textDecoration: "none",
+                  }}
+                >
+                  Manual Faucet <ExternalLink size={11} />
+                </a>
+              </div>
             </div>
           )}
 
