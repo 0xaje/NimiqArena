@@ -11,6 +11,7 @@ import Connect4Detail from "./pages/Connect4Detail";
 import JoinMatch from "./pages/JoinMatch";
 import MatchRoom from "./pages/MatchRoom";
 import Leaderboard from "./pages/Leaderboard";
+import SyndicateRanks from "./pages/SyndicateRanks";
 import PlayerProfile from "./pages/PlayerProfile";
 import GamesShowroom from "./pages/GamesShowroom";
 import MatchesHub from "./pages/MatchesHub";
@@ -28,6 +29,8 @@ function Router() {
       <Route path="/matches/:id" component={MatchRoom} />
       <Route path="/join" component={JoinMatch} />
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/syndicates" component={SyndicateRanks} />
+      <Route path="/guilds" component={SyndicateRanks} />
       <Route path="/profile" component={PlayerProfile} />
       <Route path="/earn" component={Earn} />
       <Route path="/404" component={NotFound} />

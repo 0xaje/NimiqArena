@@ -235,7 +235,21 @@ export default function Leaderboard() {
         {/* MAIN CONTENT                                                              */}
         {/* ========================================================================= */}
         <main className="flex-1 flex flex-col w-full px-4 pt-3 pb-24 gap-4">
-          
+          {/* DUAL RANKS SEGMENTED SWITCHER */}
+          <div className="flex items-center p-1 rounded-xl bg-[#151b29] border border-[#242a39] mb-1">
+            <div className="flex-1 py-2 rounded-lg text-xs font-bold text-center flex items-center justify-center gap-1.5 transition-all bg-[#f3b72c] text-[#412d00] shadow">
+              <Swords size={14} />
+              <span>Gladiators (Solo)</span>
+            </div>
+            <Link
+              href="/syndicates"
+              className="flex-1 py-2 rounded-lg text-xs font-bold text-center flex items-center justify-center gap-1.5 transition-all text-[#d4c5ad] hover:text-[#dde2f6]"
+            >
+              <Shield size={14} />
+              <span>Syndicates (Guilds)</span>
+            </Link>
+          </div>
+
           {/* Season Championship Banner & Hero Pool */}
           <section className="flex flex-col">
             {/* Badge / Status Seam */}

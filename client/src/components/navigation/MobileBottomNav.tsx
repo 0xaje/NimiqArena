@@ -37,7 +37,7 @@ export function MobileBottomNav({ activeMatchesCount = 0 }: MobileBottomNavProps
       label: "Ranks",
       href: "/leaderboard",
       icon: Trophy,
-      isActive: location === "/leaderboard",
+      isActive: location === "/leaderboard" || location === "/syndicates" || location === "/guilds",
     },
     {
       id: "profile",
