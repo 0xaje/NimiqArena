@@ -537,13 +537,33 @@ export function EscrowDepositModal({
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                marginBottom: "8px",
+                marginBottom: "6px",
               }}
             >
               <span style={{ color: "rgba(251, 248, 241, 0.6)" }}>
                 Luna Units:
               </span>
-              <span>{lunaValue.toLocaleString()} Luna</span>
+              <span style={{ fontFamily: "monospace", color: "#fde047" }}>{lunaValue.toLocaleString()} Luna</span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "6px 10px",
+                marginBottom: "10px",
+                borderRadius: "8px",
+                background: "rgba(234, 179, 8, 0.1)",
+                border: "1px solid rgba(234, 179, 8, 0.25)",
+                color: "#fde047",
+                fontSize: "0.72rem",
+                lineHeight: 1.4,
+              }}
+            >
+              <Sparkles size={14} style={{ flexShrink: 0, color: "#eab308" }} />
+              <span>
+                <strong>1 NIM = 100,000 Luna</strong> (Nimiq's atomic unit, enabling sub-cent precision with zero rounding error).
+              </span>
             </div>
             <div
               style={{

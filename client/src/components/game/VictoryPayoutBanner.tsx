@@ -279,6 +279,33 @@ export function VictoryPayoutBanner({
             >
               <Share2 size={14} /> Telegram
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const text = encodeURIComponent(
+                  `⚔️ I just won ${totalPotNim > 0 ? formatNim(dist.winnerNim) + " NIM" : "a battle"} on Nimiq Arena! Think you can beat me? Challenge me now: ${shareUrl}`
+                );
+                window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+              }}
+              style={{
+                flex: 1,
+                minWidth: "140px",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                background: "rgba(37, 211, 102, 0.2)",
+                border: "1px solid rgba(37, 211, 102, 0.4)",
+                color: "#25D366",
+                fontSize: "12px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                cursor: "pointer",
+              }}
+            >
+              <Share2 size={14} /> WhatsApp
+            </button>
 
             <button
               type="button"

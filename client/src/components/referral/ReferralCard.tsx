@@ -29,6 +29,13 @@ export function ReferralCard() {
     window.open(tgUrl, "_blank");
   };
 
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(
+      `⚔️ Battle me on Nimiq Arena! Instant micro-stakes Ludo & Connect NIM on the Nimiq blockchain. Claim 1,000 welcome points: ${shareUrl}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+  };
+
   const points = stats?.points ?? 1000;
   const estimatedDollarValue = (points / 100).toFixed(2);
   const earningsNim = stats?.referralEarningsNim ?? 0;
@@ -235,7 +242,27 @@ export function ReferralCard() {
             }}
             title="Share via Telegram"
           >
-            <Share2 size={14} /> SHARE
+            <Share2 size={14} /> Telegram
+          </button>
+
+          <button
+            onClick={handleWhatsAppShare}
+            style={{
+              background: "rgba(37, 211, 102, 0.2)",
+              color: "#25D366",
+              border: "none",
+              borderRadius: "8px",
+              padding: "8px 12px",
+              fontSize: "0.78rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+            title="Share via WhatsApp"
+          >
+            <Share2 size={14} /> WhatsApp
           </button>
         </div>
       </div>

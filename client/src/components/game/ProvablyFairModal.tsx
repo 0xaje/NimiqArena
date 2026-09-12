@@ -273,6 +273,8 @@ export function ProvablyFairModal({
           2. Each roll is irrevocably committed to the database ledger alongside the client nonce and state version.
           <br />
           3. Replay protection guarantees neither the client nor server can alter past results.
+          <br />
+          4. Exact Financial Accounting: 1 NIM = 100,000 Luna. Pot distribution (90/5/2/1/2) executes with integer-Luna precision with zero floating-point rounding errors.
         </div>
       </div>
     </div>

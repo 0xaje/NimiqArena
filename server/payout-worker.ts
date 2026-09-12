@@ -18,6 +18,7 @@ import { calculatePotDistribution } from "../shared/game/pot-distribution";
 import { normalizeNimiqAddress, DEFAULT_NIMIQ_TESTNET_RPC, DEFAULT_NIMIQ_MAINNET_RPC } from "./nimiq-verifier";
 import { ENV } from "./_core/env";
 import { nanoid } from "nanoid";
+import { broadcastMatchVictory } from "./community-notifier";
 
 export interface PayoutWorkerConfig {
   enabled: boolean;
@@ -41,8 +42,8 @@ export interface PayoutExecutionResult {
 
 export const DEFAULT_PAYOUT_CONFIG: PayoutWorkerConfig = {
   enabled: process.env.ENABLE_AUTOMATED_PAYOUTS === "true",
-  maxPayoutPerMatchNim: Number(process.env.MAX_PAYOUT_PER_MATCH_NIM || 50000),
-  dailyPayoutLimitNim: Number(process.env.DAILY_PAYOUT_LIMIT_NIM || 500000),
+  maxPayoutPerMatchNim: Number(process.env.MAX_PAYOUT_PER_MATCH_NIM || 0), // 0 = unlimited / no ceiling
+  dailyPayoutLimitNim: Number(process.env.DAILY_PAYOUT_LIMIT_NIM || 0), // 0 = unlimited / no ceiling
   privateKey: process.env.NIMIQ_PAYOUT_PRIVATE_KEY,
   rpcUrl: ENV.nimiqNetworkId === 42 ? DEFAULT_NIMIQ_MAINNET_RPC : DEFAULT_NIMIQ_TESTNET_RPC,
 };
@@ -228,8 +229,9 @@ export async function processMatchPayout(
   const dist = calculatePotDistribution(grossPotNim, hasReferrer);
   const netPayoutNim = dist.winnerNim;
 
-  // Circuit Breaker 1: Per-Match Cap
-  if (netPayoutNim > config.maxPayoutPerMatchNim) {
+  // Circuit Breaker 1: Per-Match Cap (only if explicitly configured > 0 and not disabled)
+  const limitsDisabled = process.env.DISABLE_PAYOUT_LIMITS === "true";
+  if (!limitsDisabled && config.maxPayoutPerMatchNim > 0 && netPayoutNim > config.maxPayoutPerMatchNim) {
     console.warn(`[PayoutWorker] Circuit breaker tripped: Match ${matchId} payout ${netPayoutNim} NIM exceeds cap of ${config.maxPayoutPerMatchNim} NIM`);
     return {
       matchId,
@@ -241,8 +243,8 @@ export async function processMatchPayout(
     };
   }
 
-  // Circuit Breaker 2: Daily Volume Cap
-  if (!checkAndResetDailyLimit(netPayoutNim, config.dailyPayoutLimitNim)) {
+  // Circuit Breaker 2: Daily Volume Cap (only if explicitly configured > 0 and not disabled)
+  if (!limitsDisabled && config.dailyPayoutLimitNim > 0 && !checkAndResetDailyLimit(netPayoutNim, config.dailyPayoutLimitNim)) {
     console.warn(`[PayoutWorker] Circuit breaker tripped: Daily disbursement limit of ${config.dailyPayoutLimitNim} NIM reached`);
     return {
       matchId,
@@ -396,6 +398,15 @@ export async function processMatchPayout(
         .where(eq(settlements.id, settlementId));
 
       const explorerBase = ENV.nimiqNetworkId === 42 ? "https://nimiqwatch.com/#tx/" : "https://testnet.nimiqwatch.com/#tx/";
+      void broadcastMatchVictory({
+        matchId,
+        gameTitle: "Nimiq Arena Match",
+        totalPotNim: grossPotNim,
+        winnerName: winnerUser?.name || "Arena Gladiator",
+        winnerNim: netPayoutNim,
+        payoutTxHash,
+      });
+
       return {
         matchId,
         winnerUserId: match.winnerUserId,
@@ -436,6 +447,14 @@ export async function processMatchPayout(
       settledAt: new Date(),
     })
     .where(eq(settlements.id, settlementId));
+
+  void broadcastMatchVictory({
+    matchId,
+    gameTitle: "Nimiq Arena Match",
+    totalPotNim: grossPotNim,
+    winnerName: winnerUser?.name || "Arena Gladiator",
+    winnerNim: netPayoutNim,
+  });
 
   return {
     matchId,

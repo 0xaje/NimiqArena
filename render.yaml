@@ -33,3 +33,11 @@ services:
         value: "NQ44 KUSA 4K5M 5LMJ JKET 1GLB 0T8R 9J63 LMJ3"
       - key: NIMIQ_ECOSYSTEM_ADDRESS
         value: "NQ26 DH1P 5F4E H3PE 6STN 54MH 8296 G0UK 29AE"
+      - key: DISABLE_PAYOUT_LIMITS
+        value: "true"
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false

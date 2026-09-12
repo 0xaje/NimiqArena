@@ -46,6 +46,7 @@ import {
 import { normalizeNimiqAddress } from "./nimiq-verifier";
 import { DEFAULT_PAYOUT_CONFIG, broadcastOnChainTransfer } from "./payout-worker";
 import { broadcastEmote, broadcastQuickChat } from "./match-stream";
+import { broadcastMatchCreated } from "./community-notifier";
 import { nanoid } from "nanoid";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
@@ -547,6 +548,13 @@ export const appRouter = router({
             gameSlug: input.gameSlug,
             stakeNim: input.stakeNim,
           });
+          void broadcastMatchCreated({
+            matchId: res.match.id,
+            joinCode: res.match.joinCode,
+            gameTitle: input.gameSlug === "ludo-league" ? "Ludo Blitz" : "Connect 4 NIM",
+            stakeNim: res.stakeNim,
+            creatorName: ctx.user.name || undefined,
+          });
           return {
             id: res.match.id,
             joinCode: res.match.joinCode,
@@ -580,6 +588,13 @@ export const appRouter = router({
             userId: ctx.user.id,
             gameSlug: input.gameSlug,
             stakeNim: input.stakeNim,
+          });
+          void broadcastMatchCreated({
+            matchId: res.match.id,
+            joinCode: res.match.joinCode,
+            gameTitle: `${input.gameSlug === "ludo-league" ? "Ludo Blitz" : "Connect 4 NIM"} (vs Arena Bot)`,
+            stakeNim: res.stakeNim,
+            creatorName: ctx.user.name || undefined,
           });
           return {
             id: res.match.id,

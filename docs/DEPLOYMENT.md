@@ -15,19 +15,30 @@
 
 ---
 
-## 2. Required Production Environment Variables
+## 2. Production Environment Variables (Render Dashboard)
 
-| Variable | Description | Example / Default |
+| Variable | Description | Recommended / Example Value |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | MySQL Connection URI | `mysql://user:pass@host:3306/nimiq_arena` |
-| `JWT_SECRET` | 32+ character random string for session tokens | `openssl rand -base64 32` |
-| `VITE_APP_ID` | Application identifier | `nimiq-arena-app` |
-| `NIMIQ_PAYMENT_RECIPIENT` | Arena Nimiq treasury address | `NQ25 7E5E BR06 Q5HY Q10V S7KD T230 H6U1 W91T` |
-| `NIMIQ_ARENA_ENTRY_VALUE_LUNA` | Entry stake per match in Luna (1 NIM = 100,000 Luna / $10^5$ Luna) | `100000` |
-| `NIMIQ_NETWORK_ID` | Nimiq Network ID (`5` for Testnet, `42` for Mainnet) | `5` |
-| `NIMIQ_RPC_URL` | Public or dedicated Nimiq JSON-RPC endpoint | `https://rpc.testnet.nimiqwatch.com` |
-| `NODE_ENV` | Environment mode | `production` |
-| `PORT` | Server listening port | `3000` |
+| `NODE_ENV` | Runtime environment mode | `production` |
+| `DATABASE_URL` | MySQL Connection URI (e.g. TiDB Cloud Serverless or Aiven MySQL) | `mysql://user:pass@host:3306/nimiq_arena?ssl={"rejectUnauthorized":true}` |
+| `JWT_SECRET` | 32+ character random string for session auth cookies | Generate via `openssl rand -base64 32` or Render "Generate" |
+| `TRUST_PROXY` | Reverse proxy trust count (Render uses 1 proxy layer) | `1` |
+| `PORT` | Listening HTTP port | `3000` |
+| `NIMIQ_NETWORK_ID` | Network ID (`5` for Testnet Albatross, `42` for Mainnet) | `5` |
+| `NIMIQ_RPC_URL` | Authoritative Nimiq JSON-RPC endpoint | `https://rpc.testnet.nimiqwatch.com` |
+| `NIMIQ_PAYMENT_RECIPIENT` | Arena central escrow treasury wallet | `NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX` |
+| `NIMIQ_SETTLEMENT_ADDRESS` | Settlement destination address | `NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX` |
+| `NIMIQ_BUILDER_ADDRESS` | Arena Builder treasury (receives 5–7% pot cut) | `NQ51 85HV UT5T 22TU SKH3 50ED NSKL FKMK 0CJX` |
+| `NIMIQ_CHARITY_ADDRESS` | Charity address (receives 1% pot cut) | `NQ44 KUSA 4K5M 5LMJ JKET 1GLB 0T8R 9J63 LMJ3` |
+| `NIMIQ_ECOSYSTEM_ADDRESS` | Ecosystem fund address (receives 2% pot cut) | `NQ26 DH1P 5F4E H3PE 6STN 54MH 8296 G0UK 29AE` |
+| `ENABLE_AUTOMATED_PAYOUTS` | Enable real on-chain automated payouts | `true` |
+| `NIMIQ_PAYOUT_PRIVATE_KEY` | Hot-wallet private key (64-character hex) for on-chain broadcast | `[Secret Hot Wallet Private Key]` |
+| `DISABLE_PAYOUT_LIMITS` | Remove payout limits (allow any stake & payout amount) | `true` |
+| `MAX_PAYOUT_PER_MATCH_NIM` | Per-match cap (set `0` for uncapped) | `0` |
+| `DAILY_PAYOUT_LIMIT_NIM` | Daily disbursement volume cap (set `0` for uncapped) | `0` |
+| `DISCORD_WEBHOOK_URL` *(Optional)* | Discord incoming webhook to broadcast matches & wins | `https://discord.com/api/webhooks/...` |
+| `TELEGRAM_BOT_TOKEN` *(Optional)* | Telegram Bot token for community alerts | `123456789:ABC...` |
+| `TELEGRAM_CHAT_ID` *(Optional)* | Telegram chat/channel ID for announcements | `@nimiqarena_chat` or `-100...` |
 
 ---
 
