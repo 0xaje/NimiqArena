@@ -290,7 +290,7 @@ export const paymentIntents = mysqlTable(
     verifiedTransactionHash: varchar("verifiedTransactionHash", { length: 128 })
       .generatedAlwaysAs(
         sql`(case when \`status\` = 'verified' then \`transactionHash\` else null end)`,
-        { mode: "stored" }
+        { mode: "virtual" }
       ),
     expiresAt: timestamp("expiresAt").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),

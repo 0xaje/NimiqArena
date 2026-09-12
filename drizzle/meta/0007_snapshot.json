@@ -606,7 +606,7 @@
           "autoincrement": false,
           "generated": {
             "as": "(case when `status` = 'verified' then `transactionHash` else null end)",
-            "type": "stored"
+            "type": "virtual"
           }
         },
         "expiresAt": {

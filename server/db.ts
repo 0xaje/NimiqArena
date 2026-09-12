@@ -249,11 +249,12 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
       \`networkId\` int,
       \`failureCode\` varchar(64),
       \`verifiedAt\` timestamp NULL,
-      \`verifiedTransactionHash\` varchar(128) GENERATED ALWAYS AS ((case when \`status\` = 'verified' then \`transactionHash\` else null end)) STORED,
+      \`verifiedTransactionHash\` varchar(128) GENERATED ALWAYS AS ((case when \`status\` = 'verified' then \`transactionHash\` else null end)) VIRTUAL,
       \`expiresAt\` timestamp NOT NULL,
       \`createdAt\` timestamp NOT NULL DEFAULT (now()),
       \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-      CONSTRAINT \`payment_intents_id\` PRIMARY KEY(\`id\`)
+      CONSTRAINT \`payment_intents_id\` PRIMARY KEY(\`id\`),
+      UNIQUE KEY \`payment_intents_verified_tx_hash_idx\` (\`verifiedTransactionHash\`)
     )`,
     sql`CREATE TABLE IF NOT EXISTS \`payment_verifications\` (
       \`id\` int unsigned AUTO_INCREMENT NOT NULL,
@@ -315,13 +316,13 @@ async function synchronizeSchemaMigrations(db: ReturnType<typeof drizzle>) {
   try {
     // 1. Ensure verifiedTransactionHash column exists on payment_intents
     const [cols]: any = await db.execute(
-      sql`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_intents' AND COLUMN_NAME = 'verifiedTransactionHash'`
+      sql`SELECT COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_intents' AND COLUMN_NAME = 'verifiedTransactionHash'`
     );
     const rows = Array.isArray(cols) ? cols : (cols as any)?.rows || [];
     if (rows.length === 0) {
       console.log("[DatabaseMigration] Adding verifiedTransactionHash column to payment_intents...");
       await db.execute(
-        sql`ALTER TABLE \`payment_intents\` ADD COLUMN \`verifiedTransactionHash\` varchar(128) GENERATED ALWAYS AS ((case when \`status\` = 'verified' then \`transactionHash\` else null end)) STORED`
+        sql`ALTER TABLE \`payment_intents\` ADD COLUMN \`verifiedTransactionHash\` varchar(128) GENERATED ALWAYS AS ((case when \`status\` = 'verified' then \`transactionHash\` else null end)) VIRTUAL`
       );
       console.log("[DatabaseMigration] verifiedTransactionHash column added successfully.");
     }
@@ -339,7 +340,7 @@ async function synchronizeSchemaMigrations(db: ReturnType<typeof drizzle>) {
       console.log("[DatabaseMigration] payment_intents_verified_tx_hash_idx created successfully.");
     }
   } catch (err: any) {
-    console.warn("[DatabaseMigration] Schema synchronization notice:", err.message);
+    console.error("[DatabaseMigration] Schema synchronization error:", err?.cause || err);
   }
 }
 
@@ -3288,6 +3289,18 @@ export async function createWageredChallengeMatch(input: {
 
   const match = await getMatchById(id);
   if (!match) throw new Error("Wagered match could not be created.");
+
+  // Immediately read back and assert payment intent persistence before continuing
+  const persistedIntent = (
+    await db
+      .select()
+      .from(paymentIntents)
+      .where(eq(paymentIntents.id, hostIntentId))
+      .limit(1)
+  )[0];
+  if (!persistedIntent || persistedIntent.valueLuna !== valueLuna) {
+    throw new Error("Wagered payment intent could not be verified in database.");
+  }
   return {
     match,
     hostPaymentIntentId: hostIntentId,

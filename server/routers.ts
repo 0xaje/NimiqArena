@@ -580,13 +580,15 @@ export const appRouter = router({
                 : { ...player, txHash: null }
             ),
           };
-        } catch (error) {
+        } catch (error: any) {
+          console.error(
+            `[Escrow] Failed to retrieve escrow details for match ${input.matchId}:`,
+            error?.cause || error
+          );
           throw new TRPCError({
-            code: "NOT_FOUND",
+            code: "INTERNAL_SERVER_ERROR",
             message:
-              error instanceof Error
-                ? error.message
-                : "Escrow details not found.",
+              "Payment setup failed. No transaction was submitted and your funds were not moved.",
           });
         }
       }),
@@ -721,10 +723,10 @@ export const appRouter = router({
           } catch (err: any) {
             console.error(
               `[MatchRouter] Failed to load escrow details for wagered match ${input.id}:`,
-              err
+              err?.cause || err
             );
             escrowError =
-              err?.message || "Failed to retrieve table escrow details";
+              "Payment setup failed. No transaction was submitted and your funds were not moved.";
           }
         }
         return {
