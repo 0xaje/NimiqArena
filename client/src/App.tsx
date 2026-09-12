@@ -12,6 +12,7 @@ import JoinMatch from "./pages/JoinMatch";
 import MatchRoom from "./pages/MatchRoom";
 import Leaderboard from "./pages/Leaderboard";
 import PlayerProfile from "./pages/PlayerProfile";
+import GamesShowroom from "./pages/GamesShowroom";
 import Earn from "./pages/Earn";
 import NotFound from "./pages/NotFound";
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/games" component={GamesShowroom} />
       <Route path="/games/ludo-league" component={LudoDetail} />
       <Route path="/games/connect-four" component={Connect4Detail} />
       <Route path="/matches/:id" component={MatchRoom} />

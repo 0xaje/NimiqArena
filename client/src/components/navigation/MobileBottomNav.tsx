@@ -20,7 +20,7 @@ export function MobileBottomNav({ activeMatchesCount = 0 }: MobileBottomNavProps
     {
       id: "games",
       label: "Games",
-      href: "/games/ludo-league",
+      href: "/games",
       icon: Grid,
       isActive: location.startsWith("/games"),
     },
