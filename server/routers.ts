@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -13,6 +15,7 @@ import {
   createHouseWageredMatch,
   checkUsernameAvailable,
   registerUserIdentity,
+  updateUserAvatar,
   claimWelcomeReward,
   getUserReferralStats,
   linkUserEvmAddress,
@@ -336,6 +339,47 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         return await linkUserEvmAddress(ctx.user.id, input.evmAddress);
+      }),
+    uploadAvatar: protectedProcedure
+      .input(
+        z.object({
+          dataUrl: z.string().min(10).max(8_000_000, "Image payload too large (max ~6MB)"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const matches = input.dataUrl.match(
+          /^data:image\/(png|jpeg|jpg|webp|gif);base64,(.+)$/i
+        );
+        if (!matches) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid image format. Expected PNG, JPEG, WEBP, or GIF data URL.",
+          });
+        }
+        const rawExt = matches[1].toLowerCase();
+        const ext = rawExt === "jpeg" ? "jpg" : rawExt;
+        const base64Data = matches[2];
+        const buffer = Buffer.from(base64Data, "base64");
+
+        if (buffer.length > 5 * 1024 * 1024) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Decoded image exceeds 5MB limit.",
+          });
+        }
+
+        const uploadDir = path.resolve(process.cwd(), "uploads", "avatars");
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        const filename = `avatar-${ctx.user.id}-${Date.now()}.${ext}`;
+        const filePath = path.join(uploadDir, filename);
+        fs.writeFileSync(filePath, buffer);
+
+        const avatarUrl = `/uploads/avatars/${filename}`;
+        const updated = await updateUserAvatar(ctx.user.id, avatarUrl);
+        return { success: true, avatar: avatarUrl, user: updated };
       }),
     stats: protectedProcedure
       .input(

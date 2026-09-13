@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link } from "wouter";
 import {
   Diamond,
@@ -32,6 +32,8 @@ import {
   LogOut,
   Grid,
   Dices,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -75,13 +77,72 @@ export default function PlayerProfile() {
 
   // Drip mutation for easy testnet faucet
   const dripMutation = trpc.payment.requestTestnetDrip.useMutation();
+  const uploadAvatarMutation = trpc.auth.uploadAvatar.useMutation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const [isCashoutOpen, setIsCashoutOpen] = useState(false);
   const [isDripping, setIsDripping] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [audioHapticFx, setAudioHapticFx] = useState(true);
+
+  // Helper to resize and compress selected photo to a crisp 256x256 square
+  const processImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        return reject(new Error("Please select a valid image file."));
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read image file."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Failed to process image."));
+        img.onload = () => {
+          const targetSize = 256;
+          const canvas = document.createElement("canvas");
+          canvas.width = targetSize;
+          canvas.height = targetSize;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Canvas context unavailable."));
+
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+
+          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+          resolve(dataUrl);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingAvatar(true);
+      toast.loading("Uploading profile photo…", { id: "avatar-upload" });
+      const dataUrl = await processImageFile(file);
+      const res = await uploadAvatarMutation.mutateAsync({ dataUrl });
+      await utils.auth.me.invalidate();
+      toast.success("Profile photo updated successfully!", { id: "avatar-upload" });
+    } catch (err: any) {
+      toast.error("Avatar upload failed", {
+        id: "avatar-upload",
+        description: err?.message || "Could not upload image. Please try another.",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   // Rating & Tier (Real dynamic data, 0/1000 defaults for new player)
   const rating = stats?.rating ?? 1000;
@@ -149,7 +210,12 @@ export default function PlayerProfile() {
   };
 
   const avatarPreset = AVATAR_PRESETS.find((p) => p.id === (user as any)?.avatar);
-  const isCustomAvatar = (user as any)?.avatar && (user as any)?.avatar.startsWith("http");
+  const isCustomAvatar = Boolean(
+    (user as any)?.avatar &&
+      ((user as any).avatar.startsWith("http") ||
+        (user as any).avatar.startsWith("/uploads/") ||
+        (user as any).avatar.startsWith("data:"))
+  );
 
   return (
     <div className="min-h-screen bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans select-none pb-safe">
@@ -201,9 +267,20 @@ export default function PlayerProfile() {
             <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-[#00d2ff]/10 blur-3xl pointer-events-none" />
 
             <div className="relative flex items-start gap-3.5">
-              {/* Avatar Ring */}
-              <div className="relative shrink-0">
-                <div className="w-20 h-20 rounded-full p-1 bg-gradient-to-br from-[#ffd78d] via-[#f3b72c] to-[#2f3544] shadow-[0_0_16px_rgba(243,183,44,0.35)]">
+              {/* Avatar Ring with Gallery/Camera Upload */}
+              <div
+                className="relative shrink-0 group cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to choose a photo from device gallery or camera"
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarFileChange}
+                />
+                <div className="w-20 h-20 rounded-full p-1 bg-gradient-to-br from-[#ffd78d] via-[#f3b72c] to-[#2f3544] shadow-[0_0_16px_rgba(243,183,44,0.35)] group-hover:shadow-[0_0_24px_rgba(243,183,44,0.6)] transition-all relative overflow-hidden">
                   {isCustomAvatar ? (
                     <img
                       alt="Player Avatar"
@@ -221,11 +298,39 @@ export default function PlayerProfile() {
                       src="https://lh3.googleusercontent.com/aida/AEtjO1Wu3JktQaSjdwXLBnorTN2FMEsca4A40PflEfiuWB_JViUrA8Fojm7RZdRv0c7PRx1ONKlSp_e1DCpwnnF4FDqd4cXMnzK3ePXTazlT4zlQ5i0OPEW3JlruR9BIds7zu0qtcNYnZobUSi-ajIIOWI3cBJ6stP-XyWNfW6V-wz0Ptrxi0THOnNBrt3lfUE4HUD4FRDfrrK3Lw4cvT-VfxznGrzfVQYGaAlUBL8AOH6VVWRecOOi77H15SQRL"
                     />
                   )}
+
+                  {/* Dark hover/touch overlay */}
+                  <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
+                    {isUploadingAvatar ? (
+                      <Loader2 size={20} className="animate-spin text-[#ffd78d]" />
+                    ) : (
+                      <>
+                        <Camera size={18} className="text-[#ffd78d]" />
+                        <span className="text-[8px] font-mono font-bold tracking-wider uppercase mt-0.5 text-[#ffd78d]">
+                          Upload
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-                {/* Online Indicator */}
-                <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-[#46d89d] shadow-[0_0_8px_#46d89d] flex items-center justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#003824]" />
-                </span>
+
+                {/* Camera Badge Action Button */}
+                <button
+                  type="button"
+                  aria-label="Upload Photo"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#f3b72c] text-[#0d1321] shadow-[0_0_10px_rgba(243,183,44,0.7)] flex items-center justify-center hover:scale-110 active:scale-95 transition-transform border border-[#0d1321]"
+                  title="Choose from gallery or camera"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 size={13} className="animate-spin text-[#0d1321]" />
+                  ) : (
+                    <Camera size={14} className="stroke-[2.5]" />
+                  )}
+                </button>
               </div>
 
               {/* Identity & Status */}

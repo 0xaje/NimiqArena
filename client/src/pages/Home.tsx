@@ -413,10 +413,9 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Stake Chips Selector (USD Denominations with live NIM conversion) */}
+              {/* Stake Chips Selector (Dollar Only) */}
               <div className="grid grid-cols-4 gap-2 my-2.5">
                 {USD_STAKES.map((usd) => {
-                  const nimEquivalent = calculateNimFromUsd(usd);
                   const isSelected = selectedUsdStake === usd;
                   return (
                     <button
@@ -424,22 +423,15 @@ export default function Home() {
                       type="button"
                       onClick={() => {
                         setSelectedUsdStake(usd);
-                        setSelectedStake(nimEquivalent);
+                        setSelectedStake(calculateNimFromUsd(usd));
                       }}
-                      className={`h-13 py-1.5 rounded-xl flex flex-col items-center justify-center font-mono transition-all active:scale-95 ${
+                      className={`h-11 rounded-xl flex items-center justify-center font-mono transition-all active:scale-95 cursor-pointer ${
                         isSelected
                           ? "bg-[#f3b72c] text-[#412d00] font-bold shadow-[0_0_16px_rgba(243,183,44,0.35)]"
                           : "bg-[#191f2e] text-[#d4c5ad] border border-[#2f3544] hover:border-[#4f4534]"
                       }`}
                     >
                       <span className="text-sm font-black">${usd}</span>
-                      <span
-                        className={`text-[9px] font-semibold leading-none mt-0.5 ${
-                          isSelected ? "text-[#412d00]/80" : "text-[#94a3b8]"
-                        }`}
-                      >
-                        ~{formatNim(nimEquivalent)}
-                      </span>
                     </button>
                   );
                 })}
@@ -454,12 +446,10 @@ export default function Home() {
                     currentNim
                   );
                 }}
-                className="w-full h-12 rounded-xl bg-[#f3b72c] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-98 transition-all"
+                className="w-full h-12 rounded-xl bg-[#f3b72c] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-98 transition-all cursor-pointer"
               >
                 <Play size={16} fill="currentColor" />
-                <span>
-                  Enter Matchmaking (${selectedUsdStake} · ~{formatNim(calculateNimFromUsd(selectedUsdStake))} NIM)
-                </span>
+                <span>Enter Matchmaking</span>
               </button>
             </div>
           </section>

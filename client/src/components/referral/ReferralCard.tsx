@@ -38,6 +38,14 @@ export function ReferralCard() {
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };
 
+  const handleXShare = () => {
+    const text = encodeURIComponent(
+      `⚔️ Battle me on Nimiq Arena! Instant micro-stakes Ludo & Connect NIM on the @nimiq blockchain:`
+    );
+    const xUrl = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(xUrl, "_blank");
+  };
+
   const points = stats?.points ?? 1000;
   const estimatedDollarValue = (points / 100).toFixed(2);
   const earningsNim = stats?.referralEarningsNim ?? 0;
@@ -49,9 +57,10 @@ export function ReferralCard() {
         background: "linear-gradient(145deg, #151d2f 0%, #0d1220 100%)",
         border: "1px solid rgba(245, 158, 11, 0.3)",
         borderRadius: "18px",
-        padding: "22px",
+        padding: "20px",
         color: "#f8fafc",
         boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
+        overflow: "hidden",
       }}
     >
       {/* Top Banner */}
@@ -172,103 +181,159 @@ export function ReferralCard() {
       </div>
 
       {/* Shareable Link Box */}
-      <div>
-        <label
-          style={{
-            display: "block",
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            color: "#94a3b8",
-            marginBottom: "6px",
-          }}
-        >
-          YOUR UNIQUE REFERRAL LINK
-        </label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(0, 0, 0, 0.5)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            borderRadius: "10px",
-            padding: "6px 8px 6px 14px",
-          }}
-        >
-          <code
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div>
+          <label
             style={{
-              fontFamily: "monospace",
-              fontSize: "0.8rem",
-              color: "#fde047",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              flex: 1,
+              display: "block",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              color: "#94a3b8",
+              marginBottom: "6px",
             }}
           >
-            {shareUrl}
-          </code>
-
-          <button
-            onClick={handleCopy}
+            YOUR UNIQUE REFERRAL LINK
+          </label>
+          <div
             style={{
-              background: copied ? "#22c55e" : "rgba(245, 158, 11, 0.2)",
-              color: copied ? "#ffffff" : "#fbbf24",
-              border: "none",
-              borderRadius: "8px",
-              padding: "8px 14px",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "6px",
-              transition: "all 0.15s ease",
+              gap: "8px",
+              background: "rgba(0, 0, 0, 0.5)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "10px",
+              padding: "6px 8px 6px 12px",
             }}
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? "COPIED" : "COPY"}
-          </button>
+            <code
+              style={{
+                fontFamily: "monospace",
+                fontSize: "0.8rem",
+                color: "#fde047",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              {shareUrl}
+            </code>
 
-          <button
-            onClick={handleTelegramShare}
-            style={{
-              background: "rgba(56, 189, 248, 0.2)",
-              color: "#38bdf8",
-              border: "none",
-              borderRadius: "8px",
-              padding: "8px 12px",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-            title="Share via Telegram"
-          >
-            <Share2 size={14} /> Telegram
-          </button>
+            <button
+              onClick={handleCopy}
+              style={{
+                background: copied ? "#22c55e" : "#f3b72c",
+                color: copied ? "#ffffff" : "#412d00",
+                border: "none",
+                borderRadius: "8px",
+                padding: "8px 16px",
+                fontSize: "0.78rem",
+                fontWeight: 800,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                flexShrink: 0,
+                transition: "all 0.15s ease",
+              }}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? "COPIED" : "COPY LINK"}
+            </button>
+          </div>
+        </div>
 
-          <button
-            onClick={handleWhatsAppShare}
+        {/* Social Share Buttons Grid */}
+        <div>
+          <label
             style={{
-              background: "rgba(37, 211, 102, 0.2)",
-              color: "#25D366",
-              border: "none",
-              borderRadius: "8px",
-              padding: "8px 12px",
-              fontSize: "0.78rem",
+              display: "block",
+              fontSize: "0.72rem",
               fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
+              color: "#94a3b8",
+              marginBottom: "6px",
             }}
-            title="Share via WhatsApp"
           >
-            <Share2 size={14} /> WhatsApp
-          </button>
+            SHARE TO SOCIAL CHANNELS
+          </label>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "8px",
+              width: "100%",
+            }}
+          >
+            {/* Telegram */}
+            <button
+              onClick={handleTelegramShare}
+              style={{
+                background: "rgba(56, 189, 248, 0.15)",
+                color: "#38bdf8",
+                border: "1px solid rgba(56, 189, 248, 0.35)",
+                borderRadius: "10px",
+                padding: "10px 8px",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              title="Share via Telegram"
+            >
+              <Share2 size={13} /> Telegram
+            </button>
+
+            {/* WhatsApp */}
+            <button
+              onClick={handleWhatsAppShare}
+              style={{
+                background: "rgba(37, 211, 102, 0.15)",
+                color: "#25D366",
+                border: "1px solid rgba(37, 211, 102, 0.35)",
+                borderRadius: "10px",
+                padding: "10px 8px",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              title="Share via WhatsApp"
+            >
+              <Share2 size={13} /> WhatsApp
+            </button>
+
+            {/* X / Twitter */}
+            <button
+              onClick={handleXShare}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "10px",
+                padding: "10px 8px",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              title="Share via X (Twitter)"
+            >
+              <Share2 size={13} /> X / Twitter
+            </button>
+          </div>
         </div>
       </div>
     </div>

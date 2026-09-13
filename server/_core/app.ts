@@ -1,3 +1,4 @@
+import path from "path";
 import express, { type Express } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
@@ -19,6 +20,9 @@ export function createExpressApp(): Express {
   // Configure body parser with larger size limit
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // Serve static uploaded avatars
+  app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
   // Apply rate limiting on API endpoints
   app.use("/api", apiRateLimiter);

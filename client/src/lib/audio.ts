@@ -57,8 +57,28 @@ class SoundEngine {
       const stored = localStorage.getItem("nimiq_arena_muted");
       this.isMuted = stored === "true";
       const musicStored = localStorage.getItem("nimiq_arena_music_enabled");
-      this.isMusicEnabled = musicStored === "true";
+      // Default to music enabled unless explicitly turned off
+      this.isMusicEnabled = musicStored !== "false";
+
+      const unlock = () => {
+        this.unlockAudio();
+        window.removeEventListener("pointerdown", unlock);
+        window.removeEventListener("click", unlock);
+        window.removeEventListener("keydown", unlock);
+      };
+      window.addEventListener("pointerdown", unlock, { once: true });
+      window.addEventListener("click", unlock, { once: true });
+      window.addEventListener("keydown", unlock, { once: true });
     }
+  }
+
+  public unlockAudio() {
+    try {
+      const ctx = this.getContext();
+      if (ctx && ctx.state === "suspended") {
+        void ctx.resume();
+      }
+    } catch {}
   }
 
   private getContext(): AudioContext | null {
@@ -439,8 +459,8 @@ class SoundEngine {
         filter.frequency.exponentialRampToValueAtTime(420, now + 3.0);
 
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.02, now + 0.6);
-        gain.gain.exponentialRampToValueAtTime(0.0005, now + 3.2);
+        gain.gain.linearRampToValueAtTime(0.07, now + 0.6);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
 
         osc.connect(filter);
         filter.connect(gain);

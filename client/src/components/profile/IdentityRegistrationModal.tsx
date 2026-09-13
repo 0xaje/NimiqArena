@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { User, X, Check, AlertCircle, Sparkles, Shield, Gift, Wallet, Image as ImageIcon } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { User, X, Check, AlertCircle, Sparkles, Shield, Gift, Wallet, Image as ImageIcon, Camera, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { signIdentityMessage } from "@/lib/nimiq-wallet";
@@ -40,9 +40,12 @@ export function IdentityRegistrationModal({
   const [referralCode, setReferralCode] = useState("");
   const [debouncedName, setDebouncedName] = useState("");
   const [isSigning, setIsSigning] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
   const registerMutation = trpc.auth.registerIdentity.useMutation();
+  const uploadAvatarMutation = trpc.auth.uploadAvatar.useMutation();
 
   // Read ?ref= from URL on mount
   useEffect(() => {
@@ -152,6 +155,53 @@ export function IdentityRegistrationModal({
     }
   };
 
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingPhoto(true);
+      toast.loading("Processing photo…", { id: "modal-avatar-upload" });
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            const targetSize = 256;
+            const canvas = document.createElement("canvas");
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Canvas error");
+            const minDim = Math.min(img.width, img.height);
+            const sx = (img.width - minDim) / 2;
+            const sy = (img.height - minDim) / 2;
+            ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+            const res = await uploadAvatarMutation.mutateAsync({ dataUrl });
+            setCustomAvatarUrl(res.avatar);
+            setUseCustomUrl(true);
+            toast.success("Photo uploaded successfully!", { id: "modal-avatar-upload" });
+          } catch (uploadErr: any) {
+            toast.error("Photo upload failed", {
+              id: "modal-avatar-upload",
+              description: uploadErr?.message || "Could not upload image.",
+            });
+          }
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.error("Photo processing failed", {
+        id: "modal-avatar-upload",
+        description: err?.message || "Could not read file.",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -178,44 +228,52 @@ export function IdentityRegistrationModal({
           border: "1px solid rgba(236, 153, 24, 0.3)",
           boxShadow: "0 24px 64px rgba(0, 0, 0, 0.7), 0 0 32px rgba(236, 153, 24, 0.15)",
           overflow: "hidden",
+          maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
-          maxHeight: "92vh",
         }}
       >
-        {/* Header */}
+        {/* Hidden File Input for Device Photo Upload */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handlePhotoSelect}
+        />
+
+        {/* Modal Header */}
         <div
           style={{
-            padding: "24px 24px 18px",
+            padding: "20px 24px 16px",
             borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "linear-gradient(180deg, rgba(236, 153, 24, 0.12) 0%, transparent 100%)",
+            background: "linear-gradient(180deg, rgba(236, 153, 24, 0.08) 0%, transparent 100%)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div
               style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "12px",
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
                 backgroundColor: "rgba(236, 153, 24, 0.15)",
                 border: "1px solid rgba(236, 153, 24, 0.4)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#EC9918",
               }}
             >
-              <Shield size={22} />
+              <Shield size={18} color="#EC9918" />
             </div>
             <div>
-              <h2 style={{ fontSize: "19px", fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "0.2px" }}>
-                Player Identity Setup
-              </h2>
-              <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", margin: "2px 0 0" }}>
-                Bind your unique Web3 handle & avatar permanently
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#fff" }}>
+                Claim Arena Identity
+              </h3>
+              <p style={{ margin: 0, fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
+                Bind your handle & avatar permanently to Nimiq
               </p>
             </div>
           </div>
@@ -226,17 +284,19 @@ export function IdentityRegistrationModal({
               border: "none",
               color: "rgba(255, 255, 255, 0.5)",
               cursor: "pointer",
-              padding: "6px",
-              borderRadius: "8px",
+              padding: "4px",
+              borderRadius: "6px",
               display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Connected Wallet Info */}
           {walletAddress && (
             <div
@@ -260,85 +320,111 @@ export function IdentityRegistrationModal({
             </div>
           )}
 
-          {/* Section 1: Choose Nickname */}
+          {/* Section 1: Username / Handle */}
           <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#EC9918", marginBottom: "8px" }}>
-              1. Choose Your Nickname / Handle
-            </label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#EC9918" }}>
+                1. Duelist Handle / Nickname
+              </label>
+              {username.trim().length >= 2 && (
+                <span style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
+                  {isChecking ? (
+                    <span style={{ color: "rgba(255,255,255,0.4)" }}>Checking...</span>
+                  ) : isAvailable === true ? (
+                    <span style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "3px" }}>
+                      <Check size={12} /> Available
+                    </span>
+                  ) : isAvailable === false ? (
+                    <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: "3px" }}>
+                      <AlertCircle size={12} /> Taken
+                    </span>
+                  ) : null}
+                </span>
+              )}
+            </div>
             <div style={{ position: "relative" }}>
+              <span
+                style={{
+                  position: "absolute",
+                  left: "14px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "rgba(236, 153, 24, 0.7)",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                }}
+              >
+                @
+              </span>
               <input
                 type="text"
+                placeholder="Valkyrie"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))}
-                placeholder="e.g. Jack, CyberHero, Apex"
                 maxLength={30}
                 required
                 style={{
                   width: "100%",
-                  padding: "14px 44px 14px 14px",
-                  borderRadius: "12px",
+                  padding: "12px 14px 12px 32px",
+                  borderRadius: "10px",
                   backgroundColor: "rgba(255, 255, 255, 0.05)",
-                  border: isAvailable === false
-                    ? "1px solid #ef4444"
-                    : isAvailable === true
-                      ? "1px solid #10b981"
-                      : "1px solid rgba(255, 255, 255, 0.15)",
+                  border: isAvailable === false ? "1px solid #ef4444" : "1px solid rgba(236, 153, 24, 0.3)",
                   color: "#fff",
-                  fontSize: "15px",
+                  fontSize: "14px",
                   fontWeight: 600,
-                  outline: "none",
                   boxSizing: "border-box",
+                  outline: "none",
                 }}
               />
-              <div
-                style={{
-                  position: "absolute",
-                  right: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  display: "flex",
-                  alignItems: "center",
-                  pointerEvents: "none",
-                }}
-              >
-                {isChecking ? (
-                  <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)" }}>Checking…</span>
-                ) : isAvailable === true ? (
-                  <span style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", fontWeight: 700 }}>
-                    <Check size={16} /> Available
-                  </span>
-                ) : isAvailable === false ? (
-                  <span style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", fontWeight: 700 }}>
-                    <AlertCircle size={16} /> Taken
-                  </span>
-                ) : null}
-              </div>
             </div>
-            <p style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.45)", margin: "6px 0 0" }}>
-              Letters, numbers, underscores and hyphens (2–30 chars).
+            <p style={{ margin: "4px 0 0", fontSize: "11px", color: "rgba(255, 255, 255, 0.4)" }}>
+              Letters, numbers, underscores and dashes. Min 2 chars.
             </p>
           </div>
 
           {/* Section 2: Avatar Selection */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
               <label style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#EC9918" }}>
                 2. Choose Avatar / Identity Icon
               </label>
-              <button
-                type="button"
-                onClick={() => setUseCustomUrl(!useCustomUrl)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "rgba(236, 153, 24, 0.8)",
-                  fontSize: "11px",
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                }}
-              >
-                {useCustomUrl ? "Pick preset icon" : "Or use custom image URL"}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  style={{
+                    background: "rgba(236, 153, 24, 0.15)",
+                    border: "1px solid rgba(236, 153, 24, 0.35)",
+                    color: "#EC9918",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    padding: "3px 8px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  {isUploadingPhoto ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+                  {isUploadingPhoto ? "Uploading..." : "Upload Photo"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseCustomUrl(!useCustomUrl)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "rgba(236, 153, 24, 0.8)",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {useCustomUrl ? "Preset icons" : "Image URL"}
+                </button>
+              </div>
             </div>
 
             {useCustomUrl ? (

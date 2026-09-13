@@ -51,133 +51,43 @@ interface Syndicate {
   isUser?: boolean;
 }
 
-const SYNDICATES: Syndicate[] = [
-  {
-    rank: 1,
-    name: "Nexus Syn.",
-    tag: "NXUS",
-    leader: "ApexPredator",
-    level: 32,
-    roster: "50/50",
-    points: 58920,
-    ptsFormatted: "58,920 pt",
-    winRate: "84.2% WR",
-    rewardNim: "25,000",
-    icon: "star",
-  },
-  {
-    rank: 2,
-    name: "Cyber Samurai",
-    tag: "CYBR",
-    leader: "Ronin",
-    level: 29,
-    roster: "49/50",
-    points: 46180,
-    ptsFormatted: "46,180 pt",
-    winRate: "81.0% WR",
-    rewardNim: "12,500",
-    icon: "swords",
-  },
-  {
-    rank: 3,
-    name: "Solaris Kts",
-    tag: "SLRS",
-    leader: "SolarisK",
-    level: 27,
-    roster: "46/50",
-    points: 41800,
-    ptsFormatted: "41,800 pt",
-    winRate: "78.5% WR",
-    rewardNim: "7,500",
-    icon: "sun",
-  },
-  {
-    rank: 4,
-    name: "Gold Legion",
-    tag: "GLDN",
-    leader: "Valkyrie",
-    level: 24,
-    roster: "48/50",
-    points: 38450,
-    ptsFormatted: "38,450 pts",
-    winRate: "76.4% WR",
-    rewardNim: "+1,200 NIM",
-    icon: "shield",
-    isUser: true,
-  },
-  {
-    rank: 5,
-    name: "Shadow Stalkers",
-    tag: "SHDW",
-    leader: "NightBlade",
-    level: 22,
-    roster: "45/50",
-    points: 34200,
-    ptsFormatted: "34,200 pts",
-    winRate: "73.1% WR",
-    rewardNim: "+950 NIM",
-    icon: "eyeOff",
-  },
-  {
-    rank: 6,
-    name: "Quantum Vanguard",
-    tag: "QNTM",
-    leader: "Chronos",
-    level: 21,
-    roster: "50/50",
-    points: 31900,
-    ptsFormatted: "31,900 pts",
-    winRate: "71.8% WR",
-    rewardNim: "+800 NIM",
-    icon: "wind",
-  },
-  {
-    rank: 7,
-    name: "Obsidian Dragons",
-    tag: "DRGN",
-    leader: "Ignis",
-    level: 19,
-    roster: "42/50",
-    points: 28600,
-    ptsFormatted: "28,600 pts",
-    winRate: "69.4% WR",
-    rewardNim: "+650 NIM",
-    icon: "flame",
-  },
-  {
-    rank: 8,
-    name: "Iron Valkyries",
-    tag: "VALK",
-    leader: "Freya",
-    level: 18,
-    roster: "47/50",
-    points: 26100,
-    ptsFormatted: "26,100 pts",
-    winRate: "68.2% WR",
-    rewardNim: "+500 NIM",
-    icon: "heart",
-  },
-];
+const DEFAULT_SYNDICATES_KEY = "arena_registered_syndicates";
 
 export default function SyndicateRanks() {
   const { address, balanceNim, refreshBalance } = useNimiqWallet();
   const { nimToUsd, formatUsd } = useNimiqPrice();
+  const authQuery = trpc.auth.me.useQuery();
+  const user = authQuery.data;
   const dripMutation = trpc.payment.requestTestnetDrip.useMutation();
   const walletAddress = address;
+
+  // Authentic live syndicates loaded from persistent storage or initialized empty
+  const [syndicates, setSyndicates] = useState<Syndicate[]>(() => {
+    try {
+      const stored = localStorage.getItem(DEFAULT_SYNDICATES_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
+  });
+
   const [activeScope, setActiveScope] = useState<"top" | "regional" | "raids" | "recruiting">("top");
-  const [activeTimeline, setActiveTimeline] = useState<"season4" | "weekly" | "alltime">("season4");
+  const [activeTimeline, setActiveTimeline] = useState<"season1" | "weekly" | "alltime">("season1");
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showWarRoomModal, setShowWarRoomModal] = useState(false);
   const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [showWalletSheet, setShowWalletSheet] = useState(false);
   const [isDripping, setIsDripping] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string; isYou?: boolean }>>([
-    { sender: "NimiqGladiator", text: "Guild rally active! We need more wins in Connect NIM and Ludo.", time: "10m ago" },
-    { sender: "ZeroCool", text: "Just won 3 straight in Ludo Arena (+180 pts to treasury)", time: "6m ago" },
-    { sender: "You", text: "Locking down the Diamond bracket right now. Let's hit top 3!", time: "2m ago", isYou: true },
-  ]);
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string; isYou?: boolean }>>([]);
+
+  // Creation modal state
+  const [newClanName, setNewClanName] = useState("");
+  const [newClanTag, setNewClanTag] = useState("");
+  const [newClanIcon, setNewClanIcon] = useState<Syndicate["icon"]>("shield");
+
+  const userSyndicate = syndicates.find((s) => s.isUser) || null;
 
   const handleDrip = async () => {
     setIsDripping(true);
@@ -200,13 +110,49 @@ export default function SyndicateRanks() {
     setChatMessages((prev) => [
       ...prev,
       {
-        sender: "You (Valkyrie)",
+        sender: user?.name ? `${user.name} (You)` : "You",
         text: chatMessage.trim(),
         time: "Just now",
         isYou: true,
       },
     ]);
     setChatMessage("");
+  };
+
+  const handleCreateSyndicate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = newClanName.trim();
+    const cleanTag = newClanTag.trim().toUpperCase();
+    if (cleanName.length < 2 || cleanName.length > 24) {
+      toast.error("Syndicate name must be between 2 and 24 characters.");
+      return;
+    }
+    if (cleanTag.length < 2 || cleanTag.length > 5) {
+      toast.error("Tag must be 2 to 5 letters (e.g. GLD, NXUS).");
+      return;
+    }
+    const created: Syndicate = {
+      rank: syndicates.length + 1,
+      name: cleanName,
+      tag: cleanTag,
+      leader: user?.name || "Founder",
+      level: 1,
+      roster: "1/50",
+      points: 0,
+      ptsFormatted: "0 pts",
+      winRate: "100%",
+      rewardNim: "10,000",
+      icon: newClanIcon,
+      isUser: true,
+    };
+    const updated = [created, ...syndicates];
+    setSyndicates(updated);
+    try {
+      localStorage.setItem(DEFAULT_SYNDICATES_KEY, JSON.stringify(updated));
+    } catch {}
+    setShowCreateModal(false);
+    setShowBrowseModal(false);
+    toast.success(`Syndicate "${cleanName} [${cleanTag}]" successfully registered!`);
   };
 
   const renderSyndicateIcon = (icon: Syndicate["icon"], className: string) => {
@@ -455,235 +401,168 @@ export default function SyndicateRanks() {
             </div>
           </section>
 
-          {/* Pinned Player Clan Spotlight Card ("Gold Legion") */}
-          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#242a39] via-[#191f2e] to-[#242a39] border border-[#f3b72c]/30 p-4 shadow-lg">
-            {/* Golden Ambient Accent */}
-            <div className="absolute -top-12 -left-12 w-28 h-28 bg-[#f3b72c]/15 rounded-full blur-2xl" />
+          {/* Pinned Player Clan Spotlight or Independent Gladiator Card */}
+          {userSyndicate ? (
+            <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#242a39] via-[#191f2e] to-[#242a39] border border-[#f3b72c]/30 p-4 shadow-lg">
+              <div className="absolute -top-12 -left-12 w-28 h-28 bg-[#f3b72c]/15 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="relative z-10 flex flex-col gap-3">
-              {/* Top Clan Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  {/* Clan Crest */}
-                  <div className="w-11 h-11 rounded-xl bg-[#2f3544] border border-[#f3b72c]/40 flex items-center justify-center relative shadow-md">
-                    <Shield size={24} className="text-[#ffd78d]" fill="currentColor" />
-                    <Swords size={12} className="absolute text-[#0d1321] top-3" />
+              <div className="relative z-10 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-11 h-11 rounded-xl bg-[#2f3544] border border-[#f3b72c]/40 flex items-center justify-center relative shadow-md">
+                      {renderSyndicateIcon(userSyndicate.icon, "w-6 h-6 text-[#ffd78d]")}
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base font-black text-[#dde2f6]">{userSyndicate.name}</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#2f3544] text-[#ffd78d] font-mono">
+                          [{userSyndicate.tag}]
+                        </span>
+                      </div>
+                      <span className="text-xs text-[#d4c5ad]">Level 1 Guild · {userSyndicate.roster} Gladiators</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-1 bg-[#ffd78d]/10 text-[#ffd78d] px-2 py-0.5 rounded-full border border-[#ffd78d]/20">
+                      <span className="text-[10px] font-bold font-mono">#{userSyndicate.rank} RANK</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-[#dde2f6] mt-1">{userSyndicate.ptsFormatted}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowWarRoomModal(true)}
+                    className="flex-1 h-11 rounded-xl bg-[#f3b72c] text-[#412d00] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform shadow-md hover:bg-[#ffdea4]"
+                  >
+                    <span>Clan War Room</span>
+                    <ArrowRight size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Clan Chat"
+                    onClick={() => setShowChatModal(true)}
+                    className="w-11 h-11 rounded-xl bg-[#242a39] hover:bg-[#2f3544] border border-[#2f3544] text-[#dde2f6] flex items-center justify-center active:scale-95 transition-transform"
+                  >
+                    <MessageSquare size={18} />
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="relative overflow-hidden rounded-2xl bg-[#191f2e] border border-[#242a39] p-4 shadow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-[#242a39] border border-[#2f3544] flex items-center justify-center text-[#ffd78d]">
+                    <Shield size={22} />
                   </div>
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-base font-black text-[#dde2f6]">Gold Legion</span>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#2f3544] text-[#ffd78d] font-mono">
-                        GLDN
-                      </span>
-                    </div>
-                    <span className="text-xs text-[#d4c5ad]">Level 24 Clan · 48/50 Gladiators</span>
+                    <span className="text-sm font-bold text-[#dde2f6]">Independent Gladiator</span>
+                    <span className="text-[11px] text-[#d4c5ad]">Found a guild to compete in Season 1</span>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-3.5 py-2 rounded-xl bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] font-bold text-xs flex items-center gap-1 active:scale-95 transition-transform shadow-md font-mono"
+                >
+                  <Plus size={14} />
+                  <span>Found Guild</span>
+                </button>
+              </div>
+            </section>
+          )}
 
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-1 bg-[#ffd78d]/10 text-[#ffd78d] px-2 py-0.5 rounded-full border border-[#ffd78d]/20">
-                    <span className="text-[10px] font-bold font-mono">#4 RANK</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-[#dde2f6] mt-1">38,450 pts</span>
-                </div>
+          {/* Standings Section */}
+          {syndicates.length === 0 ? (
+            <section className="rounded-2xl bg-[#191f2e] border border-[#242a39] p-6 flex flex-col items-center text-center gap-3 shadow-lg my-1">
+              <div className="w-14 h-14 rounded-full bg-[#f3b72c]/10 border border-[#f3b72c]/25 flex items-center justify-center text-[#ffd78d] shadow-[0_0_16px_rgba(243,183,44,0.2)]">
+                <Trophy size={28} />
+              </div>
+              <h3 className="text-base font-bold text-[#dde2f6]">Season 1 Guild Warfare Standings</h3>
+              <p className="text-xs text-[#d4c5ad] max-w-sm leading-relaxed">
+                No syndicates registered yet. Found the inaugural guild to claim the #1 rank, recruit duelists, and compete for the 50,000 NIM Treasury!
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="h-10 px-5 rounded-xl bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] text-xs font-bold font-mono flex items-center gap-1.5 active:scale-95 transition-transform shadow-md mt-1"
+              >
+                <Plus size={15} />
+                Found Inaugural Syndicate
+              </button>
+            </section>
+          ) : (
+            <section className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-[#dde2f6]">Syndicate Standings</span>
+                <span className="text-[10px] text-[#d4c5ad] font-mono">{syndicates.length} Registered</span>
               </div>
 
-              {/* Personal Contribution Bar */}
-              <div className="flex flex-col gap-1.5 bg-[#080e1c]/80 border border-[#242a39] p-2.5 rounded-xl">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#d4c5ad] flex items-center gap-1">
-                    <Award size={13} className="text-[#ffd78d]" /> Top 5 Contributor
-                  </span>
-                  <span className="text-[#00d2ff] font-mono font-bold">+380 NIM Est. Payout</span>
-                </div>
-
-                {/* Progress bar towards next tier */}
-                <div className="w-full bg-[#242a39] h-1.5 rounded-full overflow-hidden">
+              <div className="flex flex-col gap-2">
+                {syndicates.map((syn, idx) => (
                   <div
-                    className="bg-gradient-to-r from-[#00d2ff] to-[#f3b72c] h-full rounded-full transition-all duration-500"
-                    style={{ width: "78%" }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[10px] text-[#d4c5ad] font-mono">
-                  <span>Your Honor: 1,840 pts</span>
-                  <span>War Win Rate: 76.4%</span>
-                </div>
-              </div>
-
-              {/* CTA Row */}
-              <div className="flex items-center gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => setShowWarRoomModal(true)}
-                  className="flex-1 h-11 rounded-xl bg-[#f3b72c] text-[#412d00] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform shadow-md hover:bg-[#ffdea4]"
-                >
-                  <span>Clan War Room</span>
-                  <ArrowRight size={15} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Clan Chat"
-                  onClick={() => setShowChatModal(true)}
-                  className="w-11 h-11 rounded-xl bg-[#242a39] hover:bg-[#2f3544] border border-[#2f3544] text-[#dde2f6] flex items-center justify-center active:scale-95 transition-transform"
-                >
-                  <MessageSquare size={18} />
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* Top 3 Syndicate Podium */}
-          <section className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-[#dde2f6]">Syndicate High Council</span>
-              <span className="text-[10px] text-[#d4c5ad] font-mono">Top Tier Dominance</span>
-            </div>
-
-            {/* 3-Column Podium Layout */}
-            <div className="grid grid-cols-3 gap-2 items-end pt-4">
-              {/* Rank 2: Cyber Samurai (Left) */}
-              <div className="flex flex-col items-center bg-[#151b29] border border-[#242a39] rounded-2xl p-2.5 relative shadow-md">
-                <div className="absolute -top-3.5 flex items-center justify-center w-7 h-7 rounded-full bg-[#242a39] border border-[#00d2ff]/40 text-[#00d2ff] text-xs font-mono font-bold shadow-md">
-                  2
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-[#242a39] border border-[#2f3544] flex items-center justify-center mt-2 relative overflow-hidden">
-                  <Swords size={22} className="text-[#a5e7ff]" />
-                </div>
-                <span className="text-xs font-bold text-[#dde2f6] mt-2 text-center truncate w-full">
-                  Cyber Samurai
-                </span>
-                <span className="text-[9px] text-[#a5e7ff] font-mono">[CYBR]</span>
-                <span className="text-[10px] text-[#d4c5ad] truncate max-w-full">Ronin</span>
-                <div className="w-full bg-[#080e1c] border border-[#242a39] rounded-lg p-1.5 mt-2 flex flex-col items-center">
-                  <span className="text-xs text-[#ffd78d] font-bold font-mono">12,500</span>
-                  <span className="text-[8px] text-[#d4c5ad] font-mono">NIM</span>
-                  <span className="text-[9px] text-[#dde2f6] font-mono font-semibold mt-0.5">
-                    46,180 pt
-                  </span>
-                </div>
-              </div>
-
-              {/* Rank 1: Nexus Syndicate (Center - Elevated) */}
-              <div className="flex flex-col items-center bg-[#191f2e] border-2 border-[#f3b72c]/50 rounded-2xl p-3 relative shadow-xl transform -translate-y-2">
-                <div className="absolute -top-4 flex items-center justify-center w-8 h-8 rounded-full bg-[#f3b72c] text-[#412d00] font-mono font-black shadow-lg">
-                  <Trophy size={16} />
-                </div>
-                <div className="w-14 h-14 rounded-2xl bg-[#242a39] border border-[#f3b72c]/40 flex items-center justify-center mt-2 relative shadow-lg shadow-[#f3b72c]/20">
-                  <Star size={28} className="text-[#ffd78d]" fill="currentColor" />
-                </div>
-                <span className="text-xs font-black text-[#ffd78d] mt-2 text-center truncate w-full">
-                  Nexus Syn.
-                </span>
-                <span className="text-[9px] text-[#ffdea4] font-mono">[NXUS]</span>
-                <span className="text-[10px] text-[#d4c5ad] truncate max-w-full">ApexPredator</span>
-                <div className="w-full bg-[#080e1c] border border-[#242a39] rounded-lg p-1.5 mt-2 flex flex-col items-center">
-                  <span className="text-sm text-[#ffd78d] font-bold font-mono">25,000</span>
-                  <span className="text-[8px] text-[#ffd78d] uppercase font-mono">NIM First Crest</span>
-                  <span className="text-[10px] text-[#dde2f6] font-mono font-bold mt-0.5">
-                    58,920 pt
-                  </span>
-                  <span className="text-[9px] text-[#68f5b8] font-mono">84.2% WR</span>
-                </div>
-              </div>
-
-              {/* Rank 3: Solaris Knights (Right) */}
-              <div className="flex flex-col items-center bg-[#151b29] border border-[#242a39] rounded-2xl p-2.5 relative shadow-md">
-                <div className="absolute -top-3.5 flex items-center justify-center w-7 h-7 rounded-full bg-[#242a39] border border-[#ffd78d]/40 text-[#ffd78d] text-xs font-mono font-bold shadow-md">
-                  3
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-[#242a39] border border-[#2f3544] flex items-center justify-center mt-2 relative overflow-hidden">
-                  <Sun size={22} className="text-[#ffd78d]" />
-                </div>
-                <span className="text-xs font-bold text-[#dde2f6] mt-2 text-center truncate w-full">
-                  Solaris Kts
-                </span>
-                <span className="text-[9px] text-[#ffd78d] font-mono">[SLRS]</span>
-                <span className="text-[10px] text-[#d4c5ad] truncate max-w-full">SolarisK</span>
-                <div className="w-full bg-[#080e1c] border border-[#242a39] rounded-lg p-1.5 mt-2 flex flex-col items-center">
-                  <span className="text-xs text-[#ffd78d] font-bold font-mono">7,500</span>
-                  <span className="text-[8px] text-[#d4c5ad] font-mono">NIM</span>
-                  <span className="text-[9px] text-[#dde2f6] font-mono font-semibold mt-0.5">
-                    41,800 pt
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Leaderboard Table (#4 - #8+) */}
-          <section className="flex flex-col gap-2">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold text-[#dde2f6]">Contenders Rank (#4 - #10)</span>
-              <span className="text-[10px] text-[#00d2ff] font-mono">5,000 NIM Shared Pool</span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              {SYNDICATES.slice(3).map((syn) => (
-                <div
-                  key={syn.name}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
-                    syn.isUser
-                      ? "bg-[#242a39] border-[#f3b72c]/40 shadow-md"
-                      : "bg-[#151b29] border-[#242a39] shadow-sm hover:border-[#2f3544]"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className={`text-xs font-mono font-bold w-5 text-center ${
-                        syn.isUser ? "text-[#ffd78d]" : "text-[#d4c5ad]"
-                      }`}
-                    >
-                      {syn.rank}
-                    </span>
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                        syn.isUser
-                          ? "bg-[#080e1c] border-[#f3b72c]/40 text-[#ffd78d]"
-                          : "bg-[#191f2e] border-[#242a39] text-[#00d2ff]"
-                      }`}
-                    >
-                      {renderSyndicateIcon(syn.icon, "w-5 h-5")}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span
-                          className={`text-xs font-bold truncate ${
-                            syn.isUser ? "text-[#ffd78d]" : "text-[#dde2f6]"
-                          }`}
-                        >
-                          {syn.name}
-                        </span>
-                        {syn.isUser ? (
-                          <span className="text-[9px] bg-[#ffd78d]/20 text-[#ffd78d] px-1.5 py-0.5 rounded font-mono font-bold">
-                            YOU
-                          </span>
-                        ) : (
-                          <span className="text-[9px] text-[#d4c5ad] font-mono">[{syn.tag}]</span>
-                        )}
+                    key={syn.name}
+                    className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                      syn.isUser
+                        ? "bg-[#242a39] border-[#f3b72c]/40 shadow-md"
+                        : "bg-[#151b29] border-[#242a39] shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className={`text-xs font-mono font-bold w-5 text-center ${
+                          syn.isUser ? "text-[#ffd78d]" : "text-[#d4c5ad]"
+                        }`}
+                      >
+                        {idx + 1}
+                      </span>
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                          syn.isUser
+                            ? "bg-[#080e1c] border-[#f3b72c]/40 text-[#ffd78d]"
+                            : "bg-[#191f2e] border-[#242a39] text-[#00d2ff]"
+                        }`}
+                      >
+                        {renderSyndicateIcon(syn.icon, "w-5 h-5")}
                       </div>
-                      <span className="text-[10px] text-[#d4c5ad] font-mono">
-                        {syn.roster} roster · {syn.winRate}
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span
+                            className={`text-xs font-bold truncate ${
+                              syn.isUser ? "text-[#ffd78d]" : "text-[#dde2f6]"
+                            }`}
+                          >
+                            {syn.name}
+                          </span>
+                          <span className="text-[9px] text-[#d4c5ad] font-mono">[{syn.tag}]</span>
+                          {syn.isUser && (
+                            <span className="text-[9px] bg-[#ffd78d]/20 text-[#ffd78d] px-1.5 py-0.2 rounded font-mono font-bold">
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[#d4c5ad] font-mono">
+                          {syn.roster} roster · {syn.winRate}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end shrink-0 pl-2">
+                      <span className="text-xs font-mono font-bold text-[#dde2f6]">
+                        {syn.ptsFormatted}
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold text-[#ffd78d]">
+                        {syn.rewardNim} NIM
                       </span>
                     </div>
                   </div>
-
-                  <div className="flex flex-col items-end shrink-0 pl-2">
-                    <span className="text-xs font-mono font-bold text-[#dde2f6]">
-                      {syn.ptsFormatted}
-                    </span>
-                    <span
-                      className={`text-[10px] font-mono font-semibold ${
-                        syn.isUser ? "text-[#ffd78d]" : "text-[#d4c5ad]"
-                      }`}
-                    >
-                      {syn.rewardNim}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* War Mechanics Info Box */}
           <section>
@@ -785,7 +664,9 @@ export default function SyndicateRanks() {
               <div className="flex items-center justify-between pb-3 border-b border-[#242a39]">
                 <div className="flex items-center gap-2">
                   <Swords className="text-[#ffd78d]" size={20} />
-                  <h3 className="font-bold text-sm text-[#dde2f6]">Gold Legion War Room</h3>
+                  <h3 className="font-bold text-sm text-[#dde2f6]">
+                    {userSyndicate ? `${userSyndicate.name} War Room` : "Guild War Room"}
+                  </h3>
                 </div>
                 <button
                   onClick={() => setShowWarRoomModal(false)}
@@ -796,36 +677,51 @@ export default function SyndicateRanks() {
               </div>
 
               <div className="py-4 flex flex-col gap-3">
-                {/* Active War Matchup */}
-                <div className="p-3 rounded-xl bg-gradient-to-r from-[#242a39] to-[#191f2e] border border-[#f3b72c]/30 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase text-[#00d2ff] font-bold">
-                      Active War Clash
+                {userSyndicate ? (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-[#242a39] to-[#191f2e] border border-[#f3b72c]/30 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono uppercase text-[#00d2ff] font-bold">
+                        Season 1 Qualifying Status
+                      </span>
+                      <span className="text-[10px] font-mono text-[#ffd78d]">Active Season</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex flex-col items-center">
+                        {renderSyndicateIcon(userSyndicate.icon, "w-6 h-6 text-[#ffd78d]")}
+                        <span className="text-xs font-bold text-[#dde2f6] mt-1">{userSyndicate.name}</span>
+                        <span className="text-[10px] text-[#ffd78d] font-mono">{userSyndicate.ptsFormatted}</span>
+                      </div>
+
+                      <div className="flex flex-col items-center text-center">
+                        <span className="text-[10px] text-[#d4c5ad] font-mono">Rank</span>
+                        <span className="text-base font-black text-[#68f5b8]">#{userSyndicate.rank}</span>
+                      </div>
+
+                      <div className="flex flex-col items-center text-center">
+                        <span className="text-[10px] text-[#d4c5ad] font-mono">Roster</span>
+                        <span className="text-xs font-bold text-[#dde2f6] mt-1">{userSyndicate.roster}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-[#080e1c] border border-[#242a39] text-center flex flex-col items-center gap-2">
+                    <Shield size={24} className="text-[#ffd78d]" />
+                    <span className="text-xs font-bold text-[#dde2f6]">No Guild Founded Yet</span>
+                    <span className="text-[11px] text-[#d4c5ad]">
+                      Found your syndicate to rally teammates and view your guild war room.
                     </span>
-                    <span className="text-[10px] font-mono text-[#ffd78d]">1d 8h remaining</span>
+                    <button
+                      onClick={() => {
+                        setShowWarRoomModal(false);
+                        setShowCreateModal(true);
+                      }}
+                      className="px-4 py-1.5 rounded-lg bg-[#f3b72c] text-[#412d00] font-bold text-xs font-mono active:scale-95 mt-1"
+                    >
+                      Found a Syndicate
+                    </button>
                   </div>
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col items-center">
-                      <Shield size={24} className="text-[#ffd78d]" fill="currentColor" />
-                      <span className="text-xs font-bold text-[#dde2f6] mt-1">Gold Legion</span>
-                      <span className="text-[10px] text-[#ffd78d] font-mono">38,450 pts</span>
-                    </div>
-
-                    <span className="text-sm font-black text-[#f3b72c]">VS</span>
-
-                    <div className="flex flex-col items-center">
-                      <Swords size={24} className="text-[#00d2ff]" />
-                      <span className="text-xs font-bold text-[#dde2f6] mt-1">Cyber Samurai</span>
-                      <span className="text-[10px] text-[#00d2ff] font-mono">46,180 pts</span>
-                    </div>
-                  </div>
-
-                  <div className="w-full bg-[#080e1c] h-2 rounded-full overflow-hidden flex">
-                    <div className="bg-[#f3b72c] h-full" style={{ width: "45%" }} />
-                    <div className="bg-[#00d2ff] h-full" style={{ width: "55%" }} />
-                  </div>
-                </div>
+                )}
 
                 {/* Deploy CTAs */}
                 <span className="text-[11px] font-bold text-[#d4c5ad] uppercase tracking-wider font-mono">
@@ -899,56 +795,165 @@ export default function SyndicateRanks() {
 
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-mono text-[#d4c5ad] uppercase tracking-wider">
-                    Actively Recruiting Syndicates
+                    Registered Syndicates
                   </span>
 
-                  {[
-                    { name: "Obsidian Dragons", tag: "DRGN", roster: "42/50", minLvl: "LVL 15+" },
-                    { name: "Iron Valkyries", tag: "VALK", roster: "47/50", minLvl: "LVL 10+" },
-                    { name: "Shadow Stalkers", tag: "SHDW", roster: "45/50", minLvl: "LVL 20+" },
-                  ].map((g) => (
-                    <div
-                      key={g.name}
-                      className="p-2.5 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between"
-                    >
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-[#dde2f6]">{g.name}</span>
-                          <span className="text-[9px] font-mono text-[#00d2ff]">[{g.tag}]</span>
-                        </div>
-                        <span className="text-[10px] text-[#d4c5ad] font-mono">
-                          {g.roster} · Min {g.minLvl}
-                        </span>
-                      </div>
+                  {syndicates.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-[#080e1c] border border-[#242a39] text-center flex flex-col items-center gap-2">
+                      <Shield size={24} className="text-[#d4c5ad]/60" />
+                      <span className="text-xs text-[#d4c5ad]">
+                        No other syndicates have registered yet for Season 1.
+                      </span>
                       <button
-                        onClick={() => toast.success(`Application sent to ${g.name}!`)}
-                        className="px-3 py-1 rounded-lg bg-[#242a39] hover:bg-[#2f3544] text-[11px] font-bold text-[#ffd78d] border border-[#2f3544] active:scale-95"
+                        onClick={() => {
+                          setShowBrowseModal(false);
+                          setShowCreateModal(true);
+                        }}
+                        className="px-4 py-1.5 rounded-lg bg-[#f3b72c] text-[#412d00] font-bold text-xs font-mono active:scale-95 mt-1"
                       >
-                        Apply
+                        Found a Syndicate
                       </button>
                     </div>
-                  ))}
+                  ) : (
+                    syndicates.map((g) => (
+                      <div
+                        key={g.name}
+                        className="p-2.5 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between"
+                      >
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-[#dde2f6]">{g.name}</span>
+                            <span className="text-[9px] font-mono text-[#00d2ff]">[{g.tag}]</span>
+                          </div>
+                          <span className="text-[10px] text-[#d4c5ad] font-mono">
+                            {g.roster} Gladiators · {g.ptsFormatted}
+                          </span>
+                        </div>
+                        {g.isUser ? (
+                          <span className="text-[10px] text-[#ffd78d] font-mono font-bold px-2 py-0.5 rounded bg-[#242a39]">
+                            Your Guild
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => toast.success(`Application sent to ${g.name}!`)}
+                            className="px-3 py-1 rounded-lg bg-[#242a39] hover:bg-[#2f3544] text-[11px] font-bold text-[#ffd78d] border border-[#2f3544] active:scale-95"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#080e1c] border border-[#242a39] mt-2 flex flex-col gap-2">
-                  <span className="text-xs font-bold text-[#ffd78d] flex items-center gap-1.5">
-                    <Plus size={14} /> Create Your Own Syndicate
-                  </span>
-                  <p className="text-[11px] text-[#d4c5ad] leading-relaxed">
-                    Stake a 100 NIM treasury creation bond to found a new Guild and recruit up to 50 gladiators for Season 4.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setShowBrowseModal(false);
-                      setShowWalletSheet(true);
-                      toast.info("Open wallet to fund 100 NIM guild creation bond.");
-                    }}
-                    className="w-full h-10 rounded-lg bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] font-bold text-xs active:scale-95"
-                  >
-                    Found a Syndicate (100 NIM)
-                  </button>
-                </div>
+                {!userSyndicate && (
+                  <div className="p-3 rounded-xl bg-[#080e1c] border border-[#242a39] mt-2 flex flex-col gap-2">
+                    <span className="text-xs font-bold text-[#ffd78d] flex items-center gap-1.5">
+                      <Plus size={14} /> Create Your Own Syndicate
+                    </span>
+                    <p className="text-[11px] text-[#d4c5ad] leading-relaxed">
+                      Found a new Guild, invite gladiators, and compete for the 50,000 NIM Season 1 Treasury.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setShowBrowseModal(false);
+                        setShowCreateModal(true);
+                      }}
+                      className="w-full h-10 rounded-lg bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] font-bold text-xs active:scale-95"
+                    >
+                      Found a Syndicate
+                    </button>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: FOUND / CREATE SYNDICATE                                           */}
+        {/* ========================================================================= */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="w-full max-w-md bg-[#151b29] border-t sm:border border-[#242a39] rounded-t-[28px] sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-[#242a39]">
+                <div className="flex items-center gap-2">
+                  <Shield className="text-[#ffd78d]" size={20} fill="currentColor" />
+                  <h3 className="font-bold text-sm text-[#dde2f6]">Found a Syndicate</h3>
+                </div>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="w-8 h-8 rounded-full bg-[#191f2e] flex items-center justify-center text-[#d4c5ad] hover:text-[#dde2f6]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSyndicate} className="py-4 flex flex-col gap-4 text-xs">
+                <div>
+                  <label className="block text-[11px] font-mono text-[#ffd78d] uppercase mb-1">
+                    Syndicate Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newClanName}
+                    onChange={(e) => setNewClanName(e.target.value)}
+                    placeholder="e.g. Apex Predators"
+                    maxLength={24}
+                    required
+                    className="w-full px-3 py-2 rounded-xl bg-[#080e1c] border border-[#242a39] text-[#dde2f6] text-xs focus:outline-none focus:border-[#ffd78d]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-mono text-[#ffd78d] uppercase mb-1">
+                    Clan Tag (2-5 uppercase chars)
+                  </label>
+                  <input
+                    type="text"
+                    value={newClanTag}
+                    onChange={(e) => setNewClanTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                    placeholder="e.g. APEX"
+                    maxLength={5}
+                    required
+                    className="w-full px-3 py-2 rounded-xl bg-[#080e1c] border border-[#242a39] text-[#dde2f6] text-xs font-mono focus:outline-none focus:border-[#ffd78d]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-mono text-[#ffd78d] uppercase mb-2">
+                    Emblem Crest
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(["shield", "swords", "star", "flame", "sun", "wind", "eyeOff", "heart"] as const).map((icon) => (
+                      <button
+                        key={icon}
+                        type="button"
+                        onClick={() => setNewClanIcon(icon)}
+                        className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${
+                          newClanIcon === icon
+                            ? "bg-[#f3b72c]/20 border-[#f3b72c] text-[#ffd78d]"
+                            : "bg-[#191f2e] border-[#242a39] text-[#d4c5ad]"
+                        }`}
+                      >
+                        {renderSyndicateIcon(icon, "w-5 h-5")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#080e1c] border border-[#242a39] text-[11px] text-[#d4c5ad]">
+                  <span className="text-[#ffd78d] font-bold block mb-0.5">Season 1 Launch</span>
+                  Founding your syndicate establishes your team in Season 1 Guild Warfare. Earn clan honor by winning arena duels in Connect 4 and Ludo!
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full h-11 rounded-xl bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] font-bold text-xs active:scale-95 transition-transform mt-1"
+                >
+                  Register Syndicate
+                </button>
+              </form>
             </div>
           </div>
         )}
@@ -962,7 +967,9 @@ export default function SyndicateRanks() {
               <div className="flex items-center justify-between pb-3 border-b border-[#242a39]">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="text-[#ffd78d]" size={18} />
-                  <h3 className="font-bold text-sm text-[#dde2f6]">Gold Legion Clan Chat</h3>
+                  <h3 className="font-bold text-sm text-[#dde2f6]">
+                    {userSyndicate ? `${userSyndicate.name} Clan Chat` : "Guild Chat"}
+                  </h3>
                 </div>
                 <button
                   onClick={() => setShowChatModal(false)}
@@ -973,24 +980,30 @@ export default function SyndicateRanks() {
               </div>
 
               <div className="py-4 flex-1 flex flex-col gap-2.5 overflow-y-auto max-h-[300px]">
-                {chatMessages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex flex-col p-2.5 rounded-xl text-xs max-w-[85%] ${
-                      msg.isYou
-                        ? "ml-auto bg-[#f3b72c]/15 border border-[#f3b72c]/30 text-[#dde2f6]"
-                        : "mr-auto bg-[#191f2e] border border-[#242a39] text-[#d4c5ad]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className={`font-bold text-[10px] ${msg.isYou ? "text-[#ffd78d]" : "text-[#00d2ff]"}`}>
-                        {msg.sender}
-                      </span>
-                      <span className="text-[9px] text-[#d4c5ad]/70 font-mono">{msg.time}</span>
-                    </div>
-                    <p className="leading-snug">{msg.text}</p>
+                {chatMessages.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[#d4c5ad]">
+                    No clan messages yet. Send a message to rally your guild!
                   </div>
-                ))}
+                ) : (
+                  chatMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`flex flex-col p-2.5 rounded-xl text-xs max-w-[85%] ${
+                        msg.isYou
+                          ? "ml-auto bg-[#f3b72c]/15 border border-[#f3b72c]/30 text-[#dde2f6]"
+                          : "mr-auto bg-[#191f2e] border border-[#242a39] text-[#d4c5ad]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className={`font-bold text-[10px] ${msg.isYou ? "text-[#ffd78d]" : "text-[#00d2ff]"}`}>
+                          {msg.sender}
+                        </span>
+                        <span className="text-[9px] text-[#d4c5ad]/70 font-mono">{msg.time}</span>
+                      </div>
+                      <p className="leading-snug">{msg.text}</p>
+                    </div>
+                  ))
+                )}
               </div>
 
               <form onSubmit={handleSendMessage} className="pt-2 flex items-center gap-2">

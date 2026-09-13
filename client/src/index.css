@@ -2478,7 +2478,8 @@ h1 em,
 
 .ludo-standard-board-wrapper {
   width: 100%;
-  max-width: min(94vw, 580px);
+  max-width: min(94vw, min(48vh, 370px));
+  max-height: min(48vh, 370px);
   margin: 0 auto;
   aspect-ratio: 1 / 1;
   touch-action: manipulation;
@@ -2959,30 +2960,52 @@ h1 em,
 /* 2 Pawns on Same Cell (Start Square, Safe Star, or Regular Track) */
 .cell-pawns-stack.pawns-count-2 {
   flex-direction: row;
-  gap: 1.5px;
+  gap: 2px;
+  justify-content: center;
+  align-items: center;
 }
 .cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn {
-  width: clamp(11px, 2.5vw, 15px);
-  height: clamp(11px, 2.5vw, 15px);
+  width: clamp(13px, 3vw, 18px);
+  height: clamp(13px, 3vw, 18px);
   max-width: 48%;
-  max-height: 85%;
+  max-height: 90%;
   margin: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-head {
-  width: 46%;
-  height: 46%;
+  width: 48%;
+  height: 48%;
 }
 .cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-ring {
-  width: 68%;
+  width: 70%;
   height: 20%;
   top: 42%;
 }
 .cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-body {
-  width: 84%;
-  height: 84%;
+  width: 86%;
+  height: 86%;
 }
 .cell-pawns-stack.pawns-count-2 > .ludo-3d-pawn .pawn-number {
-  font-size: clamp(5px, 1.3vw, 7px);
+  font-size: clamp(6px, 1.4vw, 8px);
+}
+
+.pawn-stack-badge {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  background: #f3b72c;
+  color: #1a1000;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 900;
+  font-size: clamp(8px, 1.8vw, 10px);
+  line-height: 1;
+  padding: 1.5px 4px;
+  border-radius: 9999px;
+  border: 1.5px solid #080e1c;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.75);
+  z-index: 35;
+  pointer-events: none;
 }
 
 /* 3 or 4 Pawns on Safe Star or Start Cell - 2x2 Clean Cluster */

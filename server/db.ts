@@ -560,6 +560,21 @@ export async function registerUserIdentity(input: {
   )[0];
 }
 
+export async function updateUserAvatar(userId: number, avatar: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db
+    .update(users)
+    .set({
+      avatar,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+  return (
+    await db.select().from(users).where(eq(users.id, userId)).limit(1)
+  )[0];
+}
+
 export async function claimWelcomeReward(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");

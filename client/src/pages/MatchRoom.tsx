@@ -18,6 +18,7 @@ import {
   User,
   Zap,
   Eye,
+  Music,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
@@ -192,8 +193,19 @@ export default function MatchRoom() {
   const [isRecoveringAuth, setIsRecoveringAuth] = useState(false);
   const [showProvablyFair, setShowProvablyFair] = useState(false);
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
+  const [isMusicOn, setIsMusicOn] = useState(() => soundEngine.getMusicEnabled());
   const [botActionMessage, setBotActionMessage] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(14);
+
+  useEffect(() => {
+    soundEngine.unlockAudio();
+    if (soundEngine.getMusicEnabled() && !soundEngine.getMuted()) {
+      soundEngine.startAmbientMusic();
+    }
+    return () => {
+      soundEngine.stopAmbientMusic();
+    };
+  }, []);
 
   const isRecoveringAuthRef = useRef(false);
   const escrow = escrowQuery.data;
@@ -760,56 +772,17 @@ export default function MatchRoom() {
   const strokeOffset = 94.2 * (1 - timerProgress);
 
   return (
-    <div className="min-h-screen bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans relative selection:bg-[#f3b72c]/30 selection:text-[#ffd78d]">
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans relative overflow-hidden selection:bg-[#f3b72c]/30 selection:text-[#ffd78d]">
       {/* MOBILE MINI-APP CONTAINER */}
-      <div className="max-w-md w-full mx-auto min-h-screen flex flex-col bg-[#0d1321] relative shadow-2xl overflow-x-hidden">
+      <div className="max-w-md w-full mx-auto h-full flex flex-col bg-[#0d1321] relative shadow-2xl overflow-hidden justify-between">
         
         {/* ========================================================================= */}
-        {/* FIXED APP HEADER                                                          */}
+        {/* MAIN GAMEPLAY VIEWPORT (Fit inside single screen without scroll)           */}
         {/* ========================================================================= */}
-        <header className="fixed top-0 inset-x-0 z-50 pointer-events-none">
-          <div className="max-w-md mx-auto w-full pointer-events-auto bg-[#0d1321]/85 backdrop-blur-xl border-b border-[#242a39]/80 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
-            <div className="h-16 px-4 flex items-center justify-between">
-              
-              {/* Left: Brand & Room */}
-              <Link href="/" className="flex items-center gap-2.5 group">
-                <NimiqArenaLogo size={32} />
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-[#ffdea4] tracking-tight leading-none">
-                    NIMIQ ARENA
-                  </span>
-                  <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
-                    Match #{matchId.slice(0, 6)}
-                  </span>
-                </div>
-              </Link>
-
-              {/* Right: Wallet Balance Pill */}
-              <div className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#2f3544] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected
-                      ? "bg-[#68f5b8] shadow-[0_0_8px_#68f5b8]"
-                      : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
-                  }`}
-                />
-                <span className="text-xs font-semibold text-[#dde2f6] font-mono">
-                  {balanceNim != null ? formatNim(balanceNim) : "1,420"}{" "}
-                  <span className="text-[#ffd78d] font-bold">NIM</span>
-                </span>
-                <Wallet size={15} className="text-[#a5e7ff]" />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* ========================================================================= */}
-        {/* MAIN GAMEPLAY VIEWPORT                                                    */}
-        {/* ========================================================================= */}
-        <main className="flex-1 flex flex-col w-full pt-16 pb-24 bg-[#0d1321] select-none overflow-x-hidden">
+        <main className="flex-1 flex flex-col justify-between w-full h-full bg-[#0d1321] select-none overflow-hidden">
           
           {/* Dynamic Turn Urgency Bar */}
-          <div className="w-full h-1 bg-[#080e1c] relative overflow-hidden">
+          <div className="w-full h-1 bg-[#080e1c] relative overflow-hidden shrink-0">
             <div
               className={`h-full transition-all duration-300 shadow-[0_0_8px_#00d2ff] ${
                 secondsLeft <= 4 ? "bg-[#ffb4ab]" : "bg-[#00d2ff]"
@@ -820,7 +793,7 @@ export default function MatchRoom() {
           </div>
 
           {/* HUD Header: Match Top Bar */}
-          <header className="px-4 py-2 flex items-center justify-between bg-[#151b29] border-b border-[#242a39]">
+          <header className="px-3 py-1.5 flex items-center justify-between bg-[#151b29] border-b border-[#242a39] shrink-0">
             <div className="flex items-center gap-2">
               {isSpectator ? (
                 <Link
@@ -873,17 +846,33 @@ export default function MatchRoom() {
               <button
                 onClick={toggleSound}
                 aria-label="Toggle audio"
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad]"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad]"
                 title={isMuted ? "Unmute Sound" : "Mute Sound"}
               >
-                {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+              <button
+                onClick={() => {
+                  const next = soundEngine.toggleAmbientMusic();
+                  setIsMusicOn(next);
+                  toast.info(next ? "Ambient Music Active 🎵" : "Ambient Music Muted 🔇");
+                }}
+                aria-label="Toggle ambient music"
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-95 ${
+                  isMusicOn
+                    ? "bg-[#f3b72c]/20 text-[#f3b72c] border border-[#f3b72c]/40"
+                    : "bg-[#191f2e] text-[#94a3b8] hover:bg-[#242a39]"
+                }`}
+                title={isMusicOn ? "Mute Music" : "Play Music"}
+              >
+                <Music size={15} />
               </button>
               <button
                 onClick={() => setShowProvablyFair(true)}
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#ffd78d]"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#ffd78d]"
                 title="Cryptographic VRF Audit"
               >
-                <ShieldCheck size={17} />
+                <ShieldCheck size={16} />
               </button>
             </div>
           </header>
@@ -1037,8 +1026,8 @@ export default function MatchRoom() {
             </section>
           ) : (
             <>
-              <section className="relative px-4 my-2 flex flex-col items-center justify-center">
-                <div className="relative w-full max-w-[390px] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-2 shadow-[0_16px_40px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
+              <section className="relative px-3 my-1 flex flex-col items-center justify-center shrink-0">
+                <div className="relative w-full max-w-[min(94vw,min(45vh,350px))] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
                   {/* Ambient Board Glow Elements */}
                   <div className="absolute -top-10 -left-10 w-36 h-36 rounded-full bg-[#00d2ff]/10 blur-2xl pointer-events-none" />
                   <div className="absolute -bottom-10 -right-10 w-36 h-36 rounded-full bg-[#f3b72c]/15 blur-2xl pointer-events-none" />
@@ -1080,81 +1069,77 @@ export default function MatchRoom() {
                   )}
 
                   {/* Floating Tactical Overlay: LIVE SYNC Badge */}
-                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#191f2e]/90 backdrop-blur-sm border border-white/10 shadow-md">
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#191f2e]/90 backdrop-blur-sm border border-white/10 shadow-md">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] animate-ping" />
-                    <span className="text-[10px] text-[#a5e7ff] font-mono font-bold">
+                    <span className="text-[9px] text-[#a5e7ff] font-mono font-bold">
                       LIVE SYNC
                     </span>
                   </div>
                 </div>
               </section>
 
-              {/* LUDO TURN STATUS & ACTION HUD (Thumb Zone) */}
-              <section className="px-4 flex flex-col items-center">
-                {/* Turn Announcement Bar */}
-                <div className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-sm">
-                  <div className="flex items-center gap-2.5">
+              {/* LUDO TURN STATUS & COMPACT ACTION HUD */}
+              <section className="px-3 flex flex-col items-center gap-1.5 shrink-0">
+                {/* Unified Status & Reaction Ribbon */}
+                <div className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-sm">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div
-                      className={`w-2.5 h-2.5 rounded-full animate-pulse ${
+                      className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${
                         isYourTurn
-                          ? "bg-[#f3b72c] shadow-[0_0_10px_#f3b72c]"
-                          : "bg-[#00d2ff] shadow-[0_0_10px_#00d2ff]"
+                          ? "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
+                          : "bg-[#00d2ff] shadow-[0_0_8px_#00d2ff]"
                       }`}
                     />
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0">
                       <span
-                        className={`text-sm font-extrabold tracking-wide leading-tight font-mono ${
+                        className={`text-xs font-black tracking-wide leading-tight font-mono truncate ${
                           isYourTurn ? "text-[#ffd78d]" : "text-[#a5e7ff]"
                         }`}
                       >
                         {isYourTurn ? "YOUR TURN" : `${p2Name.toUpperCase()}'S TURN`}
                       </span>
-                      <span className="text-xs text-[#d4c5ad] leading-none mt-0.5">
+                      <span className="text-[10px] text-[#d4c5ad] leading-none mt-0.5 truncate">
                         {turnSubCaption}
                       </span>
                     </div>
                   </div>
 
-                  {/* Circular Countdown Timer Badge */}
-                  <div className="relative flex items-center justify-center w-10 h-10 flex-shrink-0">
-                    <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                      <circle
-                        cx="18"
-                        cy="18"
-                        fill="none"
-                        r="15"
-                        stroke="#242a39"
-                        strokeWidth="3"
-                      />
-                      <circle
-                        className="transition-all duration-1000"
-                        cx="18"
-                        cy="18"
-                        fill="none"
-                        id="timer-circle"
-                        r="15"
-                        stroke={secondsLeft <= 4 ? "#ffb4ab" : "#f3b72c"}
-                        strokeDasharray="94.2"
-                        strokeDashoffset={strokeOffset}
-                        strokeLinecap="round"
-                        strokeWidth="3"
-                      />
-                    </svg>
-                    <span
-                      className={`absolute text-xs font-bold font-mono ${
-                        secondsLeft <= 4 ? "text-[#ffb4ab]" : "text-[#ffd78d]"
-                      }`}
-                    >
-                      {secondsLeft}s
-                    </span>
+                  {/* Right: Quick Taunts + Circular Timer */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1">
+                      {["GG", "🔥", "🎲"].map((em) => (
+                        <button
+                          key={em}
+                          onClick={() => void sendQuickEmote(em)}
+                          className="px-1.5 py-0.5 rounded bg-[#080e1c] border border-white/5 hover:bg-[#242a39] active:scale-90 transition-transform text-[11px] font-mono text-[#dde2f6]"
+                        >
+                          {em}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="relative flex items-center justify-center w-7 h-7 flex-shrink-0">
+                      <svg className="w-7 h-7 -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" fill="none" r="15" stroke="#242a39" strokeWidth="3" />
+                        <circle
+                          className="transition-all duration-1000"
+                          cx="18" cy="18" fill="none" id="timer-circle" r="15"
+                          stroke={secondsLeft <= 4 ? "#ffb4ab" : "#f3b72c"}
+                          strokeDasharray="94.2" strokeDashoffset={strokeOffset} strokeLinecap="round" strokeWidth="3"
+                        />
+                      </svg>
+                      <span className={`absolute text-[9px] font-bold font-mono ${secondsLeft <= 4 ? "text-[#ffb4ab]" : "text-[#ffd78d]"}`}>
+                        {secondsLeft}s
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Interactive Tactical Dice Roller Block OR Spectator View */}
                 {isSpectator ? (
-                  <div className="w-full mt-2 p-3 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-inner">
+                  <div className="w-full p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-inner">
                     <div className="flex items-center gap-2">
-                      <Eye size={16} className="text-[#00d2ff]" />
+                      <Eye size={15} className="text-[#00d2ff]" />
                       <div className="flex flex-col">
                         <span className="text-xs text-[#dde2f6] font-bold font-mono">
                           SPECTATOR VIEW
@@ -1164,13 +1149,13 @@ export default function MatchRoom() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#191f2e] border border-[#2f3544] text-[11px] font-mono font-bold text-[#ffd78d]">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#191f2e] border border-[#2f3544] text-[10px] font-mono font-bold text-[#ffd78d]">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c] animate-pulse" />
                       <span>{snapshot?.currentPlayer === 0 ? p1Name : p2Name}'s turn</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full mt-2 grid grid-cols-5 gap-2 items-center">
+                  <div className="w-full grid grid-cols-5 gap-2 items-center">
                     {/* 3D Holographic Dice Visual Trigger */}
                     <button
                       onClick={() => {
@@ -1178,7 +1163,7 @@ export default function MatchRoom() {
                       }}
                       disabled={!canRoll}
                       aria-label="Tactile dice roll"
-                      className={`col-span-2 h-16 rounded-xl border flex items-center justify-center relative overflow-hidden group shadow-[0_4px_16px_rgba(0,0,0,0.5)] active:scale-95 transition-all ${
+                      className={`col-span-2 h-12 rounded-xl border flex items-center justify-center relative overflow-hidden group shadow-md active:scale-95 transition-all ${
                         canRoll
                           ? "bg-[#242a39] border-[#f3b72c]/50 cursor-pointer hover:border-[#f3b72c]"
                           : "bg-[#151b29] border-[#242a39] opacity-75"
@@ -1191,8 +1176,8 @@ export default function MatchRoom() {
                         value={currentDice}
                         isRolling={command.isPending}
                       />
-                      <div className="absolute bottom-1 right-2 text-[8px] text-[#f9bd32] font-mono tracking-widest uppercase">
-                        VRF ROLLED
+                      <div className="absolute bottom-0.5 right-1.5 text-[7px] text-[#f9bd32] font-mono tracking-widest uppercase">
+                        VRF
                       </div>
                     </button>
 
@@ -1218,7 +1203,7 @@ export default function MatchRoom() {
                         }
                       }}
                       disabled={!isYourTurn || command.isPending}
-                      className={`col-span-3 h-16 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] ${
+                      className={`col-span-3 h-12 rounded-xl font-black text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_3px_14px_rgba(243,183,44,0.3)] ${
                         canRoll
                           ? "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4] animate-pulse"
                           : currentDice !== null && isYourTurn
@@ -1228,17 +1213,17 @@ export default function MatchRoom() {
                     >
                       {command.isPending ? (
                         <>
-                          <RotateCw size={20} className="animate-spin" />
+                          <RotateCw size={16} className="animate-spin" />
                           <span>RESOLVING VRF…</span>
                         </>
                       ) : canRoll ? (
                         <>
-                          <Dices size={22} />
+                          <Dices size={18} />
                           <span>ROLL DICE</span>
                         </>
                       ) : currentDice !== null && isYourTurn ? (
                         <>
-                          <Sparkles size={20} />
+                          <Sparkles size={16} />
                           <span>ADVANCE PAWN</span>
                         </>
                       ) : (
@@ -1249,24 +1234,6 @@ export default function MatchRoom() {
                     </button>
                   </div>
                 )}
-
-                {/* Quick-Sport Reaction Bar */}
-                <div className="w-full mt-2 flex items-center justify-between gap-1 px-2 py-1.5 rounded-xl bg-[#151b29] border border-[#242a39]">
-                  <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono pl-1">
-                    Taunt / Chat:
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {["GG", "🔥", "⚡", "🎲"].map((em) => (
-                      <button
-                        key={em}
-                        onClick={() => void sendQuickEmote(em)}
-                        className="px-2.5 py-1 rounded-lg bg-[#191f2e] border border-[#242a39] hover:bg-[#242a39] active:scale-90 transition-transform text-xs font-mono text-[#dde2f6]"
-                      >
-                        {em}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </section>
             </>
           )}
@@ -1319,7 +1286,7 @@ export default function MatchRoom() {
               </div>
             </footer>
           ) : (
-            <footer className="mt-2 mx-4 mb-2 px-3.5 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm">
+            <footer className="mt-1 mx-3 mb-1 px-3 py-1.5 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="relative flex-shrink-0">
                   <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#f3b72c] border border-white/5">
@@ -1422,9 +1389,6 @@ export default function MatchRoom() {
           stateVersion={state?.stateVersion ?? 0}
           dice={(snapshot as any)?.diceValues ?? (snapshot as any)?.dice ?? null}
         />
-
-        {/* MOBILE BOTTOM NAVIGATION */}
-        <MobileBottomNav />
       </div>
     </div>
   );
