@@ -17,6 +17,7 @@ import {
 import { formatNim } from "@shared/game/pot-distribution";
 import { toast } from "sonner";
 import { CashoutReceiptModal, type CashoutReceiptData } from "./CashoutReceiptModal";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 
 interface InstantCashoutSheetProps {
   isOpen: boolean;
@@ -27,17 +28,16 @@ interface InstantCashoutSheetProps {
   onSuccess?: (amount: number, txHash?: string) => void;
 }
 
-const NIM_TO_USD_RATE = 0.2; // $0.20 per NIM
-
 export function InstantCashoutSheet({
   isOpen,
   onClose,
-  vaultBalanceNim = 1420,
-  lockedInDuelsNim = 100,
-  connectedAddress = "NQ07 39F2 88KA 19BL 4920 32F1",
+  vaultBalanceNim = 0,
+  lockedInDuelsNim = 0,
+  connectedAddress = "",
   onSuccess,
 }: InstantCashoutSheetProps) {
   useModalBackHandler(isOpen, onClose);
+  const { nimToUsd, formatUsd, priceUsd } = useNimiqPrice();
 
   const availableBalance = Math.max(0, vaultBalanceNim);
   const minCashout = 10;
@@ -150,8 +150,8 @@ export function InstantCashoutSheet({
   };
 
   const sliderPercent = maxCashout > 0 ? Math.min(100, Math.max(0, (amount / maxCashout) * 100)) : 0;
-  const usdValue = (amount * NIM_TO_USD_RATE).toFixed(2);
-  const vaultUsdValue = (availableBalance * NIM_TO_USD_RATE).toFixed(2);
+  const usdValue = formatUsd(nimToUsd(amount));
+  const vaultUsdValue = formatUsd(nimToUsd(availableBalance));
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center select-none">
@@ -205,7 +205,7 @@ export function InstantCashoutSheet({
                   </span>
                   <span className="text-xs font-bold text-[#ffd78d] font-mono">NIM</span>
                   <span className="text-[11px] text-[#d4c5ad] font-mono ml-1">
-                    ≈ ${vaultUsdValue} USD
+                    ≈ {vaultUsdValue}
                   </span>
                 </div>
               </div>
@@ -218,28 +218,33 @@ export function InstantCashoutSheet({
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 pt-1 text-[11px] text-[#9c8f7a] font-mono">
-              <Lock size={12} className="text-[#9c8f7a]" />
-              <span>{formatNim(lockedInDuelsNim)} NIM locked in active duels (excluded)</span>
+            {/* In-Flight Status Bar */}
+            <div className="flex items-center justify-between text-[11px] text-[#9c8f7a] font-mono pt-2 border-t border-[#242a39]/60">
+              <span className="flex items-center gap-1.5">
+                <Lock size={12} className="text-[#00d2ff]" />
+                In Active Duels:
+              </span>
+              <span className="text-[#dde2f6] font-bold font-mono">
+                {formatNim(lockedInDuelsNim)} NIM
+              </span>
             </div>
           </div>
 
-          {/* 2. Cashout Amount Input Display & Slider */}
-          <div className="bg-[#242a39] border border-[#2f3544] p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-1 relative">
+          {/* 2. Amount Input & Quick Percentage Selector */}
+          <div className="bg-[#191f2e] border border-[#242a39] p-4 rounded-2xl flex flex-col items-center gap-2">
             <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-              Amount to Transfer
+              Cashout Amount
             </span>
 
-            {/* Large Numeric Display */}
-            <div className="flex items-baseline justify-center gap-1.5 my-1">
-              <span className="text-4xl leading-tight text-[#ffd78d] font-black font-mono tracking-tight">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-4xl font-black font-mono text-[#ffd78d] tracking-tight">
                 {formatNim(amount)}
               </span>
-              <span className="text-base font-bold text-[#ffdea4] font-mono">NIM</span>
+              <span className="text-sm font-bold text-[#ffd78d] font-mono">NIM</span>
             </div>
 
             <div className="px-2.5 py-0.5 rounded-md bg-[#080e1c] text-[#68f5b8] text-xs font-mono font-bold">
-              ≈ ${usdValue} USD
+              ≈ {usdValue}
             </div>
 
             {/* Tactile Slider */}

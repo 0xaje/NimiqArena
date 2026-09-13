@@ -3,10 +3,12 @@ import { Copy, Check, Users, Coins, Gift, Share2, Sparkles, Trophy } from "lucid
 import { trpc } from "@/lib/trpc";
 import { formatNim } from "@shared/game/pot-distribution";
 import { toast } from "sonner";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 
 export function ReferralCard() {
   const { data: stats, isLoading } = trpc.auth.getReferralStats.useQuery();
   const [copied, setCopied] = useState(false);
+  const { nimToUsd, formatUsd } = useNimiqPrice();
 
   const referralCode = stats?.referralCode || "player";
   const origin = typeof window !== "undefined" ? window.location.origin : "https://arena.nimiq.com";
@@ -144,6 +146,9 @@ export function ReferralCard() {
           <strong style={{ fontSize: "1.3rem", color: "#fbbf24" }}>
             {formatNim(earningsNim)} NIM
           </strong>
+          <span style={{ fontSize: "0.68rem", color: "#94a3b8", display: "block" }}>
+            ≈ {formatUsd(nimToUsd(earningsNim))} USD
+          </span>
         </div>
 
         <div

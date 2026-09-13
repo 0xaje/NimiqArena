@@ -1,0 +1,41 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nimHexGrad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#f59e0b" />
+      <stop offset="50%" stopColor="#ec9918" />
+      <stop offset="100%" stopColor="#d97706" />
+    </linearGradient>
+    <linearGradient id="nimShieldGrad" x1="12" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#1e293b" />
+      <stop offset="100%" stopColor="#0d1321" />
+    </linearGradient>
+    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#f59e0b" floodOpacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Outer Golden Nimiq Hexagon -->
+  <polygon
+    points="24,3 43,14 43,34 24,45 5,34 5,14"
+    fill="url(#nimHexGrad)"
+    filter="url(#goldGlow)"
+  />
+
+  <!-- Inner Dark Shield -->
+  <polygon
+    points="24,7 39,16 39,32 24,41 9,32 9,16"
+    fill="url(#nimShieldGrad)"
+    stroke="#fef08a"
+    stroke-width="1"
+    stroke-opacity="0.5"
+  />
+
+  <!-- Nimiq Central Core Diamond -->
+  <polygon
+    points="24,14 32,24 24,34 16,24"
+    fill="url(#nimHexGrad)"
+  />
+
+  <!-- Central Star Accent -->
+  <circle cx="24" cy="24" r="2.5" fill="#ffffff" />
+</svg>

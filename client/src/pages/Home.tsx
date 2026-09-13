@@ -26,6 +26,8 @@ import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 
 export default function Home() {
   const utils = trpc.useUtils();
@@ -50,6 +52,7 @@ export default function Home() {
   const [connectionMode, setConnectionMode] = useState<any>(() =>
     typeof window !== "undefined" ? (localStorage.getItem("nimiq_wallet_mode") || "none") : "none"
   );
+  const { priceUsd, formatUsd } = useNimiqPrice();
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
 
@@ -144,15 +147,13 @@ export default function Home() {
           <div className="h-16 px-4 flex items-center justify-between">
             {/* Left: Brand Identity */}
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#f3b72c] to-[#e67e22] flex items-center justify-center text-[#191f2e] font-black text-xs shadow-[0_0_12px_rgba(243,183,44,0.4)]">
-                {user?.name ? user.name.slice(0, 1).toUpperCase() : "NA"}
-              </div>
+              <NimiqArenaLogo size={32} />
               <div className="flex flex-col">
-                <span className="font-bold text-[#ffdea4] text-base tracking-tight leading-none">
+                <span className="font-extrabold text-[#ffffff] text-base tracking-tight leading-none">
                   NIMIQ ARENA
                 </span>
-                <span className="text-[10px] text-[#94a3b8] uppercase tracking-wider font-mono mt-0.5">
-                  {user?.name ? user.name : "Arena Home"}
+                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
+                  The Honest Matchroom
                 </span>
               </div>
             </div>
@@ -189,55 +190,61 @@ export default function Home() {
         {/* ========================================================================= */}
         <main className="flex-1 flex flex-col w-full pt-20 pb-28 px-4">
           
-          {/* SECTION 1: FEATURED TITLE (Hero Game Showcase) */}
+          {/* SECTION 1: NIMIQ ARENA PLATFORM HERO */}
           <section className="mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] uppercase tracking-widest text-[#ffd78d] font-bold font-mono">
-                Featured Title
-              </span>
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#68f5b8]" />
-                <span className="text-[11px] text-[#94a3b8] font-mono">SEASON 02</span>
+                <Sparkles size={13} className="text-[#f3b72c]" />
+                <span className="text-[11px] uppercase tracking-widest text-[#ffd78d] font-bold font-mono">
+                  Web3 Gaming Arcade
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#151b29] border border-[#242a39]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#68f5b8] animate-pulse" />
+                <span className="text-[10px] text-[#68f5b8] font-mono font-bold">ALBATROSS PoS</span>
               </div>
             </div>
 
-            {/* Apple Arcade / Console Style Launcher Card */}
-            <div className="relative w-full rounded-2xl overflow-hidden bg-[#151b29] border border-[#2f3544] shadow-2xl flex flex-col">
-              {/* Media Container */}
-              <div className="relative w-full h-64 overflow-hidden">
+            {/* Apple Arcade / Console Style Flagship Launcher Card */}
+            <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-b from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#f3b72c]/30 shadow-[0_10px_35px_rgba(0,0,0,0.6)] flex flex-col">
+              {/* Media Container with Cyber Gradients */}
+              <div className="relative w-full h-64 overflow-hidden bg-[#0a0f1d]">
                 <img
-                  className="w-full h-full object-cover scale-105 transition-transform duration-500 hover:scale-110"
-                  alt="Ludo Arena Luxury Obsidian Render"
+                  className="w-full h-full object-cover scale-105 transition-transform duration-700 hover:scale-110 opacity-75"
+                  alt="Nimiq Arena Cyber Web3 Arcade Showcase"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZuABU9HEKvn6QmmNqTQOLN6DIHNcLlY0_SIt8Re7OVzHRmSfe2ft_9dd3Jid8RymZzUctXUhwjSXK-4usymr5Q_7oZ_ZbkSJqMi3kJIwdhoMstQnHnVfebmBgdcCz_SOgnUvuledCRdzrNY7RR2pUas7XTTXd_JuINRku8ppQOUYgOgyS_qq4xHlx_wqlsHawKPH0iBka0pIkkSwbqNpBVT5G5aUyK0hWQD_Zu75BwH_nYUBhRlw8sQ"
                 />
                 {/* Scrim Gradients */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#151b29] via-[#151b29]/40 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-b from-[#080e1c]/70 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#151b29] via-[#151b29]/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#080e1c]/80 via-transparent to-transparent" />
 
                 {/* Floating Badges */}
                 <div className="absolute top-3 inset-x-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2f3544]/90 backdrop-blur-md shadow-md">
-                    <Users size={12} className="text-[#a5e7ff]" />
-                    <span className="text-[11px] text-[#dde2f6] font-semibold">2–4 Players</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#080e1c]/85 border border-[#2f3544] backdrop-blur-md shadow-md">
+                    <Zap size={12} className="text-[#f3b72c]" />
+                    <span className="text-[10px] text-[#dde2f6] font-mono font-semibold">Instant Escrow</span>
                   </div>
-                  <div className="px-2.5 py-1 rounded-full bg-[#f3b72c]/20 border border-[#f3b72c]/30 backdrop-blur-md">
-                    <span className="text-[10px] text-[#ffd78d] font-bold tracking-wide">
-                      ARENA EXCLUSIVE
+                  <div className="px-2.5 py-1 rounded-full bg-[#f3b72c]/20 border border-[#f3b72c]/40 backdrop-blur-md">
+                    <span className="text-[10px] text-[#ffd78d] font-mono font-bold tracking-wide">
+                      90% WINNER POT
                     </span>
                   </div>
                 </div>
 
                 {/* Cover Details */}
-                <div className="absolute bottom-3 inset-x-3 flex flex-col gap-1">
-                  <div className="inline-flex items-center gap-1.5 w-fit px-2 py-0.5 rounded bg-[#242a39]/80 backdrop-blur-sm">
+                <div className="absolute bottom-3 inset-x-3 flex flex-col gap-1.5">
+                  <div className="inline-flex items-center gap-1.5 w-fit px-2.5 py-0.5 rounded-full bg-[#242a39]/90 border border-[#3b4356] backdrop-blur-md">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c]" />
                     <span className="text-[10px] text-[#ffdea4] uppercase tracking-wider font-mono font-semibold">
-                      Competitive Multiplayer
+                      Non-Custodial Micro-Stakes
                     </span>
                   </div>
-                  <h1 className="text-2xl font-black text-[#ffffff] tracking-tight">
-                    Ludo Arena
+                  <h1 className="text-2xl font-black text-[#ffffff] tracking-tight flex items-center gap-2">
+                    Nimiq Arena
                   </h1>
+                  <p className="text-xs text-[#94a3b8] line-clamp-2 leading-relaxed">
+                    The honest Web3 matchroom. Real-time multiplayer board games backed by cryptographic smart escrow and instant NIM payouts.
+                  </p>
                 </div>
               </div>
 
@@ -245,19 +252,26 @@ export default function Home() {
               <div className="p-3.5 bg-[#151b29] flex items-center justify-between gap-3 border-t border-[#242a39]">
                 <div className="flex flex-col">
                   <span className="text-[10px] text-[#94a3b8] uppercase font-mono">
-                    Current Match Pool
+                    Live Market Rate
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-sm text-[#f3b72c] font-bold">100</span>
-                    <span className="text-xs text-[#ffd78d] font-semibold">NIM STANDARD</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                    <span className="text-xs text-[#ffd78d] font-bold font-mono">
+                      1 NIM ≈ {formatUsd(priceUsd)}
+                    </span>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => openWagerConfirmation("Ludo Classic", selectedStake)}
-                  className="h-11 px-5 flex items-center justify-center gap-2 bg-[#f3b72c] hover:bg-[#ffc107] text-[#412d00] rounded-xl text-xs font-black shadow-[0_4px_20px_-2px_rgba(243,183,44,0.4)] active:scale-95 transition-all"
+                  onClick={() => {
+                    const el = document.getElementById("choose-your-game");
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
+                  className="h-11 px-5 flex items-center justify-center gap-2 bg-gradient-to-r from-[#f3b72c] to-[#e5a00d] hover:brightness-110 text-[#191f2e] rounded-xl text-xs font-black shadow-[0_4px_20px_-2px_rgba(243,183,44,0.4)] active:scale-95 transition-all"
                 >
-                  <span>PLAY NOW</span>
+                  <span>CHOOSE A GAME</span>
                   <ArrowRight size={15} />
                 </button>
               </div>
@@ -265,7 +279,7 @@ export default function Home() {
           </section>
 
           {/* SECTION 2: CHOOSE YOUR GAME */}
-          <section className="mb-6">
+          <section id="choose-your-game" className="mb-6 scroll-mt-20">
             <div className="flex items-center justify-between mb-3">
               <div className="flex flex-col">
                 <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">

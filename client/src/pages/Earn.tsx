@@ -1,7 +1,7 @@
+import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
-  ArrowRight,
   CheckCircle2,
   Coins,
   Gem,
@@ -10,23 +10,31 @@ import {
   Sparkles,
   Trophy,
   Users,
-  Zap,
+  TrendingUp,
+  ChevronRight,
+  ExternalLink,
+  Flame,
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { ReferralCard } from "@/components/referral/ReferralCard";
 import { ArenaPatronVault } from "@/components/staking/ArenaPatronVault";
 import { useNimiqPrice } from "@/lib/nimiq-price";
+import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+
+type EarnTab = "all" | "vault" | "referrals" | "rewards";
 
 export default function Earn() {
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
   const user = authQuery.data;
-  const { nimToUsd, formatUsd } = useNimiqPrice();
+  const { priceUsd, isLive, nimToUsd, formatUsd } = useNimiqPrice();
+
+  const [activeTab, setActiveTab] = useState<EarnTab>("all");
 
   const isClaimed = Boolean((user as any)?.welcomeClaimed);
   const points = (user as any)?.points ?? (isClaimed ? 1000 : 0);
-  const usdValue = ((points / 100) * 0.1).toFixed(2);
+  const estPointsUsd = (points * 0.001).toFixed(2); // 1,000 pts = $1.00 USD benchmark
 
   const claimRewardMutation = trpc.auth.claimWelcomeReward.useMutation();
 
@@ -46,124 +54,127 @@ export default function Earn() {
   }
 
   return (
-    <div className="detail-page">
-      <header className="detail-header">
-        <Link href="/" className="back-link">
-          <ArrowLeft size={15} /> Arena home
+    <div className="max-w-md w-full mx-auto min-h-screen bg-[#0d1321] text-white flex flex-col font-['Plus_Jakarta_Sans',sans-serif] pb-24 pt-safe relative selection:bg-[#e5a00d] selection:text-black">
+      {/* TOP CYBER APP BAR */}
+      <header className="sticky top-0 z-40 bg-[#0d1321]/90 backdrop-blur-xl border-b border-[#242a39] px-4 py-3 flex items-center justify-between shadow-sm">
+        <Link
+          href="/"
+          className="w-9 h-9 rounded-xl bg-[#171d2b] border border-[#2c3345] flex items-center justify-center text-[#94a3b8] hover:text-white hover:border-[#f3b72c]/40 transition-colors active:scale-95"
+        >
+          <ArrowLeft size={17} />
         </Link>
-        <span className="detail-brand">NIMIQ ARENA / REWARDS HUB</span>
-        <span className="detail-state">
-          {user ? `SIGNED IN: ${user.name || "PLAYER"}` : "GUEST MODE"}
-        </span>
+
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={13} className="text-[#f3b72c]" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[#dde2f6]">
+              Rewards Hub
+            </span>
+          </div>
+          <span className="text-[10px] text-[#94a3b8] font-mono">Season 1 Yield</span>
+        </div>
+
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#151b29] border border-[#2f3544]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+          <span className="text-[10px] text-[#dde2f6] font-mono font-medium">
+            {user?.name ? user.name.slice(0, 10) : "Guest"}
+          </span>
+        </div>
       </header>
 
-      <main className="detail-main" style={{ maxWidth: "800px", margin: "0 auto", paddingBottom: "48px" }}>
-        {/* Mobile-Optimized Hero Banner */}
-        <section className="room-hero" style={{ textAlign: "center", marginBottom: "24px" }}>
-          <div className="stamp-row" style={{ justifyContent: "center", marginBottom: "8px" }}>
-            <span className="stamp orange">REWARDS &amp; EARNINGS</span>
-            <span className="stamp green">SEASON 1</span>
-          </div>
-          <h1 style={{ fontSize: "clamp(26px, 6vw, 36px)", margin: "8px 0 6px" }}>
-            Play, Refer &amp; <em style={{ color: "#EC9918" }}>Earn.</em>
-          </h1>
-          <p className="detail-lede" style={{ maxWidth: "520px", margin: "0 auto 16px", fontSize: "13px" }}>
-            Claim your 1,000 Welcome Points, earn 2% on all referred match wins, and stake in the Patron Vault for revenue dividends.
-          </p>
+      {/* MAIN CONTAINER */}
+      <main className="flex-1 px-4 pt-4 flex flex-col gap-4">
+        {/* HERO SECTION */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#1c2438] via-[#151b29] to-[#0d1321] border border-[#2f3544] p-5 shadow-lg">
+          <div className="absolute -top-12 -right-12 w-36 h-36 bg-[#f3b72c]/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-[#38bdf8]/10 rounded-full blur-2xl pointer-events-none" />
 
-          {/* Quick Points Capsule */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "rgba(236, 153, 24, 0.12)",
-              border: "1px solid rgba(236, 153, 24, 0.35)",
-              borderRadius: "20px",
-              padding: "6px 14px",
-              fontSize: "12px",
-              fontFamily: "'IBM Plex Mono', monospace",
-              color: "#fbbf24",
-              fontWeight: 700,
-            }}
-          >
-            <Sparkles size={14} color="#EC9918" />
-            <span>Your Balance: {points.toLocaleString()} Arena Points (~${usdValue} USD)</span>
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f3b72c]/15 border border-[#f3b72c]/30 text-[#f3b72c] text-[10px] font-bold font-mono uppercase tracking-wider">
+                <Flame size={12} />
+                Protocol Incentives
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#171d2b] border border-[#2c3345] text-[#94a3b8] text-[10px] font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                1 NIM ≈ {formatUsd(priceUsd)}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-black tracking-tight text-white">
+                Play, Stake & <span className="text-[#f3b72c]">Earn.</span>
+              </h1>
+              <p className="text-xs text-[#94a3b8] leading-relaxed">
+                Claim 1,000 welcome points, earn 2% lifetime commissions on referred wins, and stake in the Patron Vault for PoS yield.
+              </p>
+            </div>
+
+            {/* BALANCE CAPSULE */}
+            <div className="mt-1 p-3 rounded-xl bg-[#080d17]/80 border border-[#242a39] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#f3b72c]/15 border border-[#f3b72c]/30 flex items-center justify-center text-[#f3b72c]">
+                  <Sparkles size={16} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">
+                    Arena Balance
+                  </span>
+                  <span className="text-sm font-bold font-mono text-white">
+                    {points.toLocaleString()} <span className="text-[11px] text-[#f3b72c]">PTS</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] text-[#94a3b8] font-mono block">EST. VALUE</span>
+                <span className="text-xs font-mono font-bold text-[#10b981]">
+                  ≈ ${estPointsUsd} USD
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* 1. Mobile-Optimized Welcome Bonus Card */}
+        {/* WELCOME REWARD ACTION CARD */}
         <section
-          style={{
-            padding: "18px 20px",
-            borderRadius: "16px",
-            backgroundColor: "#16191f",
-            border: isClaimed ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(236, 153, 24, 0.5)",
-            boxShadow: isClaimed
-              ? "0 8px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(16, 185, 129, 0.1)"
-              : "0 8px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(236, 153, 24, 0.15)",
-            marginBottom: "24px",
-          }}
+          className={`rounded-2xl p-4 border transition-all shadow-md ${
+            isClaimed
+              ? "bg-[#10b981]/5 border-[#10b981]/30"
+              : "bg-gradient-to-r from-[#1b2233] to-[#151b29] border-[#f3b72c]/40"
+          }`}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "14px",
-              marginBottom: isClaimed ? "0" : "14px",
-            }}
-          >
-            <div
-              style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "12px",
-                backgroundColor: isClaimed ? "rgba(16, 185, 129, 0.15)" : "rgba(236, 153, 24, 0.15)",
-                border: isClaimed ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(236, 153, 24, 0.4)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Gift size={24} color={isClaimed ? "#10b981" : "#EC9918"} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 800,
-                    letterSpacing: "0.8px",
-                    textTransform: "uppercase",
-                    color: isClaimed ? "#10b981" : "#EC9918",
-                  }}
-                >
-                  WELCOME REWARD
-                </span>
-                {isClaimed && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      backgroundColor: "rgba(16, 185, 129, 0.15)",
-                      color: "#10b981",
-                      fontWeight: 700,
-                    }}
-                  >
-                    ✓ CLAIMED
-                  </span>
-                )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
+                  isClaimed
+                    ? "bg-[#10b981]/15 border-[#10b981]/30 text-[#10b981]"
+                    : "bg-[#f3b72c]/15 border-[#f3b72c]/30 text-[#f3b72c]"
+                }`}
+              >
+                <Gift size={22} />
               </div>
-              <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#fff", margin: "3px 0 2px" }}>
-                {isClaimed ? "1,000 Welcome Points Active" : "Claim 1,000 Welcome Points"}
-              </h3>
-              <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", margin: 0 }}>
-                {isClaimed
-                  ? "Points active! Use points for beta tournaments and exclusive features."
-                  : "All players get 1,000 points automatically when registering."}
-              </p>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8]">
+                    Welcome Gift
+                  </span>
+                  {isClaimed && (
+                    <span className="px-1.5 py-0.5 rounded bg-[#10b981]/20 text-[#10b981] text-[9px] font-mono font-bold flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Active
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-sm font-bold text-white">
+                  {isClaimed ? "1,000 Points Credited" : "Claim 1,000 Welcome Points"}
+                </h3>
+                <p className="text-[11px] text-[#94a3b8]">
+                  {isClaimed
+                    ? "Unlocked for tournaments and beta privileges."
+                    : "Free for all new players entering the arena."}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -171,143 +182,176 @@ export default function Earn() {
             <button
               onClick={handleClaimWelcome}
               disabled={claimRewardMutation.isPending}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "10px",
-                backgroundColor: "#EC9918",
-                border: "none",
-                color: "#111",
-                fontSize: "14px",
-                fontWeight: 800,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                boxShadow: "0 4px 16px rgba(236, 153, 24, 0.4)",
-              }}
+              className="mt-3 w-full h-11 rounded-xl bg-gradient-to-r from-[#f3b72c] to-[#e5a00d] text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#f3b72c]/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               <Gift size={16} />
-              {claimRewardMutation.isPending ? "Claiming…" : "Claim +1,000 Points Now"}
+              {claimRewardMutation.isPending ? "Claiming..." : "Claim +1,000 Points Now"}
             </button>
           )}
         </section>
 
-        {/* 2. Arena Patron Vault & Staking Hub */}
-        <section id="vault" style={{ marginBottom: "24px" }}>
-          <ArenaPatronVault />
-        </section>
+        {/* SECTION FILTER TABS */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#151b29] border border-[#242a39] overflow-x-auto no-scrollbar">
+          {(
+            [
+              { id: "all", label: "All Hubs" },
+              { id: "vault", label: "Patron Vault" },
+              { id: "referrals", label: "Referral Pass" },
+              { id: "rewards", label: "Pot Rules" },
+            ] as const
+          ).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 min-w-[75px] py-2 px-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all text-center ${
+                activeTab === tab.id
+                  ? "bg-[#242a39] text-white shadow-sm border border-[#2f3544]"
+                  : "text-[#94a3b8] hover:text-white"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        {/* 3. Referral & 2% Winner Commission Hub */}
-        <section style={{ marginBottom: "24px" }}>
-          <ReferralCard />
-        </section>
-
-        {/* 4. Ways to Earn Mobile Grid (2x2) */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "12px",
-            marginTop: "12px",
-          }}
-        >
-          <div
-            style={{
-              padding: "16px",
-              borderRadius: "14px",
-              backgroundColor: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <Trophy size={22} color="#EC9918" />
-              <span style={{ fontSize: "10px", fontWeight: 800, color: "#EC9918", background: "rgba(236, 153, 24, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
-                90% POT
-              </span>
-            </div>
-            <strong style={{ color: "#fff", display: "block", fontSize: "14px", marginBottom: "4px" }}>
-              Winner Prize Pot
-            </strong>
-            <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4 }}>
-              Win matches in Ludo League and Connect NIM. The winner receives 90% of the entire table escrow pot.
-            </p>
-          </div>
-
-          <div
-            style={{
-              padding: "16px",
-              borderRadius: "14px",
-              backgroundColor: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <Coins size={22} color="#fbbf24" />
-              <span style={{ fontSize: "10px", fontWeight: 800, color: "#4ade80", background: "rgba(74, 222, 128, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
+        {/* 1. ARENA PATRON VAULT & STAKING */}
+        {(activeTab === "all" || activeTab === "vault") && (
+          <section id="vault" className="flex flex-col gap-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <Coins size={14} className="text-[#f3b72c]" />
+                <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[#dde2f6]">
+                  Patron Vault & Staking
+                </h2>
+              </div>
+              <span className="text-[10px] text-[#10b981] font-mono font-bold">
                 6.0% - 8.0% APY
               </span>
             </div>
-            <strong style={{ color: "#fff", display: "block", fontSize: "14px", marginBottom: "4px" }}>
-              Patron Staking Yield
-            </strong>
-            <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4 }}>
-              Stake NIM in the Patron Vault to earn native Nimiq PoS rewards + monthly match fee dividend share.
-            </p>
-          </div>
+            <ArenaPatronVault />
+          </section>
+        )}
 
-          <div
-            style={{
-              padding: "16px",
-              borderRadius: "14px",
-              backgroundColor: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <Users size={22} color="#38bdf8" />
-              <span style={{ fontSize: "10px", fontWeight: 800, color: "#38bdf8", background: "rgba(56, 189, 248, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
-                2% LIFETIME
+        {/* 2. REFERRAL & COMMISSIONS */}
+        {(activeTab === "all" || activeTab === "referrals") && (
+          <section id="referrals" className="flex flex-col gap-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <Users size={14} className="text-[#38bdf8]" />
+                <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[#dde2f6]">
+                  Referral Commissions
+                </h2>
+              </div>
+              <span className="text-[10px] text-[#38bdf8] font-mono font-bold">
+                2% Lifetime
               </span>
             </div>
-            <strong style={{ color: "#fff", display: "block", fontSize: "14px", marginBottom: "4px" }}>
-              Referral Commissions
-            </strong>
-            <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4 }}>
-              Whenever any player you referred wins a match, you earn 2% of the pot automatically in NIM!
-            </p>
-          </div>
+            <ReferralCard />
+          </section>
+        )}
 
-          <div
-            style={{
-              padding: "16px",
-              borderRadius: "14px",
-              backgroundColor: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <Gem size={22} color="#c084fc" />
-              <span style={{ fontSize: "10px", fontWeight: 800, color: "#c084fc", background: "rgba(192, 132, 252, 0.15)", padding: "2px 6px", borderRadius: "4px" }}>
-                SEASON POOLS
-              </span>
+        {/* 3. WAYS TO EARN (CYBER GRID) */}
+        {(activeTab === "all" || activeTab === "rewards") && (
+          <section className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <Trophy size={14} className="text-[#f3b72c]" />
+                <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[#dde2f6]">
+                  Protocol Reward Streams
+                </h2>
+              </div>
+              <span className="text-[10px] text-[#94a3b8] font-mono">Verified PoS</span>
             </div>
-            <strong style={{ color: "#fff", display: "block", fontSize: "14px", marginBottom: "4px" }}>
-              Rankings &amp; Elo Tiers
-            </strong>
-            <p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", margin: 0, lineHeight: 1.4 }}>
-              Climb to Gold, Diamond, and Grandmaster Elo tiers to unlock seasonal rewards and glory.
-            </p>
-          </div>
-        </section>
 
-        {/* Footer Trust */}
-        <div className="trust-line" style={{ marginTop: "28px", justifyContent: "center" }}>
-          <ShieldCheck size={16} />
-          <span>All rewards and pot distributions are mathematically enforced and verified on Nimiq blockchain.</span>
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* Box 1 */}
+              <div className="p-3.5 rounded-xl bg-[#151b29]/80 border border-[#242a39] flex flex-col gap-2 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-[#f3b72c]/15 flex items-center justify-center text-[#f3b72c]">
+                    <Trophy size={16} />
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded bg-[#f3b72c]/15 text-[#f3b72c] text-[9px] font-mono font-bold">
+                    90% ESCROW
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Winner Prize Pot</h4>
+                  <p className="text-[10px] text-[#94a3b8] leading-relaxed mt-0.5">
+                    Match winners receive 90% of the entire table escrow pot deposited directly to wallet.
+                  </p>
+                </div>
+              </div>
+
+              {/* Box 2 */}
+              <div className="p-3.5 rounded-xl bg-[#151b29]/80 border border-[#242a39] flex flex-col gap-2 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-[#10b981]/15 flex items-center justify-center text-[#10b981]">
+                    <Coins size={16} />
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded bg-[#10b981]/15 text-[#10b981] text-[9px] font-mono font-bold">
+                    6-8% APY
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Patron Staking</h4>
+                  <p className="text-[10px] text-[#94a3b8] leading-relaxed mt-0.5">
+                    Stake NIM in the Patron Vault to earn PoS rewards plus monthly match fee dividend share.
+                  </p>
+                </div>
+              </div>
+
+              {/* Box 3 */}
+              <div className="p-3.5 rounded-xl bg-[#151b29]/80 border border-[#242a39] flex flex-col gap-2 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-[#38bdf8]/15 flex items-center justify-center text-[#38bdf8]">
+                    <Users size={16} />
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8] text-[9px] font-mono font-bold">
+                    2% COMMISSION
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Referral Royalties</h4>
+                  <p className="text-[10px] text-[#94a3b8] leading-relaxed mt-0.5">
+                    Earn 2% of every win your invited friends take home, credited automatically in NIM.
+                  </p>
+                </div>
+              </div>
+
+              {/* Box 4 */}
+              <div className="p-3.5 rounded-xl bg-[#151b29]/80 border border-[#242a39] flex flex-col gap-2 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-[#c084fc]/15 flex items-center justify-center text-[#c084fc]">
+                    <Gem size={16} />
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded bg-[#c084fc]/15 text-[#c084fc] text-[9px] font-mono font-bold">
+                    SEASON POOLS
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Gladiator Tiers</h4>
+                  <p className="text-[10px] text-[#94a3b8] leading-relaxed mt-0.5">
+                    Climb Elo ratings into Gold, Diamond, and Grandmaster to claim seasonal leaderboard pools.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ON-CHAIN TRUST BADGE */}
+        <div className="p-3.5 rounded-xl bg-[#151b29]/60 border border-[#242a39] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#242a39] flex items-center justify-center text-[#94a3b8] shrink-0">
+            <ShieldCheck size={18} className="text-[#10b981]" />
+          </div>
+          <p className="text-[11px] text-[#94a3b8] leading-relaxed">
+            All pot calculations, escrow holds, and dividend payouts are cryptographically secured on the Nimiq Proof-of-Stake blockchain.
+          </p>
         </div>
       </main>
+
+      {/* MOBILE BOTTOM NAVIGATION */}
+      <MobileBottomNav />
     </div>
   );
 }

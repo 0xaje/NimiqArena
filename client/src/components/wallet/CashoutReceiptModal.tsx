@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { formatNim } from "@shared/game/pot-distribution";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 
 export interface CashoutReceiptData {
   amountNim: number;
@@ -29,6 +30,7 @@ export interface CashoutReceiptData {
   senderAddress?: string;
   recipientAddress?: string;
   recipientName?: string;
+  networkFeeNim?: number;
   remainingVaultNim?: number;
   inPlayNim?: number;
 }
@@ -41,12 +43,13 @@ interface CashoutReceiptModalProps {
 
 const DEFAULT_RECEIPT_DATA: CashoutReceiptData = {
   amountNim: 500,
-  txHash: "0x8f3c7b209e14a1c5d91a",
-  blockHeight: 3982416,
-  timestamp: "Oct 24, 2024 · 14:42:08 UTC",
-  senderAddress: "NQ42 8K9L 27MN 91BZ",
-  recipientAddress: "NQ07 39F2 88KA 19BL 4920 32F1",
-  recipientName: "Valkyrie Vault (Nimiq Pay)",
+  txHash: "9a8f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
+  blockHeight: 341892,
+  timestamp: "2026-09-12T19:35:42Z",
+  senderAddress: "NQ31 AREN APL4 TFRM H0TW ALTE SCRW N1MQ",
+  recipientAddress: "NQ07 39F2 88KA 19BL 4920 32F1 8888",
+  recipientName: "NQ07 ···· 32F1",
+  networkFeeNim: 0.001,
   remainingVaultNim: 920,
   inPlayNim: 100,
 };
@@ -58,12 +61,13 @@ export function CashoutReceiptModal({
 }: CashoutReceiptModalProps) {
   const [, setLocation] = useLocation();
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const { nimToUsd, formatUsd, priceUsd } = useNimiqPrice();
 
   if (!isOpen) return null;
 
   const receipt = { ...DEFAULT_RECEIPT_DATA, ...data };
-  const usdAmount = (receipt.amountNim * 0.2).toFixed(2);
-  const remainingUsd = (receipt.remainingVaultNim! * 0.2).toFixed(2);
+  const usdAmount = formatUsd(nimToUsd(receipt.amountNim));
+  const remainingUsd = formatUsd(nimToUsd(receipt.remainingVaultNim ?? 0));
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -209,9 +213,9 @@ export function CashoutReceiptModal({
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-[#d4c5ad] font-mono">≈ ${usdAmount} USD</span>
+                <span className="text-xs text-[#d4c5ad] font-mono">≈ {usdAmount}</span>
                 <span className="text-[#2f3544] text-xs">|</span>
-                <span className="text-xs text-[#68f5b8] font-mono font-medium">Rate: $0.20/NIM</span>
+                <span className="text-xs text-[#68f5b8] font-mono font-medium">Rate: ${priceUsd > 0 ? priceUsd.toFixed(6) : "0.000388"}/NIM</span>
               </div>
             </div>
 

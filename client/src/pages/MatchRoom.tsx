@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   User,
   Zap,
+  Eye,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
@@ -35,6 +36,7 @@ import { ProvablyFairModal } from "@/components/game/ProvablyFairModal";
 import { useMatchStream } from "@/lib/useMatchStream";
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 import {
   ABANDONMENT_GRACE_MS,
   PLAYER_HEARTBEAT_INTERVAL_MS,
@@ -320,13 +322,12 @@ export default function MatchRoom() {
   const isBotMatch = Boolean(state?.joinCode?.startsWith("BOT"));
   const rawSeat = state?.yourSeat;
   const yourSeat =
-    rawSeat !== undefined && rawSeat !== -1
+    rawSeat !== undefined
       ? rawSeat
       : isBotMatch
       ? 0
-      : authQuery.data
-      ? 0
       : -1;
+  const isSpectator = !isBotMatch && yourSeat === -1;
 
   const gameplayStakeNim =
     escrow?.stakeNim && escrow.stakeNim > 0
@@ -592,10 +593,11 @@ export default function MatchRoom() {
       !isWageredMatchTable || Boolean(escrow?.allVerified);
     const myDepositVerified = Boolean(
       !isWageredMatchTable ||
+        isSpectator ||
         escrow?.playerStatuses?.find((p) => p.seat === yourSeat)?.verified
     );
     const isDepositNeeded = Boolean(
-      isWageredMatchTable && !myDepositVerified
+      isWageredMatchTable && !myDepositVerified && !isSpectator
     );
 
     return (
@@ -691,9 +693,15 @@ export default function MatchRoom() {
     snapshot?.winner !== null && snapshot?.winner !== undefined;
   const returnRoute = isC4 ? "/games/connect-four" : "/games/ludo-league";
 
-  const myPieces = (snapshot as any)?.players?.[yourSeat]?.pieces || [];
-  const oppSeat = yourSeat === 0 ? 1 : 0;
-  const oppPieces = (snapshot as any)?.players?.[oppSeat]?.pieces || [];
+  const p1Pieces = (snapshot as any)?.players?.[0]?.pieces || [];
+  const p2Pieces = (snapshot as any)?.players?.[1]?.pieces || [];
+  const myPieces = isSpectator
+    ? p1Pieces
+    : ((snapshot as any)?.players?.[yourSeat]?.pieces || []);
+  const oppSeat = yourSeat === 1 ? 0 : 1;
+  const oppPieces = isSpectator
+    ? p2Pieces
+    : ((snapshot as any)?.players?.[oppSeat]?.pieces || []);
 
   const oppYardCount = oppPieces.filter((p: any) => p.position === -1).length;
   const playerInArenaCount = myPieces.filter(
@@ -708,7 +716,7 @@ export default function MatchRoom() {
     for (const col of c4Board) {
       if (Array.isArray(col)) {
         for (const cell of col) {
-          if (cell === yourSeat) c4MyDiscsPlaced++;
+          if (cell === (isSpectator ? 0 : yourSeat)) c4MyDiscsPlaced++;
           else if (cell !== null && cell !== undefined) c4OppDiscsPlaced++;
         }
       }
@@ -730,7 +738,12 @@ export default function MatchRoom() {
 
   // Turn announcement sub-caption
   let turnSubCaption = "Waiting for opponent…";
-  if (isYourTurn) {
+  if (isSpectator) {
+    const activePlayerName = snapshot?.currentPlayer === 0 ? p1Name : p2Name;
+    turnSubCaption = isFinished
+      ? "Match concluded • Live board view"
+      : `${activePlayerName}'s turn to move (Live Table)`;
+  } else if (isYourTurn) {
     if (canRoll) {
       turnSubCaption = "Roll dice to mobilize pawns";
     } else if (currentDice !== null) {
@@ -759,20 +772,13 @@ export default function MatchRoom() {
             <div className="h-16 px-4 flex items-center justify-between">
               
               {/* Left: Brand & Room */}
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="relative">
-                  <img
-                    alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover border border-[#f3b72c]/40 group-hover:border-[#f3b72c] transition-colors"
-                    src="https://lh3.googleusercontent.com/aida/AEtjO1X_SEKkH_ei8ODz8gUMrl0X_UrXhtg4pdYeHJ7fpZEFwzYsY6x_OXMzm2c0kYB-y4CLDd0oVD0NDSwRxV9XVNucimIN9qNoRNfl65Ojaz6sf7dYDYsdQ0oz9rrsmw4dNv_wcudv-yE8D2P2-b2L5jQ7mRfM28LeclhEAIg0i4d3K1sG6fmemSFnWSDCW5iUeYg_jkd-F18QXTod1fOZxgsojaMfvS9MiiXrbKsYZ05rem4Va3ra26FYmS4F"
-                  />
-                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#68f5b8] border-2 border-[#0d1321]" />
-                </div>
+              <Link href="/" className="flex items-center gap-2.5 group">
+                <NimiqArenaLogo size={32} />
                 <div className="flex flex-col">
                   <span className="text-base font-bold text-[#ffdea4] tracking-tight leading-none">
                     NIMIQ ARENA
                   </span>
-                  <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono mt-0.5">
+                  <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
                     Match #{matchId.slice(0, 6)}
                   </span>
                 </div>
@@ -816,14 +822,25 @@ export default function MatchRoom() {
           {/* HUD Header: Match Top Bar */}
           <header className="px-4 py-2 flex items-center justify-between bg-[#151b29] border-b border-[#242a39]">
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleSurrender}
-                aria-label="Forfeit match"
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad]"
-                title="Forfeit match"
-              >
-                <Flag size={18} />
-              </button>
+              {isSpectator ? (
+                <Link
+                  href={returnRoute}
+                  aria-label="Exit spectator mode"
+                  className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad] hover:text-[#dde2f6]"
+                  title="Exit to Games"
+                >
+                  <ArrowLeft size={18} />
+                </Link>
+              ) : (
+                <button
+                  onClick={handleSurrender}
+                  aria-label="Forfeit match"
+                  className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad]"
+                  title="Forfeit match"
+                >
+                  <Flag size={18} />
+                </button>
+              )}
               <div className="flex flex-col">
                 <span className="text-[10px] font-mono text-[#d4c5ad]">
                   ROUND {roundNum}
@@ -964,6 +981,31 @@ export default function MatchRoom() {
                 </div>
               </div>
             </section>
+          )}
+
+          {/* SPECTATOR MODE CYBER BANNER */}
+          {isSpectator && (
+            <div className="mx-4 mt-2 mb-1 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-[#00d2ff]/15 via-[#00d2ff]/5 to-[#f3b72c]/10 border border-[#00d2ff]/30 shadow-[0_0_20px_rgba(0,210,255,0.15)] flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00d2ff] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00d2ff]" />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black text-[#00d2ff] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                    <Eye size={13} className="text-[#00d2ff]" />
+                    SPECTATING LIVE MATCH • VIEW ONLY
+                  </span>
+                  <span className="text-[9px] text-[#d4c5ad] font-mono">
+                    Observer Mode • Real-time State Consensus
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#080e1c] border border-[#242a39] text-[#a5e7ff] text-[10px] font-mono font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#68f5b8]" />
+                <span>OBSERVER</span>
+              </div>
+            </div>
           )}
 
           {/* ========================================================================= */}
@@ -1108,85 +1150,105 @@ export default function MatchRoom() {
                   </div>
                 </div>
 
-                {/* Interactive Tactical Dice Roller Block */}
-                <div className="w-full mt-2 grid grid-cols-5 gap-2 items-center">
-                  {/* 3D Holographic Dice Visual Trigger */}
-                  <button
-                    onClick={() => {
-                      if (canRoll) void sendCommand({ kind: "roll" });
-                    }}
-                    disabled={!canRoll}
-                    aria-label="Tactile dice roll"
-                    className={`col-span-2 h-16 rounded-xl border flex items-center justify-center relative overflow-hidden group shadow-[0_4px_16px_rgba(0,0,0,0.5)] active:scale-95 transition-all ${
-                      canRoll
-                        ? "bg-[#242a39] border-[#f3b72c]/50 cursor-pointer hover:border-[#f3b72c]"
-                        : "bg-[#151b29] border-[#242a39] opacity-75"
-                    }`}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#f3b72c]/10 via-transparent to-transparent pointer-events-none" />
-                    
-                    {/* 3D Holographic Dice Face */}
-                    <DiceFace
-                      value={currentDice}
-                      isRolling={command.isPending}
-                    />
-                    <div className="absolute bottom-1 right-2 text-[8px] text-[#f9bd32] font-mono tracking-widest uppercase">
-                      VRF ROLLED
+                {/* Interactive Tactical Dice Roller Block OR Spectator View */}
+                {isSpectator ? (
+                  <div className="w-full mt-2 p-3 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-inner">
+                    <div className="flex items-center gap-2">
+                      <Eye size={16} className="text-[#00d2ff]" />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-[#dde2f6] font-bold font-mono">
+                          SPECTATOR VIEW
+                        </span>
+                        <span className="text-[10px] text-[#d4c5ad]">
+                          Observer controls • Live sync feed
+                        </span>
+                      </div>
                     </div>
-                  </button>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#191f2e] border border-[#2f3544] text-[11px] font-mono font-bold text-[#ffd78d]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c] animate-pulse" />
+                      <span>{snapshot?.currentPlayer === 0 ? p1Name : p2Name}'s turn</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full mt-2 grid grid-cols-5 gap-2 items-center">
+                    {/* 3D Holographic Dice Visual Trigger */}
+                    <button
+                      onClick={() => {
+                        if (canRoll) void sendCommand({ kind: "roll" });
+                      }}
+                      disabled={!canRoll}
+                      aria-label="Tactile dice roll"
+                      className={`col-span-2 h-16 rounded-xl border flex items-center justify-center relative overflow-hidden group shadow-[0_4px_16px_rgba(0,0,0,0.5)] active:scale-95 transition-all ${
+                        canRoll
+                          ? "bg-[#242a39] border-[#f3b72c]/50 cursor-pointer hover:border-[#f3b72c]"
+                          : "bg-[#151b29] border-[#242a39] opacity-75"
+                      }`}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#f3b72c]/10 via-transparent to-transparent pointer-events-none" />
+                      
+                      {/* 3D Holographic Dice Face */}
+                      <DiceFace
+                        value={currentDice}
+                        isRolling={command.isPending}
+                      />
+                      <div className="absolute bottom-1 right-2 text-[8px] text-[#f9bd32] font-mono tracking-widest uppercase">
+                        VRF ROLLED
+                      </div>
+                    </button>
 
-                  {/* Primary Action CTA Button */}
-                  <button
-                    onClick={() => {
-                      if (canRoll) {
-                        void sendCommand({ kind: "roll" });
-                      } else if (currentDice !== null && isYourTurn) {
-                        const movableIdx = myPieces.findIndex((p: any) => {
-                          if (p.position === -1) return currentDice === 6;
-                          return p.position + currentDice <= 56;
-                        });
-                        if (movableIdx !== -1) {
-                          void sendCommand({
-                            kind: "move",
-                            pieceIndex: movableIdx,
-                            dieValue: currentDice,
+                    {/* Primary Action CTA Button */}
+                    <button
+                      onClick={() => {
+                        if (canRoll) {
+                          void sendCommand({ kind: "roll" });
+                        } else if (currentDice !== null && isYourTurn) {
+                          const movableIdx = myPieces.findIndex((p: any) => {
+                            if (p.position === -1) return currentDice === 6;
+                            return p.position + currentDice <= 56;
                           });
-                        } else {
-                          toast.info("Select your pawn on the board to move");
+                          if (movableIdx !== -1) {
+                            void sendCommand({
+                              kind: "move",
+                              pieceIndex: movableIdx,
+                              dieValue: currentDice,
+                            });
+                          } else {
+                            toast.info("Select your pawn on the board to move");
+                          }
                         }
-                      }
-                    }}
-                    disabled={!isYourTurn || command.isPending}
-                    className={`col-span-3 h-16 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] ${
-                      canRoll
-                        ? "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4] animate-pulse"
-                        : currentDice !== null && isYourTurn
-                        ? "bg-[#68f5b8] text-[#003824] hover:bg-[#46d89d]"
-                        : "bg-[#191f2e] text-[#d4c5ad] border border-[#242a39] opacity-70"
-                    }`}
-                  >
-                    {command.isPending ? (
-                      <>
-                        <RotateCw size={20} className="animate-spin" />
-                        <span>RESOLVING VRF…</span>
-                      </>
-                    ) : canRoll ? (
-                      <>
-                        <Dices size={22} />
-                        <span>ROLL DICE</span>
-                      </>
-                    ) : currentDice !== null && isYourTurn ? (
-                      <>
-                        <Sparkles size={20} />
-                        <span>ADVANCE PAWN</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>WAITING…</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                      }}
+                      disabled={!isYourTurn || command.isPending}
+                      className={`col-span-3 h-16 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] ${
+                        canRoll
+                          ? "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4] animate-pulse"
+                          : currentDice !== null && isYourTurn
+                          ? "bg-[#68f5b8] text-[#003824] hover:bg-[#46d89d]"
+                          : "bg-[#191f2e] text-[#d4c5ad] border border-[#242a39] opacity-70"
+                      }`}
+                    >
+                      {command.isPending ? (
+                        <>
+                          <RotateCw size={20} className="animate-spin" />
+                          <span>RESOLVING VRF…</span>
+                        </>
+                      ) : canRoll ? (
+                        <>
+                          <Dices size={22} />
+                          <span>ROLL DICE</span>
+                        </>
+                      ) : currentDice !== null && isYourTurn ? (
+                        <>
+                          <Sparkles size={20} />
+                          <span>ADVANCE PAWN</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>WAITING…</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 {/* Quick-Sport Reaction Bar */}
                 <div className="w-full mt-2 flex items-center justify-between gap-1 px-2 py-1.5 rounded-xl bg-[#151b29] border border-[#242a39]">
@@ -1224,10 +1286,10 @@ export default function MatchRoom() {
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="font-semibold text-sm text-[#ffd78d] leading-tight truncate">
-                      You ({p1Name})
+                      {isSpectator ? `${p1Name} (P1)` : `You (${p1Name})`}
                     </span>
                     <span className="px-1.5 py-0.5 rounded bg-[#2f3544] text-[10px] text-[#ffd78d] font-mono">
-                      Gold Legion
+                      {isSpectator ? "Table Host" : "Gold Legion"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-[#d4c5ad]">
@@ -1236,7 +1298,9 @@ export default function MatchRoom() {
                       {c4MyDiscsLeft} Discs in Mag
                     </span>
                     <span className="text-[#4f4534]">•</span>
-                    <span className="text-[11px] font-mono text-[#68f5b8]">Ready</span>
+                    <span className="text-[11px] font-mono text-[#68f5b8]">
+                      {isSpectator ? "Spectating" : "Ready"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1266,14 +1330,16 @@ export default function MatchRoom() {
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-bold text-[#ffd78d]">
-                      You
+                      {isSpectator ? p1Name : "You"}
                     </span>
                     <span className="text-[10px] text-[#d4c5ad] font-mono">
-                      ({p1Name})
+                      {isSpectator ? `vs ${p2Name}` : `(${p1Name})`}
                     </span>
                   </div>
                   <span className="text-[10px] text-[#4edea3] font-mono">
-                    {playerInArenaCount}/4 Pawns in Arena
+                    {isSpectator
+                      ? `${p1Pieces.filter((p: any) => p.position >= 0 && p.position < 56).length}/4 vs ${p2Pieces.filter((p: any) => p.position >= 0 && p.position < 56).length}/4 Pawns`
+                      : `${playerInArenaCount}/4 Pawns in Arena`}
                   </span>
                 </div>
               </div>
@@ -1298,16 +1364,18 @@ export default function MatchRoom() {
         {/* ========================================================================= */}
         {/* MODALS & OVERLAYS                                                         */}
         {/* ========================================================================= */}
-        <EscrowDepositModal
-          isOpen={isDepositModalOpen}
-          onClose={() => setIsDepositModalOpen(false)}
-          matchId={matchId}
-          stakeNim={gameplayStakeNim}
-          onDepositSuccess={() => {
-            void escrowQuery.refetch();
-            void stateQuery.refetch();
-          }}
-        />
+        {!isSpectator && (
+          <EscrowDepositModal
+            isOpen={isDepositModalOpen}
+            onClose={() => setIsDepositModalOpen(false)}
+            matchId={matchId}
+            stakeNim={gameplayStakeNim}
+            onDepositSuccess={() => {
+              void escrowQuery.refetch();
+              void stateQuery.refetch();
+            }}
+          />
+        )}
 
         {isFinished && (
           <VictoryPayoutBanner

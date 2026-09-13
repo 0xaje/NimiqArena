@@ -35,6 +35,7 @@ import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
 import { ConfirmEntrySheet } from "@/components/game/ConfirmEntrySheet";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 
 type GameMode = "match" | "friend" | "bot";
 
@@ -272,20 +273,13 @@ export default function LudoDetail() {
             <div className="h-16 px-4 flex items-center justify-between">
               
               {/* Left: Brand / Profile avatar */}
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="relative">
-                  <img
-                    alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover border border-[#f3b72c]/40 group-hover:border-[#f3b72c] transition-colors"
-                    src="https://lh3.googleusercontent.com/aida/AEtjO1X_SEKkH_ei8ODz8gUMrl0X_UrXhtg4pdYeHJ7fpZEFwzYsY6x_OXMzm2c0kYB-y4CLDd0oVD0NDSwRxV9XVNucimIN9qNoRNfl65Ojaz6sf7dYDYsdQ0oz9rrsmw4dNv_wcudv-yE8D2P2-b2L5jQ7mRfM28LeclhEAIg0i4d3K1sG6fmemSFnWSDCW5iUeYg_jkd-F18QXTod1fOZxgsojaMfvS9MiiXrbKsYZ05rem4Va3ra26FYmS4F"
-                  />
-                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#68f5b8] border-2 border-[#0d1321]" />
-                </div>
+              <Link href="/" className="flex items-center gap-2.5 group">
+                <NimiqArenaLogo size={32} />
                 <div className="flex flex-col">
                   <span className="text-base font-bold text-[#ffdea4] tracking-tight leading-none">
                     NIMIQ ARENA
                   </span>
-                  <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono mt-0.5">
+                  <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
                     Ludo Arena
                   </span>
                 </div>

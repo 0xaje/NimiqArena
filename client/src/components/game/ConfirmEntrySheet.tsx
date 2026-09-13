@@ -9,6 +9,7 @@ import {
   Info,
   RotateCw,
   CheckCircle2,
+  Dices,
 } from "lucide-react";
 import { formatNim } from "@shared/game/pot-distribution";
 import { trpc } from "@/lib/trpc";
@@ -138,12 +139,8 @@ export function ConfirmEntrySheet({
           {/* Mode & Match Summary Pill Card */}
           <div className="bg-[#191f2e] border border-[#242a39] rounded-xl p-3 shadow-md flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-11 h-11 rounded-lg bg-[#2f3544] overflow-hidden flex-shrink-0 flex items-center justify-center border border-white/5">
-                <img
-                  className="w-full h-full object-cover"
-                  alt="3D Glowing Game Dice"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYhvuCq_sHkLkZ--n3N7hzQPMUC6P5nNLwtHVwcY48NvoKopVjALQxK9lVOvapxfolCMaB3WYeFQNazjrlWEZr6G3gojXQTfT30DnNZxlkJQqCJY5yOXS20SCXezsCNaXeApgnqDPDd17wtSk-66d-9ugCR_z7JRCqfVIcY05SqZ8JWm496OsWd9a_RrVbj4Bp3jO1yJp0IJuLWZalf-Obm5WX7E0yTVnICGWsrUBXkWf4n_gQWFruwQ"
-                />
+              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-[#242a39] to-[#151b29] flex-shrink-0 flex items-center justify-center border border-[#f3b72c]/30 shadow-[0_0_12px_rgba(243,183,44,0.15)]">
+                <Dices size={22} className="text-[#f3b72c]" />
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-sm text-[#dde2f6] font-semibold truncate">

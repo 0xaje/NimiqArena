@@ -21,11 +21,14 @@ import {
   X,
   Copy,
   RotateCw,
+  Mail,
+  Sparkles,
 } from "lucide-react";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { ProvablyFairModal } from "@/components/game/ProvablyFairModal";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 
 type GameCategory = "all" | "board" | "duels" | "multiplayer" | "tournaments";
 
@@ -53,7 +56,17 @@ export default function GamesShowroom() {
   const [isWalletSheetOpen, setIsWalletSheetOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isFairPlayOpen, setIsFairPlayOpen] = useState(false);
-  const [notifiedGames, setNotifiedGames] = useState<Record<string, boolean>>({});
+  const [notifyModalGame, setNotifyModalGame] = useState<{ id: string; title: string; genre: string } | null>(null);
+  const [notifyContact, setNotifyContact] = useState("");
+  const [notifiedGames, setNotifiedGames] = useState<Record<string, boolean>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("nimiq_arena_notified_games");
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return {};
+  });
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isDripping, setIsDripping] = useState(false);
 
@@ -101,16 +114,41 @@ export default function GamesShowroom() {
     }
   };
 
-  const toggleNotify = (gameId: string) => {
+  const handleOpenNotify = (gameId: string, title: string, genre: string) => {
+    if (notifiedGames[gameId]) {
+      setNotifiedGames(prev => {
+        const updated = { ...prev, [gameId]: false };
+        try {
+          localStorage.setItem("nimiq_arena_notified_games", JSON.stringify(updated));
+        } catch {}
+        toast.info(`Unsubscribed from ${title} alerts.`);
+        return updated;
+      });
+    } else {
+      setNotifyModalGame({ id: gameId, title, genre });
+    }
+  };
+
+  const handleConfirmNotify = () => {
+    if (!notifyModalGame) return;
+    const { id: gameId, title: gameTitle } = notifyModalGame;
     setNotifiedGames(prev => {
-      const updated = { ...prev, [gameId]: !prev[gameId] };
-      if (updated[gameId]) {
-        toast.success("Subscribed to Launch Alerts!", {
-          description: "We'll notify you as soon as playtests open for Season 2.",
-        });
-      }
+      const updated = { ...prev, [gameId]: true };
+      try {
+        localStorage.setItem("nimiq_arena_notified_games", JSON.stringify(updated));
+        if (notifyContact.trim()) {
+          const contacts = JSON.parse(localStorage.getItem("nimiq_arena_notify_contacts") || "{}");
+          contacts[gameId] = notifyContact.trim();
+          localStorage.setItem("nimiq_arena_notify_contacts", JSON.stringify(contacts));
+        }
+      } catch {}
       return updated;
     });
+    toast.success(`Subscribed to ${gameTitle}!`, {
+      description: "You're registered for Season 2 Alpha playtest access + 250 Bonus PTS.",
+    });
+    setNotifyModalGame(null);
+    setNotifyContact("");
   };
 
   const activeMatches = activeMatchesQuery.data || [];
@@ -141,14 +179,12 @@ export default function GamesShowroom() {
           <div className="h-16 px-4 flex items-center justify-between">
             {/* Left: Brand Identity */}
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#f3b72c] to-[#e67e22] flex items-center justify-center text-[#191f2e] font-black text-xs shadow-[0_0_12px_rgba(243,183,44,0.4)]">
-                {user?.name ? user.name.slice(0, 1).toUpperCase() : "NA"}
-              </div>
+              <NimiqArenaLogo size={32} />
               <div className="flex flex-col">
-                <span className="font-bold text-[#ffdea4] text-base tracking-tight leading-none">
+                <span className="font-extrabold text-[#ffffff] text-base tracking-tight leading-none">
                   NIMIQ ARENA
                 </span>
-                <span className="text-[10px] text-[#94a3b8] uppercase tracking-wider font-mono mt-0.5">
+                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
                   Games Showroom
                 </span>
               </div>
@@ -441,7 +477,7 @@ export default function GamesShowroom() {
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[10px] text-[#94a3b8] font-mono">In Development</span>
                     <button
-                      onClick={() => toggleNotify("nexus-tactics")}
+                      onClick={() => handleOpenNotify("nexus-tactics", "Nexus Tactics", "Tactical Chess")}
                       className="h-10 px-4 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#dde2f6] text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-transform"
                     >
                       {notifiedGames["nexus-tactics"] ? (
@@ -492,7 +528,7 @@ export default function GamesShowroom() {
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[10px] text-[#94a3b8] font-mono">Season 2 Preview</span>
                 <button
-                  onClick={() => toggleNotify("dominoes")}
+                  onClick={() => handleOpenNotify("dominoes", "Dominoes Clash", "Draw & Block")}
                   className="h-10 px-4 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#dde2f6] text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-transform"
                 >
                   {notifiedGames["dominoes"] ? (
@@ -644,6 +680,80 @@ export default function GamesShowroom() {
           stateVersion={1}
           dice={[6, 4]}
         />
+
+        {/* SEASON 2 LAUNCH ALERT MODAL */}
+        {notifyModalGame && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-[#080e1c]/85 backdrop-blur-sm"
+              onClick={() => setNotifyModalGame(null)}
+            />
+            <div className="relative w-full max-w-sm bg-[#1a2130] border border-[#2f3544] rounded-2xl p-5 shadow-2xl z-10 flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#f3b72c]/15 border border-[#f3b72c]/30 flex items-center justify-center text-[#f3b72c]">
+                    <Bell size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Season 2 Alpha Pass</h3>
+                    <span className="text-[10px] text-[#f3b72c] font-mono uppercase">{notifyModalGame.title}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setNotifyModalGame(null)}
+                  className="w-7 h-7 rounded-full bg-[#242a39] flex items-center justify-center text-[#94a3b8] hover:text-white"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#0d1321] border border-[#242a39] flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-[#94a3b8] font-mono">EARLY ACCESS PERK</span>
+                  <span className="text-[10px] text-[#10b981] font-mono font-bold">+250 PTS REWARD</span>
+                </div>
+                <p className="text-xs text-[#dde2f6] leading-relaxed">
+                  Be the first to battle in <strong className="text-white">{notifyModalGame.title}</strong> ({notifyModalGame.genre}). We'll ping your notification center or email when community playtests open.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-mono text-[#94a3b8] uppercase">
+                  Email or Telegram (Optional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={notifyContact}
+                    onChange={e => setNotifyContact(e.target.value)}
+                    placeholder="you@domain.com or @handle"
+                    className="w-full h-10 px-3 pr-8 rounded-xl bg-[#0d1321] border border-[#2f3544] text-xs text-white placeholder:text-[#64748b] focus:outline-none focus:border-[#f3b72c]"
+                  />
+                  <Mail size={14} className="absolute right-3 top-3 text-[#64748b]" />
+                </div>
+                <span className="text-[9px] text-[#64748b]">
+                  {address ? `Will link with your connected Nimiq wallet (${address.slice(0, 8)}...)` : "Leave blank to register on this device"}
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setNotifyModalGame(null)}
+                  className="flex-1 h-10 rounded-xl bg-[#242a39] hover:bg-[#2c3345] text-xs font-semibold text-[#94a3b8]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmNotify}
+                  className="flex-1 h-10 rounded-xl bg-gradient-to-r from-[#f3b72c] to-[#e5a00d] text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-[#f3b72c]/20 hover:brightness-110 active:scale-98"
+                >
+                  <Sparkles size={14} />
+                  <span>Notify Me</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

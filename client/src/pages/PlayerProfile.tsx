@@ -38,17 +38,20 @@ import { trpc } from "@/lib/trpc";
 import { formatNim } from "@shared/game/pot-distribution";
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 import {
   AVATAR_PRESETS,
   IdentityRegistrationModal,
 } from "@/components/profile/IdentityRegistrationModal";
 import { InstantCashoutSheet } from "@/components/wallet/InstantCashoutSheet";
 import { ReferralCard } from "@/components/referral/ReferralCard";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 
 export default function PlayerProfile() {
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery();
   const user = authQuery.data;
+  const { nimToUsd, formatUsd, priceUsd } = useNimiqPrice();
 
   const {
     address: walletAddress,
@@ -80,10 +83,17 @@ export default function PlayerProfile() {
   const [isDripping, setIsDripping] = useState(false);
   const [audioHapticFx, setAudioHapticFx] = useState(true);
 
-  // Rating & Tier
-  const rating = stats?.rating ?? 2140;
+  // Rating & Tier (Real dynamic data, 0/1000 defaults for new player)
+  const rating = stats?.rating ?? 1000;
+  const matchesPlayed = stats?.matchesPlayed ?? 0;
+  const wins = stats?.wins ?? 0;
+  const losses = Math.max(0, matchesPlayed - wins);
+  const winRate = matchesPlayed > 0 ? ((wins / matchesPlayed) * 100).toFixed(1) : "0.0";
+
   const tier =
-    rating >= 2000
+    matchesPlayed === 0
+      ? { name: "Novice Contender", label: "Unranked Duelist", color: "#a5e7ff", Icon: Swords }
+      : rating >= 2000
       ? { name: "Diamond Tier II", label: "Top 3.2% Arena Contender", color: "#00d2ff", Icon: Diamond }
       : rating >= 1600
       ? { name: "Platinum Tier I", label: "Top 8.5% Contender", color: "#a5e7ff", Icon: Gem }
@@ -91,19 +101,17 @@ export default function PlayerProfile() {
       ? { name: "Gold Tier", label: "Gold Legion Member", color: "#ffd78d", Icon: Medal }
       : { name: "Challenger Tier", label: "Arena Duelist", color: "#68f5b8", Icon: Swords };
 
-  const matchesPlayed = stats?.matchesPlayed ?? 348;
-  const wins = stats?.wins ?? 248;
-  const losses = Math.max(0, matchesPlayed - wins);
-  const winRate = matchesPlayed > 0 ? ((wins / matchesPlayed) * 100).toFixed(1) : "71.4";
-
   // Address masking
   const maskedAddress = walletAddress
     ? `${walletAddress.slice(0, 4)} ···· ${walletAddress.slice(-4)}`
-    : "NQ07 ···· 32F1";
+    : "Not Connected";
 
   const handleCopyAddress = () => {
-    const textToCopy = walletAddress || "NQ07 32F1 ARENA VAULT";
-    navigator.clipboard.writeText(textToCopy);
+    if (!walletAddress) {
+      toast.error("Please connect your wallet first.");
+      return;
+    }
+    navigator.clipboard.writeText(walletAddress);
     setCopiedAddress(true);
     toast.success("Address copied to clipboard!");
     setTimeout(() => setCopiedAddress(false), 2000);
@@ -153,23 +161,17 @@ export default function PlayerProfile() {
         {/* ========================================================================= */}
         <header className="sticky top-0 inset-x-0 z-40 bg-[#0d1321]/90 backdrop-blur-xl border-b border-[#242a39] pt-safe shadow-sm">
           <div className="h-16 px-4 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-[#f3b72c]/40 flex items-center justify-center bg-[#191f2e]">
-                <img
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida/AEtjO1X_SEKkH_ei8ODz8gUMrl0X_UrXhtg4pdYeHJ7fpZEFwzYsY6x_OXMzm2c0kYB-y4CLDd0oVD0NDSwRxV9XVNucimIN9qNoRNfl65Ojaz6sf7dYDYsdQ0oz9rrsmw4dNv_wcudv-yE8D2P2-b2L5jQ7mRfM28LeclhEAIg0i4d3K1sG6fmemSFnWSDCW5iUeYg_jkd-F18QXTod1fOZxgsojaMfvS9MiiXrbKsYZ05rem4Va3ra26FYmS4F"
-                />
-              </div>
+            <Link href="/" className="flex items-center gap-2.5">
+              <NimiqArenaLogo size={32} />
               <div className="flex flex-col">
                 <span className="text-sm font-black text-[#ffd78d] tracking-tight leading-none">
                   NIMIQ ARENA
                 </span>
-                <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-                  Arena Home
+                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono font-semibold">
+                  Player Profile
                 </span>
               </div>
-            </div>
+            </Link>
 
             {/* Top Balance Pill */}
             <div className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#242a39] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
@@ -177,7 +179,7 @@ export default function PlayerProfile() {
               <span className="text-xs font-mono font-bold text-[#dde2f6]">
                 {balanceStatus === "available" || balanceStatus === "zero"
                   ? formatNim(balanceNim)
-                  : "1,420"}{" "}
+                  : "0.00"}{" "}
                 <span className="text-[#ffd78d]">NIM</span>
               </span>
               <Wallet size={15} className="text-[#a5e7ff]" />
@@ -320,12 +322,12 @@ export default function PlayerProfile() {
                 <span className="text-2xl text-[#ffd78d] font-black tracking-tight font-mono">
                   {balanceStatus === "available" || balanceStatus === "zero"
                     ? balanceNim.toFixed(2)
-                    : "1,420.00"}
+                    : "0.00"}
                 </span>
                 <span className="text-sm text-[#ffd78d] font-bold font-mono">NIM</span>
               </div>
               <p className="text-xs text-[#d4c5ad] font-mono mt-0.5">
-                ≈ ${(balanceNim * 0.2).toFixed(2)} USD (NIM/USD $0.20)
+                ≈ {formatUsd(nimToUsd(balanceNim))} USD {priceUsd > 0 ? `(CoinGecko: $${priceUsd.toFixed(6)}/NIM)` : ""}
               </p>
             </div>
 
@@ -335,154 +337,114 @@ export default function PlayerProfile() {
                 <span className="text-[10px] text-[#d4c5ad] font-mono">Escrow In-Play</span>
                 <div className="text-xs text-[#a5e7ff] font-mono font-bold mt-0.5 flex items-center gap-1">
                   <Clock size={12} />
-                  100.00 NIM
+                  0.00 NIM
                 </div>
               </div>
 
               <div className="bg-[#080e1c] border border-[#242a39] p-2.5 rounded-lg">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Career Arena Winnings</span>
+                <span className="text-[10px] text-[#d4c5ad] font-mono">Available Cashout</span>
                 <div className="text-xs text-[#68f5b8] font-mono font-bold mt-0.5 flex items-center gap-1">
-                  <TrendingUp size={12} />
-                  +4,890.00 NIM
+                  <ShieldCheck size={12} />
+                  {formatNim(balanceNim)} NIM
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions (Thumb Zone) */}
+            {/* Vault Actions */}
             <div className="grid grid-cols-2 gap-2 mt-3">
+              <button
+                onClick={() => setIsCashoutOpen(true)}
+                className="h-10 rounded-xl bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(243,183,44,0.25)] active:scale-95 transition-transform cursor-pointer"
+                type="button"
+              >
+                <ArrowUpRight size={15} />
+                Instant Cashout
+              </button>
+
               <button
                 onClick={handleRequestDrip}
                 disabled={isDripping}
-                className="h-11 px-3 rounded-lg bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] cursor-pointer"
+                className="h-10 rounded-xl bg-[#242a39] hover:bg-[#2f3544] border border-[#2f3544] text-[#dde2f6] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-50 cursor-pointer"
                 type="button"
               >
-                <RotateCw size={14} className={isDripping ? "animate-spin" : ""} />
-                <span>{isDripping ? "Dripping…" : "Deposit NIM"}</span>
+                <Sparkles size={14} className="text-[#ffd78d]" />
+                {isDripping ? "Requesting…" : "Faucet Drip"}
               </button>
-
-              <button
-                onClick={() => setIsCashoutOpen(true)}
-                className="h-11 px-3 rounded-lg bg-[#2f3544] hover:bg-[#384052] text-[#dde2f6] text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
-                type="button"
-              >
-                <ArrowUpRight size={14} className="text-[#a5e7ff]" />
-                <span>Instant Cashout</span>
-              </button>
-            </div>
-
-            {/* Nimiq Pay Sync Status */}
-            <div className="mt-3 flex items-center justify-between bg-[#080e1c] border border-[#242a39] p-2.5 rounded-lg">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#68f5b8] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#68f5b8]" />
-                </span>
-                <span className="text-xs text-[#dde2f6] font-mono">
-                  Nimiq Pay Synchronized
-                </span>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#242a39] text-[#ffd78d]">
-                0.00 NIM Gas Fee
-              </span>
             </div>
           </section>
 
           {/* ========================================================================= */}
-          {/* 3. CAREER ANALYTICS & MATCH RECORD (Combat Record)                         */}
+          {/* 3. COMBAT RECORD & WIN METRICS                                            */}
           {/* ========================================================================= */}
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-[#dde2f6]">Combat Record</h3>
-              <span className="text-[10px] text-[#a5e7ff] font-mono">Lifetime Ranked</span>
+              <span className="text-[10px] text-[#d4c5ad] font-mono">
+                {season?.name ?? "Season 1 Arena"}
+              </span>
             </div>
 
-            {/* 4-Stat Metric Grid */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Total Matches</span>
-                <div className="text-lg font-bold text-[#dde2f6] font-mono mt-0.5">
-                  {matchesPlayed}
+            {matchesPlayed === 0 ? (
+              <div className="bg-[#242a39] border border-[#2f3544] p-4 rounded-xl flex flex-col items-center text-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-[#ffd78d]/10 border border-[#ffd78d]/20 flex items-center justify-center text-[#ffd78d]">
+                  <Swords size={20} />
                 </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Competitive Duelist</span>
-              </div>
-
-              <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Win Ratio</span>
-                <div className="text-lg font-bold text-[#68f5b8] font-mono mt-0.5">
-                  {winRate}%
+                <h4 className="text-sm font-bold text-[#dde2f6]">No Arena Battles Recorded Yet</h4>
+                <p className="text-xs text-[#d4c5ad] max-w-xs leading-relaxed">
+                  Join a ranked 1v1 match in Ludo League or Nim Connect to establish your win rate and claim your position on the leaderboard.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Link
+                    href="/games/connect-four"
+                    className="h-8 px-3 rounded-lg bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] text-xs font-bold font-mono flex items-center gap-1 active:scale-95 transition-transform"
+                  >
+                    Play Connect 4
+                  </Link>
+                  <Link
+                    href="/games/ludo-league"
+                    className="h-8 px-3 rounded-lg bg-[#2f3544] hover:bg-[#3b4356] text-[#dde2f6] text-xs font-bold font-mono flex items-center gap-1 active:scale-95 transition-transform"
+                  >
+                    Play Ludo
+                  </Link>
                 </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono">
-                  {wins} W / {losses} L
-                </span>
               </div>
-
-              <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Active Streak</span>
-                <div className="text-lg font-bold text-[#ffd78d] font-mono mt-0.5">
-                  5 Wins
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Total Matches</span>
+                  <div className="text-lg font-bold text-[#dde2f6] font-mono mt-0.5">
+                    {matchesPlayed}
+                  </div>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Arena Contender</span>
                 </div>
-                <span className="text-[10px] text-[#f3b72c] font-mono">🔥 Undefeated today</span>
-              </div>
 
-              <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Top Title</span>
-                <div className="text-sm font-bold text-[#a5e7ff] font-mono mt-1 truncate">
-                  Connect 4 GM
-                </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Arena Master</span>
-              </div>
-            </div>
-
-            {/* Mini Game Breakdown */}
-            <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl space-y-3">
-              {/* Game 1: Connect 4 */}
-              <div>
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-[#dde2f6] flex items-center gap-1.5 font-bold">
-                    <Grid size={14} className="text-[#ffd78d]" />
-                    Connect 4 Arena
-                  </span>
-                  <span className="text-[#68f5b8] font-bold">
-                    82% <span className="text-[#d4c5ad] font-normal">(164 matches)</span>
+                <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Win Ratio</span>
+                  <div className="text-lg font-bold text-[#68f5b8] font-mono mt-0.5">
+                    {winRate}%
+                  </div>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">
+                    {wins} W / {losses} L
                   </span>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-[#080e1c] mt-1.5 overflow-hidden border border-white/5">
-                  <div className="h-full bg-[#ffd78d] rounded-full" style={{ width: "82%" }} />
-                </div>
-              </div>
 
-              {/* Game 2: Ludo Arena */}
-              <div>
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-[#dde2f6] flex items-center gap-1.5 font-bold">
-                    <Dices size={14} className="text-[#a5e7ff]" />
-                    Ludo Arena
-                  </span>
-                  <span className="text-[#a5e7ff] font-bold">
-                    64% <span className="text-[#d4c5ad] font-normal">(122 matches)</span>
-                  </span>
+                <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Player Rating</span>
+                  <div className="text-lg font-bold text-[#ffd78d] font-mono mt-0.5">
+                    {rating}
+                  </div>
+                  <span className="text-[10px] text-[#f3b72c] font-mono">Elo System</span>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-[#080e1c] mt-1.5 overflow-hidden border border-white/5">
-                  <div className="h-full bg-[#a5e7ff] rounded-full" style={{ width: "64%" }} />
-                </div>
-              </div>
 
-              {/* Game 3: Nexus Tactics */}
-              <div>
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-[#dde2f6] flex items-center gap-1.5 font-bold">
-                    <Award size={14} className="text-[#68f5b8]" />
-                    Nexus Tactics
-                  </span>
-                  <span className="text-[#68f5b8] font-bold">
-                    58% <span className="text-[#d4c5ad] font-normal">(62 matches)</span>
-                  </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-[#080e1c] mt-1.5 overflow-hidden border border-white/5">
-                  <div className="h-full bg-[#46d89d] rounded-full" style={{ width: "58%" }} />
+                <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl">
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Season Division</span>
+                  <div className="text-sm font-bold text-[#a5e7ff] font-mono mt-1 truncate">
+                    {tier.name}
+                  </div>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">{tier.label}</span>
                 </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* ========================================================================= */}

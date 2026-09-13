@@ -174,30 +174,45 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
         </div>
 
         {/* PHYSICAL CONNECT 4 VERTICAL GRID BOARD */}
-        <div className="relative p-2.5 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-2xl">
-          {/* High-Intensity Laser Guide Vector SVG if winning line is present */}
+        <div className="relative p-2.5 rounded-xl bg-[#191f2e] border border-[#242a39] shadow-2xl overflow-hidden">
+          {/* Neon Laser Filter Definitions & Laser Guide Vector SVG if winning line is present */}
+          <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+            <defs>
+              <filter id="neon-laser-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+          </svg>
+
           {winningLine && winningLine.length >= 4 && (
-            <div className="absolute z-20 pointer-events-none inset-0 flex items-center justify-center p-2.5">
+            <div className="absolute z-30 pointer-events-none inset-0 flex items-center justify-center p-2.5">
               <svg className="w-full h-full" fill="none" viewBox="0 0 350 280">
+                {/* Background Outer Glow Beam */}
                 <line
                   x1={`${((winningLine[0][0] + 0.5) / 7) * 350}`}
                   y1={`${((5 - winningLine[0][1] + 0.5) / 6) * 280}`}
                   x2={`${((winningLine[winningLine.length - 1][0] + 0.5) / 7) * 350}`}
                   y2={`${((5 - winningLine[winningLine.length - 1][1] + 0.5) / 6) * 280}`}
                   stroke="#f3b72c"
-                  strokeWidth="4"
-                  strokeDasharray="6 4"
+                  strokeWidth="8"
                   strokeLinecap="round"
-                  className="animate-pulse"
+                  opacity="0.6"
+                  filter="url(#neon-laser-glow)"
                 />
+                {/* Pulsing Core Laser Beam */}
                 <line
                   x1={`${((winningLine[0][0] + 0.5) / 7) * 350}`}
                   y1={`${((5 - winningLine[0][1] + 0.5) / 6) * 280}`}
                   x2={`${((winningLine[winningLine.length - 1][0] + 0.5) / 7) * 350}`}
                   y2={`${((5 - winningLine[winningLine.length - 1][1] + 0.5) / 6) * 280}`}
                   stroke="#ffffff"
-                  strokeWidth="1.5"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
+                  className="animate-pulse"
                 />
               </svg>
             </div>
@@ -213,37 +228,46 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
                 const isLowestEmpty =
                   cellValue === null && getLowestEmptyRow(board, col) === row;
                 const isTargetHover = isLowestEmpty && activeCol === col && isYourTurn;
+                const isColActive = activeCol === col && isYourTurn && winner === null;
 
                 return (
                   <div
                     key={`c4-${col}-${row}`}
                     onClick={() => {
                       handleSelectColumn(col);
-                      if (isYourTurn && !disabled && winner === null) {
+                      if (isYourTurn && !disabled && winner === null && yourSeat !== -1) {
                         handleDrop(col);
                       }
                     }}
-                    className={`aspect-square rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    className={`aspect-square rounded-full flex items-center justify-center transition-all relative ${
+                      yourSeat === -1 ? "cursor-default" : "cursor-pointer"
+                    } ${
                       cellValue === null
-                        ? "bg-[#080e1c] shadow-inner border border-black/40"
+                        ? `bg-[#080e1c] shadow-inner border border-black/40 ${
+                            isColActive ? "bg-[#0b1426] ring-1 ring-[#f3b72c]/30" : ""
+                          }`
                         : cellValue === 0
-                        ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.9)] transform scale-95 border border-white/20"
-                        : "bg-[#00d2ff] text-[#003543] shadow-[0_0_10px_rgba(0,210,255,0.7)] transform scale-95 border border-white/20"
-                    } ${isWinning ? "ring-2 ring-[#ffd78d] scale-105 shadow-[0_0_18px_#f3b72c]" : ""}`}
+                        ? "bg-[radial-gradient(circle_at_35%_30%,#fff08a_0%,#f3b72c_55%,#92400e_100%)] text-[#412d00] shadow-[0_0_14px_rgba(243,183,44,0.95),inset_0_2px_4px_rgba(255,255,255,0.6)] transform scale-95 border border-amber-200/50"
+                        : "bg-[radial-gradient(circle_at_35%_30%,#a5f3fc_0%,#00d2ff_55%,#0369a1_100%)] text-[#003543] shadow-[0_0_14px_rgba(0,210,255,0.85),inset_0_2px_4px_rgba(255,255,255,0.6)] transform scale-95 border border-cyan-200/50"
+                    } ${
+                      isWinning
+                        ? "ring-4 ring-[#ffd78d] scale-105 shadow-[0_0_24px_#f3b72c] z-20 animate-pulse"
+                        : ""
+                    }`}
                   >
                     {isWinning ? (
-                      <Sparkles size={16} className="text-[#412d00] animate-spin" />
+                      <Sparkles size={18} className="text-[#412d00] animate-spin font-black" />
                     ) : cellValue === 0 ? (
-                      <Hexagon size={16} className="fill-current" />
+                      <Hexagon size={16} className="fill-current drop-shadow" />
                     ) : cellValue === 1 ? (
-                      <Disc size={16} className="fill-current" />
+                      <Disc size={16} className="fill-current drop-shadow" />
                     ) : isTargetHover ? (
                       <div className="relative flex items-center justify-center">
-                        <span className="w-3.5 h-3.5 rounded-full bg-[#f3b72c]/30 animate-ping absolute" />
-                        <span className="w-2 h-2 rounded-full bg-[#f3b72c]" />
+                        <span className="w-4 h-4 rounded-full bg-[#f3b72c]/40 animate-ping absolute" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]" />
                       </div>
                     ) : (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#2f3544]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#242a39]/70" />
                     )}
                   </div>
                 );

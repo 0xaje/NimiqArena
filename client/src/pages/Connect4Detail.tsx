@@ -1,28 +1,38 @@
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  Bot,
-  Check,
-  Coins,
-  Copy,
-  Gamepad2,
-  LockKeyhole,
-  ShieldCheck,
-  Users,
-  WalletCards,
-  X,
-  Zap,
-  Sparkles,
-} from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
+import {
+  ChevronLeft,
+  ChevronDown,
+  Swords,
+  Users,
+  Bot,
+  Zap,
+  ShieldCheck,
+  Timer,
+  Coins,
+  Trophy,
+  Grid,
+  Play,
+  ArrowRight,
+  Wallet,
+  Sparkles,
+  RotateCw,
+  Star,
+  Gamepad2,
+  CheckCircle2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
-import { StakeSelector } from "@/components/game/StakeSelector";
-import { formatNim } from "@shared/game/pot-distribution";
-
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
+import { formatNim } from "@shared/game/pot-distribution";
+import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
+import { WalletConnectModal } from "@/components/game/WalletConnectModal";
+import { ConfirmEntrySheet } from "@/components/game/ConfirmEntrySheet";
+import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { useNimiqPrice } from "@/lib/nimiq-price";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
+
+type GameMode = "match" | "friend" | "bot";
 
 export default function Connect4Detail() {
   const [, navigate] = useLocation();
@@ -31,40 +41,104 @@ export default function Connect4Detail() {
   const guestLogin = trpc.auth.guestLogin.useMutation();
   const loginWithNimiq = trpc.auth.loginWithNimiq.useMutation();
   const gameQuery = trpc.game.getBySlug.useQuery({ slug: "connect-four" });
-  const { address: walletAddress, balanceNim, balanceStatus, isConnected, networkName } = useNimiqWallet();
+  const activeMatchesQuery = trpc.match.listActiveMatches.useQuery(
+    { limit: 10 },
+    { refetchInterval: 5000 }
+  );
+
+  const {
+    address,
+    balanceNim,
+    balanceStatus,
+    isConnected,
+    networkName,
+    refreshBalance,
+    setAddress,
+  } = useNimiqWallet();
+
+  const [connectionMode, setConnectionMode] = useState<any>(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("nimiq_wallet_mode") || "none"
+      : "none"
+  );
+
+  const { nimToUsd, formatUsd, priceUsd } = useNimiqPrice();
+
   const createChallenge = trpc.match.createChallenge.useMutation();
   const createSolo = trpc.match.createSoloMatch.useMutation();
   const createWagered = trpc.match.createWageredMatch.useMutation();
   const createHouseWagered = trpc.match.createHouseWageredMatch.useMutation();
-  const [createdMatch, setCreatedMatch] = useState<{
-    id: string;
-    joinCode: string;
-  } | null>(null);
+  const requestDrip = trpc.payment.requestTestnetDrip.useMutation();
+
+  // Screen UI State
+  const [currentMode, setCurrentMode] = useState<GameMode>("match");
+  const [selectedStake, setSelectedStake] = useState<number>(50);
+  const [isRulesExpanded, setIsRulesExpanded] = useState<boolean>(false);
+  const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const [isHouseBotWager, setIsHouseBotWager] = useState<boolean>(false);
+
+  // Modals
+  const [isConfirmEntryOpen, setIsConfirmEntryOpen] = useState(false);
   const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
-  const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
-  const [selectedStake, setSelectedStake] = useState(50);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isWalletSheetOpen, setIsWalletSheetOpen] = useState(false);
+  const [isDripping, setIsDripping] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
 
-  const game = gameQuery.data ?? {
-    id: "connect-four",
-    slug: "connect-four",
-    name: "Connect NIM",
-    kind: "connect4",
-    status: "active",
-    description: "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally.",
-  };
   const user = authQuery.data;
+  const activeMatches = (activeMatchesQuery.data || []).filter(
+    (m) => m.gameId === "connect-four"
+  );
+  const activeCount = activeMatches.length;
 
-  const copyCode = async () => {
-    if (!createdMatch) return;
-    await navigator.clipboard?.writeText(createdMatch.joinCode);
-    toast("Invite code copied", {
-      description: "Share it with a friend or open /join in another window.",
-    });
+  const totalPot = selectedStake * 2;
+  const payoutPreview = (totalPot * 0.9).toFixed(1).replace(/\.0$/, "");
+
+  const handleCopyAddress = () => {
+    if (!address) return;
+    void navigator.clipboard.writeText(address);
+    setCopiedAddress(true);
+    toast.success("Wallet Address Copied!");
+    setTimeout(() => setCopiedAddress(false), 2000);
+  };
+
+  const handleRequestDrip = async () => {
+    if (!address) {
+      toast.error("Please connect your wallet first.");
+      return;
+    }
+    try {
+      setIsDripping(true);
+      toast.info("Requesting 50 Testnet NIM drip from hot wallet…");
+      const res = await requestDrip.mutateAsync({ address });
+      if (res.success) {
+        toast.success("50 Testnet NIM Received!", {
+          description: `Tx: ${res.txHash.slice(0, 10)}… Checking balance.`,
+        });
+        setTimeout(() => {
+          void refreshBalance();
+        }, 2500);
+      } else {
+        toast.info("Direct drip standby", {
+          description: res.message || "Opening official Nimiq faucet…",
+        });
+        if (res.fallbackUrl) {
+          window.open(res.fallbackUrl, "_blank");
+        }
+      }
+    } catch (err: any) {
+      toast.error("Faucet request failed", {
+        description: err instanceof Error ? err.message : "Visit official faucet.",
+      });
+      window.open("https://testnet.nimiq.watch/#faucet", "_blank");
+    } finally {
+      setIsDripping(false);
+    }
   };
 
   async function ensureAuthenticated(defaultName: string) {
     if (user) return;
-    const savedWallet = walletAddress || localStorage.getItem("nimiq_arena_wallet_address");
+    const savedWallet = address || localStorage.getItem("nimiq_arena_wallet_address");
     let loginToken: string | null = null;
     if (savedWallet) {
       try {
@@ -90,395 +164,695 @@ export default function Connect4Detail() {
     await utils.auth.me.invalidate();
   }
 
-  async function handleStartWageredMatch() {
+  async function handlePrimaryAction() {
+    if (currentMode === "friend") {
+      setIsPlayWithFriendOpen(true);
+      return;
+    }
+
+    if (currentMode === "bot") {
+      if (isHouseBotWager) {
+        try {
+          setIsConnecting(true);
+          await ensureAuthenticated("Player 1 (Gladiator)");
+          toast.info(`Setting up ${selectedStake} NIM Match vs Tactical AI…`);
+          const res = await createHouseWagered.mutateAsync({
+            gameSlug: "connect-four",
+            stakeNim: selectedStake,
+          });
+          navigate(`/matches/${res.id}`);
+        } catch (err) {
+          toast.error("Failed to create house bot match", {
+            description: err instanceof Error ? err.message : "Try again.",
+          });
+        } finally {
+          setIsConnecting(false);
+        }
+      } else {
+        try {
+          setIsConnecting(true);
+          await ensureAuthenticated("Player 1 (Solo)");
+          toast.info("Launching Practice Table vs Nim Connect Bot…");
+          const match = await createSolo.mutateAsync({
+            gameSlug: "connect-four",
+          });
+          navigate(`/matches/${match.id}`);
+        } catch (err) {
+          toast.error("Failed to launch solo practice", {
+            description: err instanceof Error ? err.message : "Try again.",
+          });
+        } finally {
+          setIsConnecting(false);
+        }
+      }
+      return;
+    }
+
+    // Matchmaking Mode: Open Confirm Entry Sheet
+    setIsConfirmEntryOpen(true);
+  }
+
+  async function handleConfirmMatchEntry() {
     try {
-      await ensureAuthenticated("Player 1 (Host)");
-      toast.info(`Creating ${selectedStake} NIM Wagered Table…`);
+      setIsConnecting(true);
+      await ensureAuthenticated("Player 1 (Gladiator)");
+
+      if (isConnected && balanceNim != null && balanceNim < selectedStake) {
+        toast.error(`Insufficient NIM Balance (${balanceNim} NIM available)`, {
+          description: `You need at least ${selectedStake} NIM to enter. Use 1-Click Faucet in wallet.`,
+        });
+        setIsConnecting(false);
+        return;
+      }
+
+      toast.info(`Searching live arena for ${selectedStake} NIM opponents…`);
       const res = await createWagered.mutateAsync({
         gameSlug: "connect-four",
         stakeNim: selectedStake,
       });
-      setIsStakeModalOpen(false);
-      navigate(`/matches/${res.id}`);
-    } catch (err) {
-      toast.error("Failed to create wagered match", {
-        description: err instanceof Error ? err.message : "Try again.",
-      });
-    }
-  }
 
-  async function handleStartHouseWageredMatch() {
-    try {
-      await ensureAuthenticated("Player 1 (Host)");
-      toast.info(`Setting up 50 NIM House Match vs Connect Bot…`);
-      const res = await createHouseWagered.mutateAsync({
-        gameSlug: "connect-four",
-        stakeNim: 50,
-      });
-      navigate(`/matches/${res.id}`);
+      setTimeout(() => {
+        toast.success("Match Ready!", {
+          description: `Entering Match Table #${res.id.slice(0, 8)}…`,
+        });
+        setIsConfirmEntryOpen(false);
+        navigate(`/matches/${res.id}`);
+      }, 700);
     } catch (err) {
-      toast.error("Failed to create house match", {
-        description: err instanceof Error ? err.message : "Try again.",
-      });
-    }
-  }
-
-  async function handleStartSoloPractice() {
-    try {
-      await ensureAuthenticated("Player 1 (Solo)");
-      toast.info("Launching Practice Table vs Connect NIM Bot…");
-      const match = await createSolo.mutateAsync({ gameSlug: "connect-four" });
-      navigate(`/matches/${match.id}`);
-    } catch (err) {
-      toast.error("Failed to launch solo practice", {
-        description: err instanceof Error ? err.message : "Try again.",
-      });
-    }
-  }
-
-  async function createMatch() {
-    try {
-      await ensureAuthenticated("Player 1 (Host)");
-      const match = await createChallenge.mutateAsync({
-        gameSlug: "connect-four",
-      });
-      setCreatedMatch({ id: match.id, joinCode: match.joinCode });
-      toast.success("Challenge match created", {
-        description: `Match ${match.id} is waiting for a friend.`,
-      });
-    } catch (error) {
-      toast.error("Match could not be created", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "The backend did not create a match.",
+      setIsConnecting(false);
+      toast.error("Matchmaking error", {
+        description: err instanceof Error ? err.message : "Please try again.",
       });
     }
   }
 
   return (
-    <div className="detail-page">
-      <PlayWithFriendModal
-        isOpen={isPlayWithFriendOpen}
-        onClose={() => setIsPlayWithFriendOpen(false)}
-        gameSlug="connect-four"
-        gameTitle="Connect NIM"
-      />
+    <div className="min-h-screen bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans relative selection:bg-[#f3b72c]/30 selection:text-[#ffd78d]">
+      {/* MOBILE MINI-APP CONSTRAINT CONTAINER */}
+      <div className="max-w-md w-full mx-auto min-h-screen flex flex-col bg-[#0d1321] relative shadow-2xl overflow-x-hidden">
+        
+        {/* ========================================================================= */}
+        {/* FIXED APP HEADER                                                          */}
+        {/* ========================================================================= */}
+        <header className="fixed top-0 inset-x-0 z-50 pointer-events-none">
+          <div className="max-w-md mx-auto w-full pointer-events-auto bg-[#0d1321]/85 backdrop-blur-xl border-b border-[#242a39]/80 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
+            <div className="h-16 px-4 flex items-center justify-between">
+              
+              {/* Left: Brand / Profile avatar */}
+              <Link href="/" className="flex items-center gap-2.5 group">
+                <NimiqArenaLogo size={32} />
+                <div className="flex flex-col">
+                  <span className="text-base font-bold text-[#ffdea4] tracking-tight leading-none">
+                    NIMIQ ARENA
+                  </span>
+                  <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
+                    Nim Connect 7×6
+                  </span>
+                </div>
+              </Link>
 
-      {/* Wager Stake Selection Modal */}
-      {isStakeModalOpen && (
-        <div
-          className="quickmatch-modal-overlay"
-          onClick={() => setIsStakeModalOpen(false)}
-        >
-          <div
-            className="quickmatch-modal-card"
-            onClick={e => e.stopPropagation()}
-            style={{ maxWidth: "420px", width: "94vw", borderRadius: "18px" }}
-          >
-            <div className="quickmatch-modal-header" style={{ height: "52px", padding: "0 16px" }}>
-              <div className="quickmatch-header-left">
-                <Coins className="radar-header-icon" size={18} />
+              {/* Right: Wallet Balance Pill */}
+              <button
+                onClick={() => {
+                  if (isConnected) {
+                    setIsWalletSheetOpen(true);
+                  } else {
+                    setIsWalletModalOpen(true);
+                  }
+                }}
+                className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#2f3544] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-transform cursor-pointer"
+                type="button"
+              >
                 <span
-                  style={{
-                    fontFamily: "IBM Plex Mono, monospace",
-                    fontWeight: 700,
-                    fontSize: "12px",
-                    letterSpacing: "0.06em",
-                  }}
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected
+                      ? "bg-[#68f5b8] shadow-[0_0_8px_#68f5b8]"
+                      : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
+                  }`}
+                />
+                <span className="text-xs font-semibold text-[#dde2f6] font-mono">
+                  {balanceNim != null ? formatNim(balanceNim) : "0.00"}{" "}
+                  <span className="text-[#ffd78d] font-bold">NIM</span>
+                </span>
+                <Wallet size={15} className="text-[#a5e7ff]" />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* ========================================================================= */}
+        {/* MAIN SCROLLABLE CONTENT AREA                                              */}
+        {/* ========================================================================= */}
+        <main
+          className={`flex-1 flex flex-col w-full pt-20 pb-28 space-y-4 transition-all duration-300 ${
+            isConfirmEntryOpen ? "opacity-40 blur-[1px] pointer-events-none filter" : ""
+          }`}
+        >
+          {/* Sub-Header: Back Nav & Quick Status */}
+          <div className="flex items-center justify-between px-4 pt-1">
+            <Link
+              href="/games"
+              className="flex items-center gap-1 text-[#d4c5ad] hover:text-[#dde2f6] transition-colors py-1 group cursor-pointer"
+            >
+              <ChevronLeft
+                size={20}
+                className="transition-transform group-active:-translate-x-1"
+              />
+              <span className="text-sm font-semibold">Games Showroom</span>
+            </Link>
+
+            <div className="flex items-center gap-1.5 bg-[#151b29] border border-[#242a39] px-3 py-1 rounded-full shadow-inner">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] shadow-[0_0_6px_#00d2ff] animate-pulse" />
+              <span className="text-[11px] font-semibold text-[#b6ebff] font-mono">
+                {activeCount > 0 ? `${activeCount} Battles Live` : "Arena Ready"}
+              </span>
+            </div>
+          </div>
+
+          {/* HERO VISUAL CARD */}
+          <div className="px-4">
+            <div className="relative w-full rounded-xl overflow-hidden bg-[#080e1c] border border-[#242a39] shadow-xl">
+              
+              {/* Media Banner with Gradient Scrim */}
+              <div className="relative w-full h-52 overflow-hidden">
+                <img
+                  alt="Nim Connect 7x6 Matrix Arena"
+                  className="w-full h-full object-cover object-center transform scale-105 transition-transform duration-700 hover:scale-110"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlUvBQEgkd3BBZ9QMrcPxBrdKmovoJO2LNjgyjJxceSIh1uh6StcQBE1rIB3-haFZWp9TYMY1L1SfuYFPNqM2gN_jziwYHWzHfUw5rbs9rnyXxWzfvI2v7kUE0cT5KuRro1ZAA5MaWQj4djFJEGxUEkaF-j6SK88gIL_XyO4PcowM-mlr53s61Uv7FFAofyvLPVaP81CaVubnakv0XeXCK90Hc74O-Sy2OxJX_15__ydJdDDV7R7fJIw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#151b29] via-[#151b29]/40 to-transparent" />
+                
+                {/* Top Floating Badges */}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-[#080e1c]/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+                  <Zap size={14} className="text-[#f3b72c]" />
+                  <span className="text-[10px] font-bold text-[#ffdea4] uppercase tracking-wider font-mono">
+                    Instant Payout
+                  </span>
+                </div>
+                <div className="absolute top-3 right-3 bg-[#080e1c]/80 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-[#d4c5ad] border border-white/10">
+                  <Users size={14} className="text-[#a5e7ff]" />
+                  <span className="text-[11px] font-medium font-mono">1v1 Duel</span>
+                </div>
+              </div>
+
+              {/* Hero Body Content */}
+              <div className="bg-[#151b29] p-3.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl text-[#dde2f6] font-extrabold tracking-tight">
+                    Nim Connect 7×6
+                  </h1>
+                  <div className="flex items-center gap-1 text-[#ffd78d]">
+                    <Star size={17} className="fill-[#ffd78d] text-[#ffd78d]" />
+                    <span className="text-xs font-bold font-mono">4.9</span>
+                  </div>
+                </div>
+                <p className="text-xs text-[#d4c5ad] mt-1 leading-relaxed">
+                  Vertical 7×6 tactical grid. Drop your gold and cyan discs, anticipate opponent diagonals, connect 4-in-a-row, and claim the winner pot settled directly on the Nimiq chain.
+                </p>
+
+                {/* Quick Specs Matrix */}
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 bg-[#191f2e]/70 border border-[#242a39] rounded-lg p-2">
+                  <div className="flex flex-col items-center text-center">
+                    <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
+                      <Timer size={13} className="text-[#a5e7ff]" /> Turn Clock
+                    </span>
+                    <span className="text-xs text-[#dde2f6] font-semibold mt-0.5 font-mono">
+                      30s Timer
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center text-center border-x border-[#242a39]">
+                    <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
+                      <Grid size={13} className="text-[#68f5b8]" /> Matrix
+                    </span>
+                    <span className="text-xs text-[#dde2f6] font-semibold mt-0.5 font-mono">
+                      7 Cols × 6 Rows
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center text-center">
+                    <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
+                      <Coins size={13} className="text-[#ffd78d]" /> Pot Share
+                    </span>
+                    <span className="text-xs text-[#ffd78d] font-semibold mt-0.5 font-mono">
+                      90% Net
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* MODE SELECTOR SECTION                                                     */}
+          {/* ========================================================================= */}
+          <div className="px-4 flex flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-bold text-[#dde2f6]">
+                Select Mode
+              </span>
+              <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
+                Step 1 of 2
+              </span>
+            </div>
+
+            {/* Mode Option 1: 1v1 Wagered Duel */}
+            <div
+              onClick={() => setCurrentMode("match")}
+              className={`cursor-pointer relative p-3.5 rounded-xl transition-all active:scale-[0.99] flex items-start gap-3.5 border ${
+                currentMode === "match"
+                  ? "bg-[#242a39] border-[#f3b72c]/60 shadow-[0_0_16px_rgba(243,183,44,0.15)] opacity-100"
+                  : "bg-[#151b29] border-[#242a39] opacity-75 hover:opacity-95"
+              }`}
+            >
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                  currentMode === "match"
+                    ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.35)]"
+                    : "bg-[#191f2e] text-[#ffd78d]"
+                }`}
+              >
+                <Swords size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#dde2f6] font-bold">
+                    Ranked 1v1 Duel
+                  </span>
+                  <span className="bg-[#ffd78d]/20 text-[#ffd78d] text-[10px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] animate-ping" />
+                    Instant Queue
+                  </span>
+                </div>
+                <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
+                  Stake NIM against live network gladiators. Winner claims 90% of total escrow.
+                </p>
+              </div>
+              <div className="shrink-0 self-center">
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                    currentMode === "match"
+                      ? "border-[#ffd78d] bg-[#ffd78d]"
+                      : "border-[#d4c5ad]/50 bg-transparent"
+                  }`}
                 >
-                  SELECT WAGER STAKE
+                  {currentMode === "match" && (
+                    <div className="w-2 h-2 rounded-full bg-[#412d00]" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mode Option 2: Play with Friend */}
+            <div
+              onClick={() => setCurrentMode("friend")}
+              className={`cursor-pointer relative p-3.5 rounded-xl transition-all active:scale-[0.99] flex items-start gap-3.5 border ${
+                currentMode === "friend"
+                  ? "bg-[#242a39] border-[#a5e7ff]/60 shadow-[0_0_16px_rgba(165,231,255,0.15)] opacity-100"
+                  : "bg-[#151b29] border-[#242a39] opacity-75 hover:opacity-95"
+              }`}
+            >
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                  currentMode === "friend"
+                    ? "bg-[#00d2ff] text-[#003543] shadow-[0_0_12px_rgba(0,210,255,0.35)]"
+                    : "bg-[#191f2e] text-[#a5e7ff]"
+                }`}
+              >
+                <Users size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#dde2f6] font-bold">
+                    Play with Friend
+                  </span>
+                  <span className="bg-[#2f3544] text-[#b6ebff] text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
+                    Private Code
+                  </span>
+                </div>
+                <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
+                  Create a custom room or join an existing table via a 6-digit challenge code.
+                </p>
+              </div>
+              <div className="shrink-0 self-center">
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                    currentMode === "friend"
+                      ? "border-[#00d2ff] bg-[#00d2ff]"
+                      : "border-[#d4c5ad]/50 bg-transparent"
+                  }`}
+                >
+                  {currentMode === "friend" && (
+                    <div className="w-2 h-2 rounded-full bg-[#003543]" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mode Option 3: Practice vs Bot */}
+            <div
+              onClick={() => setCurrentMode("bot")}
+              className={`cursor-pointer relative p-3.5 rounded-xl transition-all active:scale-[0.99] flex items-start gap-3.5 border ${
+                currentMode === "bot"
+                  ? "bg-[#242a39] border-[#68f5b8]/60 shadow-[0_0_16px_rgba(104,245,184,0.15)] opacity-100"
+                  : "bg-[#151b29] border-[#242a39] opacity-75 hover:opacity-95"
+              }`}
+            >
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                  currentMode === "bot"
+                    ? "bg-[#68f5b8] text-[#003824] shadow-[0_0_12px_rgba(104,245,184,0.35)]"
+                    : "bg-[#191f2e] text-[#68f5b8]"
+                }`}
+              >
+                <Bot size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#dde2f6] font-bold">
+                    Practice vs Bot
+                  </span>
+                  <span className="bg-[#2f3544] text-[#6ffbbe] text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
+                    {isHouseBotWager ? "House Wager" : "Zero Risk"}
+                  </span>
+                </div>
+                <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
+                  Hone your column traps and diagonal blocks against our minimax AI before wagering real NIM.
+                </p>
+              </div>
+              <div className="shrink-0 self-center">
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                    currentMode === "bot"
+                      ? "border-[#68f5b8] bg-[#68f5b8]"
+                      : "border-[#d4c5ad]/50 bg-transparent"
+                  }`}
+                >
+                  {currentMode === "bot" && (
+                    <div className="w-2 h-2 rounded-full bg-[#003824]" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Optional House Match Toggle for Bot Mode */}
+            {currentMode === "bot" && (
+              <div className="pt-1 flex items-center justify-between bg-[#151b29] border border-[#242a39] rounded-xl px-3 py-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-[#ffd78d]" />
+                  <span className="text-[#dde2f6] font-semibold">Wager vs House Bot?</span>
+                </div>
+                <button
+                  onClick={() => setIsHouseBotWager(!isHouseBotWager)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer ${
+                    isHouseBotWager
+                      ? "bg-[#f3b72c] text-[#412d00]"
+                      : "bg-[#242a39] text-[#d4c5ad]"
+                  }`}
+                  type="button"
+                >
+                  {isHouseBotWager ? "Wager Enabled" : "Free Practice"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* STAKE SELECTION MODULE                                                    */}
+          {/* ========================================================================= */}
+          <div
+            className={`px-4 pt-1 flex flex-col space-y-3 transition-opacity ${
+              currentMode === "bot" && !isHouseBotWager
+                ? "opacity-35 pointer-events-none"
+                : "opacity-100"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-base font-bold text-[#dde2f6]">
+                  Match Stake
+                </span>
+                <p className="text-xs text-[#d4c5ad]">
+                  Locked in Nimiq Pay micro-escrow
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 bg-[#151b29] border border-[#242a39] px-2.5 py-1 rounded-full text-right">
+                <span className="text-[10px] text-[#d4c5ad] font-mono">Balance:</span>
+                <span className="text-[11px] text-[#ffd78d] font-bold font-mono">
+                  {balanceNim != null ? formatNim(balanceNim) : "0"} NIM
                 </span>
               </div>
-              <button
-                className="quickmatch-close-btn"
-                onClick={() => setIsStakeModalOpen(false)}
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
             </div>
-            <div
-              className="quickmatch-modal-body"
-              style={{ textAlign: "center", padding: "16px 18px" }}
+
+            {/* Stake Chips Grid */}
+            <div className="grid grid-cols-4 gap-2">
+              {[10, 25, 50, 100].map((amount) => {
+                const isSelected = selectedStake === amount;
+                return (
+                  <button
+                    key={amount}
+                    onClick={() => setSelectedStake(amount)}
+                    className={`h-12 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border cursor-pointer ${
+                      isSelected
+                        ? "bg-[#f3b72c] border-[#ffd78d] text-[#412d00] shadow-[0_0_14px_rgba(243,183,44,0.3)]"
+                        : "bg-[#151b29] border-[#242a39] text-[#dde2f6] hover:bg-[#191f2e]"
+                    }`}
+                    type="button"
+                  >
+                    <span className="font-bold text-sm leading-tight">{amount}</span>
+                    <span
+                      className={`text-[10px] font-mono leading-none ${
+                        isSelected ? "font-bold text-[#412d00]" : "text-[#d4c5ad]"
+                      }`}
+                    >
+                      NIM
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Payout & CoinGecko Rate Preview Card */}
+            <div className="bg-[#151b29] border border-[#242a39] rounded-xl p-3 flex items-center justify-between shadow-inner">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#242a39] flex items-center justify-center text-[#ffd78d]">
+                  <Trophy size={18} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">
+                    Total Pot ({selectedStake * 2} NIM)
+                  </span>
+                  <span className="text-xs text-[#dde2f6] font-bold tracking-tight font-mono">
+                    ≈ {formatUsd(nimToUsd(selectedStake * 2))}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-[#d4c5ad] font-mono">
+                  Winner Payout (90%)
+                </span>
+                <div className="text-xs text-[#68f5b8] font-bold font-mono">
+                  +{payoutPreview} NIM
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* COLLAPSIBLE RULES ACCORDION                                               */}
+          {/* ========================================================================= */}
+          <div className="px-4 pt-1">
+            <div className="bg-[#151b29] border border-[#242a39] rounded-xl p-3 flex flex-col gap-2 transition-all">
+              <button
+                type="button"
+                onClick={() => setIsRulesExpanded(!isRulesExpanded)}
+                className="w-full flex items-center justify-between text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Gamepad2 size={18} className="text-[#a5e7ff]" />
+                  <span className="text-sm font-semibold text-[#dde2f6]">
+                    Tactical Rules &amp; Fair Play
+                  </span>
+                </div>
+                <ChevronDown
+                  size={18}
+                  className={`text-[#d4c5ad] transition-transform duration-300 ${
+                    isRulesExpanded ? "rotate-180" : "rotate-0"
+                  }`}
+                />
+              </button>
+
+              {isRulesExpanded && (
+                <div className="flex flex-col gap-2.5 pt-2 text-[#d4c5ad] text-xs border-t border-[#242a39]/80 animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
+                    <span>
+                      <strong className="text-[#dde2f6]">Drop Discs:</strong> Players alternate turns dropping 1 disc down any of the 7 columns.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
+                    <span>
+                      <strong className="text-[#dde2f6]">Victory Condition:</strong> Connect 4 discs in a straight line horizontally, vertically, or diagonally.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
+                    <span>
+                      <strong className="text-[#dde2f6]">30s Turn Clock:</strong> Failing to play before the timer expires forfeits the match to the opponent.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
+                    <span>
+                      <strong className="text-[#dde2f6]">Smart Settlement:</strong> Non-custodial escrow contract transfers 90% of the pot directly to the winner's vault.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* ACTIVE TABLES RADAR                                                       */}
+          {/* ========================================================================= */}
+          <div className="px-4 pt-1">
+            <div className="bg-[#151b29] border border-[#242a39] rounded-xl p-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#dde2f6] flex items-center gap-1.5">
+                  <Swords size={14} className="text-[#ffd78d]" />
+                  Active Connect 4 Tables ({activeCount})
+                </span>
+                <span className="text-[10px] text-[#68f5b8] font-mono font-medium">
+                  {activeCount > 0 ? "Live Radar" : "Ready to Host"}
+                </span>
+              </div>
+
+              {activeCount === 0 ? (
+                <div className="p-3 text-center text-xs text-[#d4c5ad]/70 font-mono">
+                  No public Connect 4 rooms open right now. Be the first to start a table!
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {activeMatches.map((m) => (
+                    <div
+                      key={m.id}
+                      className="p-2.5 rounded-lg bg-[#191f2e] border border-[#242a39] flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#68f5b8] animate-pulse" />
+                        <span className="text-xs font-bold font-mono text-[#dde2f6]">
+                          Table #{m.joinCode}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/matches/${m.id}`}
+                        className="h-7 px-2.5 rounded-lg bg-[#242a39] hover:bg-[#2f3544] text-xs font-mono text-[#ffd78d] flex items-center gap-1 active:scale-95 transition-transform"
+                      >
+                        <span>Join</span>
+                        <ArrowRight size={12} />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        {/* ========================================================================= */}
+        {/* FLOATING ACTION BOTTOM BAR                                                */}
+        {/* ========================================================================= */}
+        <div className="fixed bottom-14 inset-x-0 z-40 pointer-events-none">
+          <div className="max-w-md mx-auto w-full px-4 pb-2 pointer-events-auto">
+            <button
+              disabled={isConnecting}
+              onClick={handlePrimaryAction}
+              className="w-full h-13 rounded-2xl bg-gradient-to-r from-[#f3b72c] to-[#e5a620] hover:brightness-105 active:scale-[0.98] text-[#412d00] font-black text-sm flex items-center justify-center gap-2 shadow-[0_8px_30px_rgba(243,183,44,0.35)] transition-all disabled:opacity-50 cursor-pointer"
+              type="button"
             >
-              <h2 style={{ margin: "0 0 6px", fontSize: "19px", fontWeight: 800 }}>
-                Choose Your Entry Stake
-              </h2>
-              <p
-                style={{
-                  color: "rgba(251, 248, 241, 0.65)",
-                  fontSize: "12px",
-                  margin: "0 0 14px",
-                  lineHeight: 1.4,
-                }}
-              >
-                Both players deposit matching stakes into table escrow. Winner receives 90% of the total match pot!
-              </p>
-
-              <StakeSelector
-                stakeNim={selectedStake}
-                onChangeStakeNim={setSelectedStake}
-                minNim={1}
-                maxNim={10000000}
-              />
-
-              <button
-                className="primary-action"
-                onClick={handleStartWageredMatch}
-                disabled={createWagered.isPending || selectedStake < 1}
-                style={{
-                  width: "100%",
-                  justifyContent: "center",
-                  background: "var(--orange)",
-                  padding: "13px",
-                  fontSize: "13px",
-                  marginTop: "14px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                }}
-              >
-                <Coins size={16} />{" "}
-                {createWagered.isPending
-                  ? "Creating Wagered Table…"
-                  : `Create ${formatNim(selectedStake)} NIM Match`}
-              </button>
-            </div>
+              {isConnecting ? (
+                <>
+                  <RotateCw size={18} className="animate-spin" />
+                  <span>Connecting to Arena…</span>
+                </>
+              ) : currentMode === "friend" ? (
+                <>
+                  <Users size={18} />
+                  <span>Create Table &amp; Invite Friend</span>
+                </>
+              ) : currentMode === "bot" ? (
+                <>
+                  <Bot size={18} />
+                  <span>
+                    {isHouseBotWager
+                      ? `Enter House Wager (${selectedStake} NIM)`
+                      : "Start Practice Match (Free)"}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Play size={18} className="fill-[#412d00]" />
+                  <span>Enter 1v1 Arena Table ({selectedStake} NIM)</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
-      )}
 
-      <header className="detail-header">
-        <Link href="/" className="back-link">
-          <ArrowLeft size={15} /> Arena home
-        </Link>
-        <span className="detail-brand">NIMIQ ARENA / GAME 002</span>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {isConnected && walletAddress ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "rgba(255, 199, 44, 0.12)",
-                border: "1px solid rgba(255, 199, 44, 0.3)",
-                borderRadius: "20px",
-                padding: "3px 10px",
-                fontFamily: "IBM Plex Mono, monospace",
-                fontSize: "12px",
-                color: "#fbbf24",
-                fontWeight: 600,
-              }}
-              title={`Connected Nimiq Wallet (${networkName}): ${walletAddress}`}
-            >
-              <Coins size={13} style={{ color: "#eab308" }} />
-              <span>
-                {balanceStatus === "unavailable"
-                  ? "N/A"
-                  : balanceStatus === "loading"
-                  ? "…"
-                  : balanceNim.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}{" "}
-                NIM
-              </span>
-              <span style={{ fontSize: "10px", opacity: 0.65, textTransform: "uppercase" }}>
-                [{networkName.replace("Albatross", "")}]
-              </span>
-              <span style={{ opacity: 0.5 }}>|</span>
-              <span style={{ opacity: 0.85 }}>{walletAddress.slice(0, 4)}…{walletAddress.slice(-4)}</span>
-            </div>
-          ) : null}
-          <span className="detail-state">
-            {user ? `PLAYING AS: ${user.name || "PLAYER 1"}` : "GUEST MODE"}
-          </span>
-        </div>
-      </header>
-      <main className="detail-main">
-        <section className="detail-hero">
-          <div className="detail-hero-copy">
-            <span className="stamp orange">STRATEGY / TACTICAL</span>
-            <p className="eyebrow">GAME DETAIL / REAL RECORD</p>
-            <h1>{game?.name ?? "Connect NIM"}</h1>
-            <p className="detail-lede">
-              {game?.description ??
-                "Vertical 7x6 tactical strategy game. Drop discs to connect 4 in a row horizontally, vertically, or diagonally."}
-            </p>
-            <div
-              className="detail-actions"
-              style={{ flexWrap: "wrap", gap: "12px" }}
-            >
-              <button
-                className="primary-action"
-                onClick={() => setIsStakeModalOpen(true)}
-                style={{
-                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
-                  padding: "14px 24px",
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  cursor: "pointer",
-                }}
-              >
-                <Coins size={16} /> PLAY WAGER MATCH
-              </button>
-              <button
-                className="secondary-chip"
-                onClick={handleStartHouseWageredMatch}
-                disabled={createHouseWagered.isPending}
-                style={{
-                  padding: "12px 18px",
-                  background: "rgba(245, 158, 11, 0.18)",
-                  borderColor: "rgba(245, 158, 11, 0.45)",
-                  color: "#fbbf24",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-                title="Wager against Connect Bot — house matches your stake on Testnet!"
-              >
-                <Sparkles size={16} /> {createHouseWagered.isPending ? "Setting up…" : "Wager vs Bot"}
-              </button>
-              <button
-                className="secondary-chip"
-                onClick={handleStartSoloPractice}
-                disabled={createSolo.isPending}
-                style={{
-                  padding: "12px 16px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <Bot size={16} />
-                {createSolo.isPending
-                  ? "Starting…"
-                  : "Practice"}
-              </button>
-              <button
-                className="secondary-chip"
-                onClick={() => setIsPlayWithFriendOpen(true)}
-                style={{
-                  padding: "12px 18px",
-                  background: "rgba(34, 197, 94, 0.15)",
-                  borderColor: "rgba(34, 197, 94, 0.35)",
-                  color: "#4ade80",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <Users size={16} /> Play with Friend
-              </button>
-            </div>
-            <div className="trust-line">
-              <ShieldCheck size={15} />
-              <span>
-                Deterministic server-authoritative engine. Every drop and victory
-                line is verified.
-              </span>
-            </div>
-          </div>
+        {/* ========================================================================= */}
+        {/* MODALS & SHEETS                                                           */}
+        {/* ========================================================================= */}
+        <ConfirmEntrySheet
+          isOpen={isConfirmEntryOpen}
+          onClose={() => setIsConfirmEntryOpen(false)}
+          onConfirm={handleConfirmMatchEntry}
+          gameTitle="Nim Connect 7×6"
+          stakeNim={selectedStake}
+          balanceNim={balanceNim ?? 0}
+          isConfirming={isConnecting}
+        />
 
-          <div className="detail-board">
-            <img
-              src="/images/connect-nim.jpg"
-              alt="Connect NIM game table preview"
-            />
-            <div className="detail-board-wash" />
-            <span className="detail-board-label">TACTICAL ARENA / 7x6 GRID</span>
-            <strong>
-              Connect four.
-              <br />
-              <em>Claim the pot.</em>
-            </strong>
-          </div>
-        </section>
+        <PlayWithFriendModal
+          isOpen={isPlayWithFriendOpen}
+          onClose={() => setIsPlayWithFriendOpen(false)}
+          gameSlug="connect-four"
+          gameTitle="Nim Connect"
+        />
 
-        <section className="c4-protocol-section">
-          <div className="c4-protocol-card">
-            <div className="c4-protocol-topline">
-              <div className="c4-protocol-tagline">
-                <span className="c4-protocol-pulse" />
-                <span className="c4-protocol-label">TACTICAL PROTOCOL SPECIFICATIONS</span>
-                <span className="c4-protocol-code">[SYS_PROTO_002]</span>
-              </div>
-              <div className="c4-protocol-status">
-                <span className="c4-status-dot-pulse" />
-                ACTIVE PROTOCOL
-              </div>
-            </div>
+        <WalletConnectModal
+          isOpen={isWalletModalOpen}
+          onClose={() => setIsWalletModalOpen(false)}
+          connectedAddress={address}
+          connectionMode={connectionMode}
+          onConnected={async (addr, mode) => {
+            setAddress(addr);
+            setConnectionMode(mode);
+            void refreshBalance();
+            try {
+              const challengeRes = await utils.client.auth.requestChallenge.query();
+              const loginRes = await loginWithNimiq.mutateAsync({
+                address: addr,
+                challenge: challengeRes.challenge,
+              });
+              if (loginRes?.token) {
+                sessionStorage.setItem("nimiq_session_token", loginRes.token);
+              }
+              await utils.auth.me.invalidate();
+              toast.success("Wallet Authenticated", {
+                description: `Signed in as ${addr.slice(0, 8)}...`,
+              });
+            } catch (authErr) {
+              console.warn("Auto sign-in non-blocking error:", authErr);
+            }
+          }}
+          onDisconnected={() => {
+            setAddress(null);
+            setConnectionMode("none");
+          }}
+        />
 
-            <div className="c4-feature-grid">
-              <div className="c4-feature-card">
-                <div className="c4-feature-header">
-                  <div className="c4-feature-icon-wrapper grid-accent">
-                    <Gamepad2 size={22} />
-                  </div>
-                  <span className="c4-feature-badge grid-accent">MATRIX ENGINE</span>
-                </div>
-                <div className="c4-feature-body">
-                  <h4 className="c4-feature-title">7x6 Vertical Grid</h4>
-                  <p className="c4-feature-description">
-                    Vertical gravity drop physics with horizontal, vertical,
-                    and diagonal win detection.
-                  </p>
-                </div>
-                <div className="c4-feature-footer">
-                  <span className="c4-metric-label">ARCHITECTURE</span>
-                  <span className="c4-metric-value">42-SLOT BITBOARD</span>
-                </div>
-              </div>
-
-              <div className="c4-feature-card">
-                <div className="c4-feature-header">
-                  <div className="c4-feature-icon-wrapper escrow-accent">
-                    <Coins size={22} />
-                  </div>
-                  <span className="c4-feature-badge escrow-accent">ON-CHAIN ESCROW</span>
-                </div>
-                <div className="c4-feature-body">
-                  <h4 className="c4-feature-title">Wagered NIM Escrow</h4>
-                  <p className="c4-feature-description">
-                    Stake 10 to 500 NIM per match. Winner automatically claims
-                    90% of the pot on-chain.
-                  </p>
-                </div>
-                <div className="c4-feature-footer">
-                  <span className="c4-metric-label">SETTLEMENT</span>
-                  <span className="c4-metric-value">90% WINNER PAYOUT</span>
-                </div>
-              </div>
-
-              <div className="c4-feature-card">
-                <div className="c4-feature-header">
-                  <div className="c4-feature-icon-wrapper ai-accent">
-                    <Zap size={22} />
-                  </div>
-                  <span className="c4-feature-badge ai-accent">NEURAL HEURISTIC</span>
-                </div>
-                <div className="c4-feature-body">
-                  <h4 className="c4-feature-title">Tactical AI Engine</h4>
-                  <p className="c4-feature-description">
-                    Practice against an intelligent heuristic bot that detects
-                    tactical forks and blocks.
-                  </p>
-                </div>
-                <div className="c4-feature-footer">
-                  <span className="c4-metric-label">RESPONSE TIME</span>
-                  <span className="c4-metric-value">&lt; 300MS ADAPTIVE</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
+        {/* PERSISTENT BOTTOM NAVIGATION */}
+        <MobileBottomNav />
+      </div>
     </div>
   );
 }

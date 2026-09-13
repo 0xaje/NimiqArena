@@ -32,7 +32,9 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { formatNim } from "@shared/game/pot-distribution";
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 
 interface Syndicate {
   rank: number;
@@ -159,6 +161,7 @@ const SYNDICATES: Syndicate[] = [
 
 export default function SyndicateRanks() {
   const { address, balanceNim, refreshBalance } = useNimiqWallet();
+  const { nimToUsd, formatUsd } = useNimiqPrice();
   const dripMutation = trpc.payment.requestTestnetDrip.useMutation();
   const walletAddress = address;
   const [activeScope, setActiveScope] = useState<"top" | "regional" | "raids" | "recruiting">("top");
@@ -171,9 +174,9 @@ export default function SyndicateRanks() {
   const [isDripping, setIsDripping] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string; isYou?: boolean }>>([
-    { sender: "KryptoKing", text: "Apex clan is pushing 58k points, we need more wins in Connect 4!", time: "10m ago" },
+    { sender: "NimiqGladiator", text: "Guild rally active! We need more wins in Connect NIM and Ludo.", time: "10m ago" },
     { sender: "ZeroCool", text: "Just won 3 straight in Ludo Arena (+180 pts to treasury)", time: "6m ago" },
-    { sender: "You (Valkyrie)", text: "Locking down Diamond bracket right now. Let's hit top 3!", time: "2m ago", isYou: true },
+    { sender: "You", text: "Locking down the Diamond bracket right now. Let's hit top 3!", time: "2m ago", isYou: true },
   ]);
 
   const handleDrip = async () => {
@@ -236,20 +239,13 @@ export default function SyndicateRanks() {
         <header className="fixed top-0 max-w-md w-full z-50 bg-[#0d1321]/85 backdrop-blur-xl border-b border-[#242a39]/60 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
           <div className="h-16 px-4 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="relative">
-                <img
-                  alt="Profile"
-                  className="w-9 h-9 rounded-full object-cover border border-[#f3b72c]/40 shadow-sm"
-                  src="https://lh3.googleusercontent.com/aida/AEtjO1X_SEKkH_ei8ODz8gUMrl0X_UrXhtg4pdYeHJ7fpZEFwzYsY6x_OXMzm2c0kYB-y4CLDd0oVD0NDSwRxV9XVNucimIN9qNoRNfl65Ojaz6sf7dYDYsdQ0oz9rrsmw4dNv_wcudv-yE8D2P2-b2L5jQ7mRfM28LeclhEAIg0i4d3K1sG6fmemSFnWSDCW5iUeYg_jkd-F18QXTod1fOZxgsojaMfvS9MiiXrbKsYZ05rem4Va3ra26FYmS4F"
-                />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#68f5b8] ring-2 ring-[#0d1321]" />
-              </div>
+              <NimiqArenaLogo size={32} />
               <div className="flex flex-col">
                 <span className="text-sm font-black text-[#ffd78d] tracking-tight leading-none">
                   NIMIQ ARENA
                 </span>
-                <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-                  Arena Home
+                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono font-semibold">
+                  Syndicates & Guilds
                 </span>
               </div>
             </Link>
@@ -348,7 +344,7 @@ export default function SyndicateRanks() {
                     50,000
                   </span>
                   <span className="text-sm font-black text-[#ffdea4] font-mono">NIM</span>
-                  <span className="text-xs text-[#d4c5ad] font-mono ml-auto">≈ $10,500 USD</span>
+                  <span className="text-xs text-[#d4c5ad] font-mono ml-auto">≈ {formatUsd(nimToUsd(50000))} USD</span>
                 </div>
                 <span className="text-[11px] text-[#d4c5ad]">
                   Guild War Cumulative Settlement Bounty

@@ -282,6 +282,7 @@ class SoundEngine {
   }
 
   public playChipDrop() {
+    triggerHaptic("medium");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -306,6 +307,7 @@ class SoundEngine {
   }
 
   public playEmotePop() {
+    triggerHaptic("light");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -329,6 +331,7 @@ class SoundEngine {
   }
 
   public playTimerWarning() {
+    triggerHaptic("warning");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -352,6 +355,7 @@ class SoundEngine {
   }
 
   public playDefeatChord() {
+    triggerHaptic("error");
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;

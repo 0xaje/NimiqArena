@@ -1,9 +1,12 @@
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import {
   ArrowLeft,
-  CircleDot,
+  ChevronLeft,
   Copy,
+  Check,
   Dices,
-  Gamepad2,
+  Grid,
   KeyRound,
   PlusCircle,
   Share2,
@@ -11,11 +14,17 @@ import {
   Sparkles,
   Users,
   Coins,
+  Wallet,
+  ArrowRight,
+  RotateCw,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useNimiqWallet } from "@/lib/useNimiqWallet";
+import { formatNim } from "@shared/game/pot-distribution";
+import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { useNimiqPrice } from "@/lib/nimiq-price";
+import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 
 export default function JoinMatch() {
   const [, navigate] = useLocation();
@@ -26,11 +35,22 @@ export default function JoinMatch() {
   const createWageredMatch = trpc.match.createWageredMatch.useMutation();
   const join = trpc.match.joinByCode.useMutation();
 
+  const {
+    address,
+    balanceNim,
+    balanceStatus,
+    isConnected,
+  } = useNimiqWallet();
+
+  const { nimToUsd, formatUsd } = useNimiqPrice();
+
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [matchMode, setMatchMode] = useState<"free" | "wager">("free");
   const [selectedStake, setSelectedStake] = useState<number>(10);
-  const [selectedGame, setSelectedGame] = useState<"ludo-league" | "connect-four">("ludo-league");
+  const [selectedGame, setSelectedGame] = useState<"ludo-league" | "connect-four">("connect-four");
   const [joinCode, setJoinCode] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdMatch, setCreatedMatch] = useState<{
     id: string;
     joinCode: string;
@@ -42,7 +62,7 @@ export default function JoinMatch() {
     { id: createdMatch?.id || "" },
     {
       enabled: Boolean(createdMatch?.id),
-      refetchInterval: 1_200,
+      refetchInterval: 1200,
     }
   );
 
@@ -119,9 +139,11 @@ export default function JoinMatch() {
   async function handleCreateRoom(e: React.FormEvent) {
     e.preventDefault();
     try {
+      setIsSubmitting(true);
       await ensureSession();
-      toast.loading("Generating private game room…", { id: "create-room" });
+
       if (matchMode === "wager") {
+        toast.info(`Setting up ${selectedStake} NIM Wager Table…`);
         const res = await createWageredMatch.mutateAsync({
           gameSlug: selectedGame,
           stakeNim: selectedStake,
@@ -130,13 +152,13 @@ export default function JoinMatch() {
           id: res.id,
           joinCode: res.joinCode,
           isWagered: true,
-          stakeNim: res.stakeNim,
+          stakeNim: selectedStake,
         });
-        toast.success("Wager match room created!", {
-          id: "create-room",
-          description: `Invite Code: ${res.joinCode} (${res.stakeNim} NIM stake)`,
+        toast.success("Wagered Room Created!", {
+          description: `Share code ${res.joinCode} with your opponent.`,
         });
       } else {
+        toast.info("Generating Private Invite Table…");
         const res = await createChallenge.mutateAsync({
           gameSlug: selectedGame,
         });
@@ -144,592 +166,376 @@ export default function JoinMatch() {
           id: res.id,
           joinCode: res.joinCode,
           isWagered: false,
-          stakeNim: 0,
         });
-        toast.success("Game room created!", {
-          id: "create-room",
-          description: `Invite Code: ${res.joinCode}. Share with your friend!`,
+        toast.success("Private Room Ready!", {
+          description: `Share code ${res.joinCode} with your friend.`,
         });
       }
     } catch (err) {
-      toast.error("Failed to create room", {
-        id: "create-room",
+      toast.error("Room creation failed", {
         description: err instanceof Error ? err.message : "Please try again.",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
-  async function handleJoinSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  async function handleJoinRoom(e: React.FormEvent) {
+    e.preventDefault();
+    const cleanCode = joinCode.trim().toUpperCase();
+    if (!cleanCode || cleanCode.length < 4) {
+      toast.error("Please enter a valid table invite code");
+      return;
+    }
+
     try {
-      if (!user) {
-        toast.info("Signing in as guest player…");
-        const loginRes = await guestLogin.mutateAsync({
-          name: "Player 2 (Guest)",
-        });
-        if (loginRes.token) {
-          sessionStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-          localStorage.setItem("manus-cookie", `manus-session=${loginRes.token}`);
-        }
-        await utils.auth.me.invalidate();
-      }
-      const result = await join.mutateAsync({
-        joinCode: joinCode.trim().toUpperCase(),
-      });
-      toast.success("Match joined", {
-        description: `You joined as Player ${result.seat + 1}.`,
+      setIsSubmitting(true);
+      await ensureSession();
+      toast.info(`Connecting to Table #${cleanCode}…`);
+      const result = await join.mutateAsync({ joinCode: cleanCode });
+      toast.success("Joined match table!", {
+        description: "Entering duel arena now…",
       });
       navigate(`/matches/${result.id}`);
-    } catch (error) {
-      toast.error("Join request rejected", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "The invite code is invalid or the match has expired.",
+    } catch (err) {
+      toast.error("Could not join table", {
+        description: err instanceof Error ? err.message : "Verify code and try again.",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
-  const shareableUrl = createdMatch
-    ? `${window.location.origin}/join?code=${createdMatch.joinCode}`
-    : "";
+  const copyCode = async () => {
+    if (!createdMatch) return;
+    await navigator.clipboard.writeText(createdMatch.joinCode);
+    setCopied(true);
+    toast.success("Invite code copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyLink = async () => {
+    if (!createdMatch) return;
+    const url = `${window.location.origin}/join?code=${createdMatch.joinCode}`;
+    await navigator.clipboard.writeText(url);
+    toast.success("Direct match link copied!");
+  };
 
   return (
-    <div className="detail-page">
-      <header className="detail-header">
-        <Link href="/" className="back-link">
-          <ArrowLeft size={15} /> Arena home
-        </Link>
-        <span className="detail-brand">NIMIQ ARENA / PLAY WITH FRIENDS</span>
-        <span className="detail-state">
-          {user ? `PLAYING AS: ${user.name || "PLAYER"}` : "GUEST MODE"}
-        </span>
-      </header>
+    <div className="min-h-screen bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans relative selection:bg-[#f3b72c]/30 selection:text-[#ffd78d]">
+      {/* MOBILE MINI-APP CONSTRAINT CONTAINER */}
+      <div className="max-w-md w-full mx-auto min-h-screen flex flex-col bg-[#0d1321] relative shadow-2xl overflow-x-hidden">
+        
+        {/* ========================================================================= */}
+        {/* FIXED APP HEADER                                                          */}
+        {/* ========================================================================= */}
+        <header className="sticky top-0 inset-x-0 z-40 bg-[#0d1321]/90 backdrop-blur-xl border-b border-[#242a39] pt-safe shadow-sm">
+          <div className="h-16 px-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <NimiqArenaLogo size={32} />
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-[#ffd78d] tracking-tight leading-none">
+                  NIMIQ ARENA
+                </span>
+                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono font-semibold">
+                  Custom Matchroom
+                </span>
+              </div>
+            </Link>
 
-      <main className="detail-main join-main" style={{ maxWidth: "680px", margin: "0 auto" }}>
-        <section className="room-hero" style={{ textAlign: "center", marginBottom: "24px" }}>
-          <span className="stamp orange">DIRECT MULTIPLAYER</span>
-          <p className="eyebrow">PLAY WITH A FRIEND</p>
-          <h1>
-            Create or Join
-            <br />
-            <em>a friend's game.</em>
-          </h1>
-          <p className="detail-lede" style={{ maxWidth: "540px", margin: "0 auto" }}>
-            Generate a private match code to send to your friend, or enter an invite code you received to join immediately.
-          </p>
-        </section>
+            {/* Wallet Balance Pill */}
+            <div className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#242a39] rounded-full shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-[#f3b72c]" />
+              <span className="text-xs font-mono font-bold text-[#dde2f6]">
+                {balanceStatus === "available" || balanceStatus === "zero"
+                  ? formatNim(balanceNim)
+                  : "0.00"}{" "}
+                <span className="text-[#ffd78d]">NIM</span>
+              </span>
+              <Wallet size={15} className="text-[#a5e7ff]" />
+            </div>
+          </div>
+        </header>
 
-        {/* Mode Switcher Tabs */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "10px",
-            backgroundColor: "rgba(255, 255, 255, 0.05)",
-            padding: "6px",
-            borderRadius: "14px",
-            marginBottom: "24px",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <button
-            onClick={() => setActiveTab("create")}
-            style={{
-              padding: "12px",
-              borderRadius: "10px",
-              border: "none",
-              backgroundColor: activeTab === "create" ? "#EC9918" : "transparent",
-              color: activeTab === "create" ? "#111" : "rgba(255, 255, 255, 0.7)",
-              fontWeight: 800,
-              fontSize: "14px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <PlusCircle size={16} /> 1. Create Room (Host)
-          </button>
-          <button
-            onClick={() => setActiveTab("join")}
-            style={{
-              padding: "12px",
-              borderRadius: "10px",
-              border: "none",
-              backgroundColor: activeTab === "join" ? "#EC9918" : "transparent",
-              color: activeTab === "join" ? "#111" : "rgba(255, 255, 255, 0.7)",
-              fontWeight: 800,
-              fontSize: "14px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <KeyRound size={16} /> 2. Join with Code
-          </button>
-        </div>
+        {/* ========================================================================= */}
+        {/* MAIN SCROLLABLE CONTENT AREA                                              */}
+        {/* ========================================================================= */}
+        <main className="flex-1 flex flex-col w-full px-4 pt-3 pb-24 gap-4">
+          {/* Sub-Header: Back Nav */}
+          <div className="flex items-center justify-between pt-1">
+            <Link
+              href="/games"
+              className="flex items-center gap-1 text-[#d4c5ad] hover:text-[#dde2f6] transition-colors py-1 group cursor-pointer"
+            >
+              <ChevronLeft
+                size={20}
+                className="transition-transform group-active:-translate-x-1"
+              />
+              <span className="text-sm font-semibold">Games</span>
+            </Link>
 
-        {/* Tab 1: Create Game Room */}
-        {activeTab === "create" && (
-          <div className="join-card" style={{ padding: "28px" }}>
-            {!createdMatch ? (
-              <form onSubmit={handleCreateRoom} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                <div>
-                  <label className="card-label" style={{ display: "block", marginBottom: "10px", color: "#EC9918" }}>
-                    SELECT ARENA GAME
-                  </label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGame("ludo-league")}
-                      style={{
-                        padding: "16px 12px",
-                        borderRadius: "12px",
-                        backgroundColor: selectedGame === "ludo-league" ? "rgba(236, 153, 24, 0.15)" : "rgba(255, 255, 255, 0.04)",
-                        border: selectedGame === "ludo-league" ? "2px solid #EC9918" : "1px solid rgba(255, 255, 255, 0.1)",
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <Dices size={28} color="#EC9918" />
-                      <strong style={{ color: "#fff", fontSize: "14px" }}>Ludo League</strong>
-                      <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.55)" }}>Classic Board Game</span>
-                    </button>
+            <span className="text-[10px] text-[#68f5b8] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#68f5b8]/10 border border-[#68f5b8]/20">
+              P2P Micro-Escrow
+            </span>
+          </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGame("connect-four")}
-                      style={{
-                        padding: "16px 12px",
-                        borderRadius: "12px",
-                        backgroundColor: selectedGame === "connect-four" ? "rgba(236, 153, 24, 0.15)" : "rgba(255, 255, 255, 0.04)",
-                        border: selectedGame === "connect-four" ? "2px solid #EC9918" : "1px solid rgba(255, 255, 255, 0.1)",
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <CircleDot size={28} color="#00f0ff" />
-                      <strong style={{ color: "#fff", fontSize: "14px" }}>Connect NIM</strong>
-                      <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.55)" }}>Tactical 4-in-a-Row</span>
-                    </button>
-                  </div>
-                </div>
+          {/* Title Header */}
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-black text-[#dde2f6] tracking-tight">
+              Direct Multiplayer
+            </h1>
+            <p className="text-xs text-[#d4c5ad] leading-relaxed">
+              Create a custom match table and share your 6-digit invite code, or enter an invite code to join immediately.
+            </p>
+          </div>
 
-                {/* Match Mode Selector: Free Friendly vs Wager NIM */}
-                <div style={{ marginBottom: "16px" }}>
-                  <label className="card-label" style={{ marginBottom: "10px", display: "block" }}>
-                    2. SELECT MATCH MODE
-                  </label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                    <button
-                      type="button"
-                      onClick={() => setMatchMode("free")}
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: `1.5px solid ${matchMode === "free" ? "#22c55e" : "rgba(255, 255, 255, 0.1)"}`,
-                        backgroundColor: matchMode === "free" ? "rgba(34, 197, 94, 0.15)" : "rgba(255, 255, 255, 0.04)",
-                        color: matchMode === "free" ? "#4ade80" : "#94a3b8",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "2px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "14px" }}>
-                        <Gamepad2 size={16} /> Free Friendly
-                      </div>
-                      <span style={{ fontSize: "11px", opacity: 0.8 }}>0 NIM · Casual play</span>
-                    </button>
+          {/* Mode Switcher Tabs */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#151b29] border border-[#242a39]">
+            <button
+              onClick={() => setActiveTab("create")}
+              className={`py-2 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === "create"
+                  ? "bg-[#f3b72c] text-[#412d00] shadow-sm"
+                  : "text-[#d4c5ad] hover:text-[#dde2f6]"
+              }`}
+              type="button"
+            >
+              <PlusCircle size={15} />
+              <span>Create Table</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("join")}
+              className={`py-2 rounded-lg text-xs font-bold font-mono flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === "join"
+                  ? "bg-[#f3b72c] text-[#412d00] shadow-sm"
+                  : "text-[#d4c5ad] hover:text-[#dde2f6]"
+              }`}
+              type="button"
+            >
+              <KeyRound size={15} />
+              <span>Enter Code</span>
+            </button>
+          </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setMatchMode("wager")}
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: `1.5px solid ${matchMode === "wager" ? "#EC9918" : "rgba(255, 255, 255, 0.1)"}`,
-                        backgroundColor: matchMode === "wager" ? "rgba(236, 153, 24, 0.15)" : "rgba(255, 255, 255, 0.04)",
-                        color: matchMode === "wager" ? "#EC9918" : "#94a3b8",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "2px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, fontSize: "14px" }}>
-                        <Coins size={16} /> Wager NIM
-                      </div>
-                      <span style={{ fontSize: "11px", opacity: 0.8 }}>90% Payout to Winner</span>
-                    </button>
+          {/* TAB 1: CREATE TABLE */}
+          {activeTab === "create" && (
+            <div className="flex flex-col gap-4">
+              {!createdMatch ? (
+                <form onSubmit={handleCreateRoom} className="flex flex-col gap-4">
+                  {/* Select Game */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono font-bold">
+                      Select Arena Game
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGame("connect-four")}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                          selectedGame === "connect-four"
+                            ? "bg-[#242a39] border-[#f3b72c] shadow-[0_0_12px_rgba(243,183,44,0.2)]"
+                            : "bg-[#151b29] border-[#242a39] text-[#d4c5ad] hover:bg-[#191f2e]"
+                        }`}
+                      >
+                        <Grid size={24} className={selectedGame === "connect-four" ? "text-[#ffd78d]" : "text-[#d4c5ad]"} />
+                        <span className="text-xs font-bold text-[#dde2f6]">Nim Connect</span>
+                        <span className="text-[10px] text-[#a5e7ff] font-mono">7×6 Grid Duel</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGame("ludo-league")}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                          selectedGame === "ludo-league"
+                            ? "bg-[#242a39] border-[#f3b72c] shadow-[0_0_12px_rgba(243,183,44,0.2)]"
+                            : "bg-[#151b29] border-[#242a39] text-[#d4c5ad] hover:bg-[#191f2e]"
+                        }`}
+                      >
+                        <Dices size={24} className={selectedGame === "ludo-league" ? "text-[#ffd78d]" : "text-[#d4c5ad]"} />
+                        <span className="text-xs font-bold text-[#dde2f6]">Ludo League</span>
+                        <span className="text-[10px] text-[#ffd78d] font-mono">Pawn Race</span>
+                      </button>
+                    </div>
                   </div>
 
+                  {/* Mode: Free vs Wager */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono font-bold">
+                      Match Stakes
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMatchMode("free")}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                          matchMode === "free"
+                            ? "bg-[#242a39] border-[#68f5b8] text-[#68f5b8]"
+                            : "bg-[#151b29] border-[#242a39] text-[#d4c5ad]"
+                        }`}
+                      >
+                        <span className="text-xs font-bold">Friendly Practice</span>
+                        <span className="text-[10px] font-mono">0 NIM · Free</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setMatchMode("wager")}
+                        className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                          matchMode === "wager"
+                            ? "bg-[#242a39] border-[#f3b72c] text-[#ffd78d]"
+                            : "bg-[#151b29] border-[#242a39] text-[#d4c5ad]"
+                        }`}
+                      >
+                        <span className="text-xs font-bold">Wagered Duel</span>
+                        <span className="text-[10px] font-mono">Instant Payout</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Stake Selector if Wagered */}
                   {matchMode === "wager" && (
-                    <div
-                      style={{
-                        padding: "14px",
-                        borderRadius: "10px",
-                        backgroundColor: "rgba(236, 153, 24, 0.08)",
-                        border: "1px solid rgba(236, 153, 24, 0.25)",
-                        marginBottom: "12px",
-                      }}
-                    >
-                      <div style={{ fontSize: "11px", fontWeight: 700, color: "#EC9918", marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
-                        <span>STAKE PER PLAYER</span>
-                        <span>POT: {(selectedStake * 2).toLocaleString()} NIM</span>
+                    <div className="flex flex-col gap-2 p-3 rounded-xl bg-[#151b29] border border-[#242a39]">
+                      <div className="flex justify-between items-center text-xs font-mono">
+                        <span className="text-[#d4c5ad]">Select Stake</span>
+                        <span className="text-[#ffd78d] font-bold">≈ {formatUsd(nimToUsd(selectedStake))} USD</span>
                       </div>
-                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
-                        {[10, 50, 100, 500, 1000, 5000, 10000].map(amt => (
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[10, 25, 50, 100].map((stake) => (
                           <button
-                            key={amt}
+                            key={stake}
                             type="button"
-                            onClick={() => setSelectedStake(amt)}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: "6px",
-                              border: `1px solid ${selectedStake === amt ? "#EC9918" : "rgba(255, 255, 255, 0.12)"}`,
-                              backgroundColor: selectedStake === amt ? "rgba(236, 153, 24, 0.25)" : "rgba(0, 0, 0, 0.3)",
-                              color: selectedStake === amt ? "#ffffff" : "#94a3b8",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
+                            onClick={() => setSelectedStake(stake)}
+                            className={`py-2 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
+                              selectedStake === stake
+                                ? "bg-[#f3b72c] text-[#412d00]"
+                                : "bg-[#242a39] text-[#dde2f6]"
+                            }`}
                           >
-                            {amt >= 1000 ? `${(amt / 1000).toFixed(0)}k` : amt} NIM
+                            {stake} NIM
                           </button>
                         ))}
                       </div>
-
-                      {/* Custom Stake Numeric Input */}
-                      <div style={{ marginBottom: "10px" }}>
-                        <label style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "IBM Plex Mono, monospace", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
-                          Custom Stake (1 – 10,000,000 NIM)
-                        </label>
-                        <div style={{ display: "flex", alignItems: "center", background: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(236, 153, 24, 0.35)", borderRadius: "8px", overflow: "hidden" }}>
-                          <span style={{ padding: "0 10px", color: "#EC9918", fontWeight: 700, fontSize: "12px", fontFamily: "IBM Plex Mono, monospace" }}>
-                            NIM
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={10000000}
-                            value={selectedStake || ""}
-                            onChange={e => {
-                              const val = parseInt(e.target.value, 10);
-                              setSelectedStake(isNaN(val) ? 0 : Math.min(10000000, Math.max(0, val)));
-                            }}
-                            placeholder="e.g. 1000 or 1000000"
-                            style={{
-                              flex: 1,
-                              background: "transparent",
-                              border: "none",
-                              color: "#ffffff",
-                              padding: "8px 10px",
-                              fontSize: "14px",
-                              fontWeight: 700,
-                              fontFamily: "IBM Plex Mono, monospace",
-                              outline: "none",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.65)", lineHeight: "1.4", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "8px" }}>
-                        🏆 <strong>Winner takes 90%</strong> ({(selectedStake * 2 * 0.9).toLocaleString(undefined, { maximumFractionDigits: 2 })} NIM) on-chain directly to Nimiq wallet.
-                      </div>
                     </div>
                   )}
+
+                  {/* Create Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-12 rounded-xl bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] font-bold text-xs font-mono flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-95 transition-transform disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <RotateCw size={16} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={16} />
+                    )}
+                    <span>Generate Private Match Room</span>
+                  </button>
+                </form>
+              ) : (
+                /* Created Match Display Card */
+                <div className="rounded-2xl bg-[#151b29] border border-[#242a39] p-5 flex flex-col items-center text-center gap-3.5 shadow-xl">
+                  <div className="w-12 h-12 rounded-full bg-[#68f5b8]/15 border border-[#68f5b8]/30 flex items-center justify-center text-[#68f5b8]">
+                    <Sparkles size={24} />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-mono text-[#68f5b8] font-bold">
+                      ROOM GENERATED ON-CHAIN
+                    </span>
+                    <h3 className="text-lg font-black text-[#dde2f6]">
+                      Share Invite Code
+                    </h3>
+                  </div>
+
+                  {/* Giant 6-digit Code Box */}
+                  <div className="w-full py-4 rounded-xl bg-[#080e1c] border-2 border-[#f3b72c]/50 flex items-center justify-center gap-2 shadow-inner">
+                    <span className="text-3xl font-black font-mono tracking-widest text-[#ffd78d]">
+                      {createdMatch.joinCode}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    <button
+                      type="button"
+                      onClick={copyCode}
+                      className="h-10 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#dde2f6] text-xs font-mono font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+                    >
+                      {copied ? <Check size={14} className="text-[#68f5b8]" /> : <Copy size={14} />}
+                      <span>{copied ? "Copied" : "Copy Code"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={copyLink}
+                      className="h-10 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#dde2f6] text-xs font-mono font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+                    >
+                      <Share2 size={14} />
+                      <span>Share Link</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-[#a5e7ff] font-mono pt-1">
+                    <RotateCw size={14} className="animate-spin text-[#f3b72c]" />
+                    <span>Waiting for opponent to connect…</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/matches/${createdMatch.id}`)}
+                    className="w-full h-11 rounded-xl bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] font-bold text-xs font-mono flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform cursor-pointer"
+                  >
+                    <span>Enter Table Directly</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: ENTER CODE */}
+          {activeTab === "join" && (
+            <form onSubmit={handleJoinRoom} className="flex flex-col gap-4">
+              <div className="rounded-2xl bg-[#151b29] border border-[#242a39] p-5 flex flex-col gap-3.5 shadow-md">
+                <span className="text-xs font-mono text-[#d4c5ad] font-bold uppercase">
+                  Table Invite Code
+                </span>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={12}
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="ENTER 6-DIGIT CODE"
+                    className="w-full h-14 bg-[#080e1c] border-2 border-[#242a39] focus:border-[#f3b72c] rounded-xl px-4 text-center font-mono text-xl font-bold tracking-widest text-[#ffd78d] placeholder:text-[#d4c5ad]/30 placeholder:tracking-normal outline-none transition-colors"
+                  />
                 </div>
 
-                <div
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: "10px",
-                    backgroundColor: "rgba(245, 158, 11, 0.08)",
-                    border: "1px solid rgba(245, 158, 11, 0.2)",
-                    fontSize: "12px",
-                    color: "rgba(255, 255, 255, 0.75)",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  <strong style={{ color: "#EC9918", display: "block", marginBottom: "4px" }}>
-                    Instant Peer-to-Peer Invite:
-                  </strong>
-                  Generating a room creates an authoritative 8-character token. Send the token or 1-click link to your friend on Telegram, WhatsApp, or Discord to play immediately!
-                </div>
+                <p className="text-[11px] text-[#d4c5ad] leading-relaxed">
+                  Enter the code provided by your peer or tournament administrator. Tables resolve instantaneously on the Nimiq network.
+                </p>
 
                 <button
                   type="submit"
-                  disabled={createChallenge.isPending || createWageredMatch.isPending || (matchMode === "wager" && selectedStake < 1)}
-                  className="primary-action"
-                  style={{
-                    background: matchMode === "wager"
-                      ? "linear-gradient(135deg, #EC9918, #d4820a)"
-                      : "linear-gradient(135deg, #22c55e, #16a34a)",
-                    padding: "15px",
-                    fontWeight: 800,
-                    fontSize: "15px",
-                  }}
+                  disabled={isSubmitting || joinCode.trim().length < 4}
+                  className="w-full h-12 rounded-xl bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] font-bold text-xs font-mono flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-95 transition-transform disabled:opacity-50 cursor-pointer"
                 >
-                  {createChallenge.isPending || createWageredMatch.isPending
-                    ? "Generating Room…"
-                    : matchMode === "wager"
-                    ? `Create ${selectedStake.toLocaleString()} NIM Wager Room`
-                    : "Generate Free Room & Invite Code"}
-                </button>
-              </form>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px", textAlign: "center" }}>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <Sparkles size={36} color="#EC9918" />
-                </div>
-                <div>
-                  <span className="card-label" style={{ color: "#EC9918" }}>YOUR PRIVATE INVITE CODE</span>
-                  <div
-                    style={{
-                      fontSize: "32px",
-                      fontWeight: 900,
-                      letterSpacing: "4px",
-                      color: "#EC9918",
-                      fontFamily: "IBM Plex Mono, monospace",
-                      padding: "14px",
-                      backgroundColor: "rgba(236, 153, 24, 0.1)",
-                      borderRadius: "12px",
-                      border: "1px dashed #EC9918",
-                      margin: "10px 0 6px 0",
-                    }}
-                  >
-                    {createdMatch.joinCode}
-                  </div>
-                  {createdMatch.isWagered && (
-                    <div style={{ margin: "4px 0 10px 0", fontSize: "13px", color: "#EC9918", fontWeight: 700 }}>
-                      ⚡ Wager: {createdMatch.stakeNim} NIM (Pot: {(createdMatch.stakeNim || 0) * 2} NIM · 90% Winner Payout)
-                    </div>
+                  {isSubmitting ? (
+                    <RotateCw size={16} className="animate-spin" />
+                  ) : (
+                    <ArrowRight size={16} />
                   )}
-                  <p style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.65)" }}>
-                    Send this code to your friend or share the direct link below:
-                  </p>
-                </div>
-
-                {/* Share Actions */}
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(createdMatch.joinCode);
-                      toast.success("Invite code copied to clipboard!");
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "10px",
-                      backgroundColor: "rgba(255, 255, 255, 0.08)",
-                      border: "1px solid rgba(255, 255, 255, 0.15)",
-                      color: "#fff",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      fontSize: "13px",
-                    }}
-                  >
-                    <Copy size={15} /> Copy Code
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(shareableUrl);
-                      toast.success("Direct invite link copied!");
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "10px",
-                      backgroundColor: "rgba(255, 255, 255, 0.08)",
-                      border: "1px solid rgba(255, 255, 255, 0.15)",
-                      color: "#fff",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      fontSize: "13px",
-                    }}
-                  >
-                    <Share2 size={15} /> Copy Link
-                  </button>
-                </div>
-
-                {/* Social Quick Share */}
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <a
-                    href={`https://t.me/share/url?url=${encodeURIComponent(shareableUrl)}&text=${encodeURIComponent(`Play ${selectedGame === "ludo-league" ? "Ludo League" : "Connect NIM"} with me on Nimiq Arena! Code: ${createdMatch.joinCode}`)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                      borderRadius: "8px",
-                      backgroundColor: "rgba(0, 136, 204, 0.2)",
-                      border: "1px solid rgba(0, 136, 204, 0.4)",
-                      color: "#0088cc",
-                      textDecoration: "none",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    Telegram Share
-                  </a>
-                  <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Play with me on Nimiq Arena! Code: ${createdMatch.joinCode} - ${shareableUrl}`)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                      borderRadius: "8px",
-                      backgroundColor: "rgba(37, 211, 102, 0.2)",
-                      border: "1px solid rgba(37, 211, 102, 0.4)",
-                      color: "#25d366",
-                      textDecoration: "none",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    WhatsApp Share
-                  </a>
-                </div>
-
-                {/* Enter Match CTA */}
-                <button
-                  onClick={() => navigate(`/matches/${createdMatch.id}`)}
-                  className="primary-action"
-                  style={{
-                    backgroundColor: "#EC9918",
-                    padding: "15px",
-                    fontWeight: 800,
-                    fontSize: "16px",
-                    color: "#111",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <Gamepad2 size={18} /> Enter Game Lobby & Wait for Friend
+                  <span>Join Table Arena</span>
                 </button>
               </div>
-            )}
-          </div>
-        )}
+            </form>
+          )}
+        </main>
 
-        {/* Tab 2: Join with Code */}
-        {activeTab === "join" && (
-          <form className="join-card" onSubmit={handleJoinSubmit} style={{ padding: "28px" }}>
-            <div className="join-icon">
-              <KeyRound size={20} />
-            </div>
-            <label htmlFor="join-code" className="card-label">
-              INVITE CODE
-            </label>
-            <input
-              id="join-code"
-              value={joinCode}
-              onChange={(event) =>
-                setJoinCode(
-                  event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12)
-                )
-              }
-              placeholder="e.g. AB12CD34"
-              autoComplete="one-time-code"
-              required
-              minLength={6}
-              maxLength={12}
-              style={{
-                textAlign: "center",
-                letterSpacing: "3px",
-                fontSize: "20px",
-                fontWeight: 800,
-                padding: "14px",
-              }}
-            />
-
-            <div
-              style={{
-                background: "rgba(245, 158, 11, 0.08)",
-                border: "1px solid rgba(245, 158, 11, 0.25)",
-                borderRadius: "10px",
-                padding: "10px 14px",
-                margin: "14px 0",
-                fontSize: "11px",
-                color: "#fbbf24",
-                fontFamily: "IBM Plex Mono, monospace",
-                textAlign: "left",
-              }}
-            >
-              <strong style={{ display: "block", marginBottom: "4px" }}>
-                INSTANT SEAT VERIFICATION
-              </strong>
-              <span>Validates room availability, checks capacity, and assigns your official match seat.</span>
-            </div>
-
-            <button
-              className="primary-action"
-              type="submit"
-              disabled={join.isPending || joinCode.length < 6}
-              style={{
-                background: "linear-gradient(135deg, #EC9918, #d4820a)",
-                padding: "15px",
-                fontWeight: 800,
-                fontSize: "15px",
-                color: "#111",
-              }}
-            >
-              {join.isPending ? "Validating table…" : "ENTER TABLE NOW"}
-            </button>
-
-            <div className="trust-line" style={{ marginTop: "16px" }}>
-              <ShieldCheck size={15} />
-              <span>
-                Authoritative server matchmaking. Real Testnet deposit verification.
-              </span>
-            </div>
-          </form>
-        )}
-      </main>
-
-      <footer className="detail-footer">
-        <span>
-          Invalid, full, expired, and unauthorized joins are rejected.
-        </span>
-        <Link href="/">Return to Arena</Link>
-      </footer>
+        {/* PERSISTENT BOTTOM NAVIGATION */}
+        <MobileBottomNav />
+      </div>
     </div>
   );
 }
