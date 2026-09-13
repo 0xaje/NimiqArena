@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Trophy,
   Zap,
@@ -626,15 +626,13 @@ export function MatchVictoryModal({
 
             {/* Secondary Row Actions */}
             <div className="grid grid-cols-2 gap-2">
-              <a
-                href={`https://testnet.nimiq.watch/#/${txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/replay"
                 className="h-11 rounded-xl bg-[#242a39] hover:bg-[#2f3544] border border-[#2f3544] text-[#dde2f6] text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center"
               >
                 <History size={16} className="text-[#00d2ff]" />
                 <span>Tx &amp; Replay</span>
-              </a>
+              </Link>
 
               <button
                 type="button"

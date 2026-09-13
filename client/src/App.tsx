@@ -14,6 +14,7 @@ import Leaderboard from "./pages/Leaderboard";
 import SyndicateRanks from "./pages/SyndicateRanks";
 import CashoutReceiptPage from "./pages/CashoutReceiptPage";
 import MatchVictoryPage from "./pages/MatchVictoryPage";
+import MatchReplay from "./pages/MatchReplay";
 import PlayerProfile from "./pages/PlayerProfile";
 import GamesShowroom from "./pages/GamesShowroom";
 import MatchesHub from "./pages/MatchesHub";
@@ -28,6 +29,8 @@ function Router() {
       <Route path="/games/ludo-league" component={LudoDetail} />
       <Route path="/games/connect-four" component={Connect4Detail} />
       <Route path="/matches" component={MatchesHub} />
+      <Route path="/matches/:id/replay" component={MatchReplay} />
+      <Route path="/replay" component={MatchReplay} />
       <Route path="/matches/:id" component={MatchRoom} />
       <Route path="/join" component={JoinMatch} />
       <Route path="/leaderboard" component={Leaderboard} />
