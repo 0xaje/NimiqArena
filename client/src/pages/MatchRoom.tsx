@@ -346,7 +346,8 @@ export default function MatchRoom() {
       ? escrow.stakeNim
       : (state as any)?.stakeNim && (state as any).stakeNim > 0
       ? (state as any).stakeNim
-      : 50;
+      : 0;
+  const isFreeGame = gameplayStakeNim === 0;
 
   const isYourTurn = Boolean(
     snapshot &&
@@ -799,43 +800,55 @@ export default function MatchRoom() {
                 <Link
                   href={returnRoute}
                   aria-label="Exit spectator mode"
-                  className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad] hover:text-[#dde2f6]"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#191f2e] border border-[#2f3544] hover:bg-[#242a39] active:scale-95 transition-all text-[#94a3b8] hover:text-[#dde2f6]"
                   title="Exit to Games"
                 >
-                  <ArrowLeft size={18} />
+                  <ArrowLeft size={16} />
                 </Link>
               ) : (
                 <button
                   onClick={handleSurrender}
                   aria-label="Forfeit match"
-                  className="w-9 h-9 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad]"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#191f2e] border border-[#2f3544] hover:border-red-500/40 hover:text-red-400 active:scale-95 transition-all text-[#94a3b8]"
                   title="Forfeit match"
                 >
-                  <Flag size={18} />
+                  <Flag size={14} />
                 </button>
               )}
-              <div className="flex flex-col">
-                <span className="text-[10px] font-mono text-[#d4c5ad]">
-                  ROUND {roundNum}
+
+              {/* Round & Turn Aligned Pill Badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#151b29] border border-[#242a39] h-8">
+                <span className="text-[10px] font-mono font-bold text-[#ffd78d] uppercase tracking-wide">
+                  R{roundNum}
                 </span>
-                <span className="text-sm font-bold text-[#dde2f6] leading-none">
+                <span className="w-1 h-1 rounded-full bg-[#3b4356]" />
+                <span className="text-xs font-mono font-semibold text-[#dde2f6] leading-none">
                   Turn {turnNum}
                 </span>
               </div>
             </div>
 
-            {/* Center Pot Chip */}
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#242a39] border border-[#f3b72c]/30 shadow-[0_0_16px_rgba(243,183,44,0.15)]">
-              <Trophy size={16} className="text-[#f3b72c]" />
-              <div className="flex items-baseline gap-1 font-mono">
-                <span className="text-sm font-bold text-[#ffd78d]">
-                  {totalPot}
-                </span>
-                <span className="text-[10px] text-[#f3b72c] font-semibold tracking-wider">
-                  NIM POT
+            {/* Center Pot Chip / Free Play Badge */}
+            {isFreeGame ? (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#191f2e] border border-[#2f3544]">
+                <Sparkles size={14} className="text-[#68f5b8]" />
+                <span className="text-xs font-bold text-[#68f5b8] font-mono tracking-wide">
+                  FREE PLAY
                 </span>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#242a39] border border-[#f3b72c]/30 shadow-[0_0_16px_rgba(243,183,44,0.15)]">
+                <Trophy size={16} className="text-[#f3b72c]" />
+                <div className="flex items-baseline gap-1 font-mono">
+                  <span className="text-sm font-bold text-[#ffd78d]">
+                    {totalPot}
+                  </span>
+                  <span className="text-[10px] text-[#f3b72c] font-semibold tracking-wider">
+                    NIM POT
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Right Controls: Latency, Audio, VRF Audit */}
             <div className="flex items-center gap-1.5">
@@ -1027,7 +1040,7 @@ export default function MatchRoom() {
           ) : (
             <>
               <section className="relative px-3 my-1 flex flex-col items-center justify-center shrink-0">
-                <div className="relative w-full max-w-[min(94vw,min(45vh,350px))] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
+                <div className="relative w-full max-w-[min(96vw,min(54vh,430px))] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
                   {/* Ambient Board Glow Elements */}
                   <div className="absolute -top-10 -left-10 w-36 h-36 rounded-full bg-[#00d2ff]/10 blur-2xl pointer-events-none" />
                   <div className="absolute -bottom-10 -right-10 w-36 h-36 rounded-full bg-[#f3b72c]/15 blur-2xl pointer-events-none" />
@@ -1272,16 +1285,16 @@ export default function MatchRoom() {
                 </div>
               </div>
 
-              {/* Escrow Protection Badge */}
+              {/* Escrow Protection / Free Play Badge */}
               <div className="flex flex-col items-end shrink-0 pl-2">
                 <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2f3544]">
-                  <Lock size={12} className="text-[#68f5b8]" />
+                  <Lock size={12} className={isFreeGame ? "text-[#68f5b8]" : "text-[#68f5b8]"} />
                   <span className="text-[11px] text-[#dde2f6] font-semibold font-mono">
-                    {gameplayStakeNim} NIM Escrow
+                    {isFreeGame ? "Free Practice" : `${gameplayStakeNim} NIM Escrow`}
                   </span>
                 </div>
                 <span className="text-[10px] text-[#d4c5ad] font-mono mt-0.5">
-                  Protected Vault
+                  {isFreeGame ? "Casual Mode" : "Protected Vault"}
                 </span>
               </div>
             </footer>
@@ -1311,16 +1324,16 @@ export default function MatchRoom() {
                 </div>
               </div>
 
-              {/* Stake Status Guard */}
+              {/* Stake Status Guard / Free Play Badge */}
               <div className="flex flex-col items-end">
                 <div className="flex items-center gap-1">
-                  <Lock size={13} className="text-[#f3b72c]" />
+                  <Lock size={13} className={isFreeGame ? "text-[#68f5b8]" : "text-[#f3b72c]"} />
                   <span className="text-xs text-[#dde2f6] font-bold font-mono">
-                    {gameplayStakeNim} NIM
+                    {isFreeGame ? "Free Game" : `${gameplayStakeNim} NIM`}
                   </span>
                 </div>
                 <span className="text-[10px] text-[#d4c5ad] font-mono">
-                  Escrow Protected
+                  {isFreeGame ? "Practice Arena" : "Escrow Protected"}
                 </span>
               </div>
             </footer>

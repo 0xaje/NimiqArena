@@ -418,8 +418,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
     isMovable: boolean,
     colorClass: string,
     isStepping = false,
-    stepNum = 0,
-    stackCount = 1
+    stepNum = 0
   ) => (
     <button
       key={`${pIdx}-${pieceIdx}`}
@@ -431,15 +430,12 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
       onClick={() => handlePieceMove(pieceIdx)}
       onMouseEnter={() => setHoveredPiece({ player: pIdx, pieceIndex: pieceIdx })}
       onMouseLeave={() => setHoveredPiece(null)}
-      title={`Piece #${pieceIdx + 1}${stackCount > 1 ? ` (${stackCount} pawns stacked)` : ""}`}
+      title={`Piece #${pieceIdx + 1}`}
     >
       <span className="pawn-head" />
       <span className="pawn-ring" />
       <span className="pawn-body" />
       <span className="pawn-number">{(pieceIdx % 4) + 1}</span>
-      {stackCount > 1 && (
-        <span className="pawn-stack-badge">×{stackCount}</span>
-      )}
       {isStepping && (
         <span className="step-counter-badge">+{stepNum}</span>
       )}
@@ -668,29 +664,17 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                     piecesOnCell.length > 1 ? "has-multiple-pawns" : ""
                   }`}
                 >
-                  {(() => {
-                    // Group by player to render same-color stacked pawns with a clean stack badge
-                    const playerGroups: Record<number, typeof piecesOnCell> = {};
-                    piecesOnCell.forEach(item => {
-                      if (!playerGroups[item.player]) playerGroups[item.player] = [];
-                      playerGroups[item.player].push(item);
-                    });
-
-                    return Object.values(playerGroups).map(group => {
-                      const movableItem = group.find(g => canMovePiece(g.player, g.piece));
-                      const activeItem = movableItem || group.find(g => g.isStepping) || group[0];
-                      const isMovable = group.some(g => canMovePiece(g.player, g.piece));
-                      return renderPawn(
-                        activeItem.player,
-                        activeItem.pieceIndex,
-                        isMovable,
-                        activeItem.color,
-                        activeItem.isStepping,
-                        activeItem.stepNum,
-                        group.length
-                      );
-                    });
-                  })()}
+                  {piecesOnCell.map((item) => {
+                    const isMovable = canMovePiece(item.player, item.piece);
+                    return renderPawn(
+                      item.player,
+                      item.pieceIndex,
+                      isMovable,
+                      item.color,
+                      item.isStepping,
+                      item.stepNum
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -723,11 +707,10 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                     pieces.length > 1 ? "has-multiple-pawns" : ""
                   }`}
                 >
-                  {pieces.length > 0 && (() => {
-                    const movable = pieces.find(p => canMovePiece(0, p.piece)) || pieces[0];
-                    const isMovable = pieces.some(p => canMovePiece(0, p.piece));
-                    return renderPawn(0, movable.pieceIndex, isMovable, "red", false, 0, pieces.length);
-                  })()}
+                  {pieces.map((item) => {
+                    const isMovable = canMovePiece(0, item.piece);
+                    return renderPawn(0, item.pieceIndex, isMovable, "red");
+                  })}
                 </div>
               </div>
             );
@@ -756,11 +739,10 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                     pieces.length > 1 ? "has-multiple-pawns" : ""
                   }`}
                 >
-                  {pieces.length > 0 && (() => {
-                    const movable = pieces.find(p => canMovePiece(1, p.piece)) || pieces[0];
-                    const isMovable = pieces.some(p => canMovePiece(1, p.piece));
-                    return renderPawn(1, movable.pieceIndex, isMovable, "green", false, 0, pieces.length);
-                  })()}
+                  {pieces.map((item) => {
+                    const isMovable = canMovePiece(1, item.piece);
+                    return renderPawn(1, item.pieceIndex, isMovable, "green");
+                  })}
                 </div>
               </div>
             );
@@ -793,11 +775,10 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                     pieces.length > 1 ? "has-multiple-pawns" : ""
                   }`}
                 >
-                  {pieces.length > 0 && (() => {
-                    const movable = pieces.find(p => canMovePiece(targetPlayer, p.piece)) || pieces[0];
-                    const isMovable = pieces.some(p => canMovePiece(targetPlayer, p.piece));
-                    return renderPawn(targetPlayer, movable.pieceIndex, isMovable, "yellow", false, 0, pieces.length);
-                  })()}
+                  {pieces.map((item) => {
+                    const isMovable = canMovePiece(targetPlayer, item.piece);
+                    return renderPawn(targetPlayer, item.pieceIndex, isMovable, "yellow");
+                  })}
                 </div>
               </div>
             );
@@ -826,11 +807,10 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
                     pieces.length > 1 ? "has-multiple-pawns" : ""
                   }`}
                 >
-                  {pieces.length > 0 && (() => {
-                    const movable = pieces.find(p => canMovePiece(1, p.piece)) || pieces[0];
-                    const isMovable = pieces.some(p => canMovePiece(1, p.piece));
-                    return renderPawn(1, movable.pieceIndex, isMovable, "blue", false, 0, pieces.length);
-                  })()}
+                  {pieces.map((item) => {
+                    const isMovable = canMovePiece(1, item.piece);
+                    return renderPawn(1, item.pieceIndex, isMovable, "blue");
+                  })}
                 </div>
               </div>
             );
