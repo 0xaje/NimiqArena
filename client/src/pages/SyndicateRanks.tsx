@@ -852,6 +852,14 @@ export default function SyndicateRanks() {
                     <span className="text-[10px] text-[#68f5b8] font-mono">+80 pts / win</span>
                   </Link>
                 </div>
+
+                <Link
+                  href="/playoffs"
+                  className="w-full h-11 rounded-xl bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all text-center"
+                >
+                  <Trophy size={16} />
+                  <span>View Syndicate Playoffs Bracket</span>
+                </Link>
               </div>
 
               <button

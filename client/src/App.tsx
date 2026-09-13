@@ -12,6 +12,7 @@ import JoinMatch from "./pages/JoinMatch";
 import MatchRoom from "./pages/MatchRoom";
 import Leaderboard from "./pages/Leaderboard";
 import SyndicateRanks from "./pages/SyndicateRanks";
+import SyndicatePlayoffs from "./pages/SyndicatePlayoffs";
 import CashoutReceiptPage from "./pages/CashoutReceiptPage";
 import MatchVictoryPage from "./pages/MatchVictoryPage";
 import MatchReplay from "./pages/MatchReplay";
@@ -36,6 +37,9 @@ function Router() {
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/syndicates" component={SyndicateRanks} />
       <Route path="/guilds" component={SyndicateRanks} />
+      <Route path="/playoffs" component={SyndicatePlayoffs} />
+      <Route path="/syndicates/playoffs" component={SyndicatePlayoffs} />
+      <Route path="/tournament" component={SyndicatePlayoffs} />
       <Route path="/cashout-receipt" component={CashoutReceiptPage} />
       <Route path="/receipt" component={CashoutReceiptPage} />
       <Route path="/victory" component={MatchVictoryPage} />
