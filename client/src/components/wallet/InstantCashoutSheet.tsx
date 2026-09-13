@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { formatNim } from "@shared/game/pot-distribution";
 import { toast } from "sonner";
+import { CashoutReceiptModal, type CashoutReceiptData } from "./CashoutReceiptModal";
 
 interface InstantCashoutSheetProps {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export function InstantCashoutSheet({
   const [targetAddress, setTargetAddress] = useState(connectedAddress || "NQ07 39F2 88KA 19BL 4920 32F1");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDispatched, setIsDispatched] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState<CashoutReceiptData | null>(null);
 
   useEffect(() => {
     if (connectedAddress) {
@@ -66,6 +69,19 @@ export function InstantCashoutSheet({
       setSelectedRatio(maxCashout > 0 ? defaultAmount / maxCashout : 0.5);
     }
   }, [isOpen, maxCashout]);
+
+  if (showReceipt && receiptData) {
+    return (
+      <CashoutReceiptModal
+        isOpen={true}
+        onClose={() => {
+          setShowReceipt(false);
+          onClose();
+        }}
+        data={receiptData}
+      />
+    );
+  }
 
   if (!isOpen) return null;
 
@@ -110,13 +126,26 @@ export function InstantCashoutSheet({
     setTimeout(() => {
       setIsSubmitting(false);
       setIsDispatched(true);
-      const dummyTx = `tx-${crypto.randomUUID().slice(0, 8)}`;
+      const dummyTx = `0x${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
       toast.success(`🎉 ${formatNim(amount)} NIM settled directly to your wallet!`);
       onSuccess?.(amount, dummyTx);
 
+      const rData: CashoutReceiptData = {
+        amountNim: amount,
+        txHash: dummyTx,
+        blockHeight: 3982416,
+        timestamp: "Just now · On-Chain Finalized",
+        senderAddress: "NQ42 8K9L 27MN 91BZ",
+        recipientAddress: targetAddress,
+        recipientName: "Valkyrie Vault (Nimiq Pay)",
+        remainingVaultNim: Math.max(0, availableBalance - amount),
+        inPlayNim: lockedInDuelsNim,
+      };
+      setReceiptData(rData);
+
       setTimeout(() => {
-        onClose();
-      }, 1600);
+        setShowReceipt(true);
+      }, 1000);
     }, 1200);
   };
 
