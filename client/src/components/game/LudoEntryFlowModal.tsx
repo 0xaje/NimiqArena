@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Bot,
@@ -26,12 +26,14 @@ interface LudoEntryFlowModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultStake?: number;
+  gameSlug?: "ludo-league" | "connect-four";
 }
 
 export function LudoEntryFlowModal({
   isOpen,
   onClose,
   defaultStake = 100,
+  gameSlug = "ludo-league",
 }: LudoEntryFlowModalProps) {
   useModalBackHandler(isOpen, onClose);
   const [, navigate] = useLocation();
@@ -49,7 +51,17 @@ export function LudoEntryFlowModal({
   const [friendUsername, setFriendUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (defaultStake) {
+      setSelectedStake(defaultStake);
+    }
+  }, [defaultStake, isOpen]);
+
   if (!isOpen) return null;
+
+  const isC4 = gameSlug === "connect-four";
+  const gameTitle = isC4 ? "CONNECT 4 NIM" : "LUDO LEAGUE";
+  const currentGameSlug = isC4 ? "connect-four" : "ludo-league";
 
   const currentStake = selectedStake;
   const totalPot = currentStake * 2;
@@ -71,8 +83,8 @@ export function LudoEntryFlowModal({
     try {
       setIsSubmitting(true);
       await ensureAuthenticated();
-      toast.info("Entering Practice Arena vs Nimiq AI…");
-      const match = await createSolo.mutateAsync({ gameSlug: "ludo-league" });
+      toast.info(`Entering Practice Arena vs Nimiq AI…`);
+      const match = await createSolo.mutateAsync({ gameSlug: currentGameSlug });
       onClose();
       window.location.href = `/matches/${match.id}`;
     } catch (err) {
@@ -92,7 +104,7 @@ export function LudoEntryFlowModal({
       if (selectedMode === "bot") {
         toast.info(`Creating ${formatNim(currentStake)} NIM Wagered Table vs Arena Bot (House Matched)…`);
         const res = await createHouseWagered.mutateAsync({
-          gameSlug: "ludo-league",
+          gameSlug: currentGameSlug,
           stakeNim: currentStake,
         });
         onClose();
@@ -103,7 +115,7 @@ export function LudoEntryFlowModal({
       toast.info(`Setting up Table (${formatNim(currentStake)} NIM Stake)…`);
 
       const res = await createWagered.mutateAsync({
-        gameSlug: "ludo-league",
+        gameSlug: currentGameSlug,
         stakeNim: currentStake,
       });
 
@@ -130,7 +142,7 @@ export function LudoEntryFlowModal({
         <div className="ludo-flow-header">
           <div className="ludo-flow-title-group">
             <span className="ludo-flow-badge">NIMIQ ARENA</span>
-            <h2>LUDO LEAGUE</h2>
+            <h2>{gameTitle}</h2>
           </div>
           <button
             type="button"
@@ -222,10 +234,10 @@ export function LudoEntryFlowModal({
             {/* Compact Pot Summary */}
             <div
               style={{
-                background: "rgba(0, 0, 0, 0.35)",
-                border: "1px solid rgba(245, 158, 11, 0.22)",
-                borderRadius: "10px",
-                padding: "10px 14px",
+                background: "#191f2e",
+                border: "1px solid #2f3544",
+                borderRadius: "12px",
+                padding: "12px 14px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -234,19 +246,19 @@ export function LudoEntryFlowModal({
               }}
             >
               <div>
-                <span style={{ color: "rgba(251, 248, 241, 0.5)", fontSize: "10px", display: "block" }}>
+                <span style={{ color: "#d4c5ad", fontSize: "10px", display: "block", fontWeight: 600 }}>
                   MATCH POT (2X)
                 </span>
-                <strong style={{ color: "#ffffff", fontSize: "14px" }}>
+                <strong style={{ color: "#dde2f6", fontSize: "14px" }}>
                   {formatNim(totalPot)} NIM
                 </strong>
               </div>
               <div style={{ textAlign: "right" }}>
-                <span style={{ color: "rgba(251, 248, 241, 0.5)", fontSize: "10px", display: "block" }}>
+                <span style={{ color: "#d4c5ad", fontSize: "10px", display: "block", fontWeight: 600 }}>
                   WINNER TAKES (90%)
                 </span>
-                <strong style={{ color: "#4ade80", fontSize: "14px" }}>
-                  {formatNim(dist.winnerNim)} NIM
+                <strong style={{ color: "#68f5b8", fontSize: "14px" }}>
+                  +{formatNim(dist.winnerNim)} NIM
                 </strong>
               </div>
             </div>
@@ -262,7 +274,7 @@ export function LudoEntryFlowModal({
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "6px",
+                  gap: "8px",
                 }}
               >
                 <button
@@ -273,12 +285,12 @@ export function LudoEntryFlowModal({
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "5px",
-                    padding: "10px 6px",
-                    borderRadius: "10px",
-                    border: `1px solid ${selectedMode === "private" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
-                    background: selectedMode === "private" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                    color: selectedMode === "private" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    gap: "6px",
+                    padding: "12px 6px",
+                    borderRadius: "12px",
+                    border: `1px solid ${selectedMode === "private" ? "#f3b72c" : "#2f3544"}`,
+                    background: selectedMode === "private" ? "rgba(243, 183, 44, 0.15)" : "#191f2e",
+                    color: selectedMode === "private" ? "#ffd78d" : "#d4c5ad",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -286,7 +298,7 @@ export function LudoEntryFlowModal({
                     fontWeight: 700,
                   }}
                 >
-                  <Coins size={18} />
+                  <Coins size={18} className={selectedMode === "private" ? "text-[#f3b72c]" : "text-[#d4c5ad]"} />
                   <span>Room Code</span>
                 </button>
 
@@ -298,12 +310,12 @@ export function LudoEntryFlowModal({
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "5px",
-                    padding: "10px 6px",
-                    borderRadius: "10px",
-                    border: `1px solid ${selectedMode === "friend" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
-                    background: selectedMode === "friend" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                    color: selectedMode === "friend" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    gap: "6px",
+                    padding: "12px 6px",
+                    borderRadius: "12px",
+                    border: `1px solid ${selectedMode === "friend" ? "#f3b72c" : "#2f3544"}`,
+                    background: selectedMode === "friend" ? "rgba(243, 183, 44, 0.15)" : "#191f2e",
+                    color: selectedMode === "friend" ? "#ffd78d" : "#d4c5ad",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -311,7 +323,7 @@ export function LudoEntryFlowModal({
                     fontWeight: 700,
                   }}
                 >
-                  <Users size={18} />
+                  <Users size={18} className={selectedMode === "friend" ? "text-[#f3b72c]" : "text-[#d4c5ad]"} />
                   <span>Invite</span>
                 </button>
 
@@ -323,12 +335,12 @@ export function LudoEntryFlowModal({
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "5px",
-                    padding: "10px 6px",
-                    borderRadius: "10px",
-                    border: `1px solid ${selectedMode === "bot" ? "#f59e0b" : "rgba(251, 248, 241, 0.12)"}`,
-                    background: selectedMode === "bot" ? "rgba(245, 158, 11, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                    color: selectedMode === "bot" ? "#fbbf24" : "rgba(251, 248, 241, 0.75)",
+                    gap: "6px",
+                    padding: "12px 6px",
+                    borderRadius: "12px",
+                    border: `1px solid ${selectedMode === "bot" ? "#f3b72c" : "#2f3544"}`,
+                    background: selectedMode === "bot" ? "rgba(243, 183, 44, 0.15)" : "#191f2e",
+                    color: selectedMode === "bot" ? "#ffd78d" : "#d4c5ad",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                     fontFamily: "'IBM Plex Mono', monospace",
@@ -336,7 +348,7 @@ export function LudoEntryFlowModal({
                     fontWeight: 700,
                   }}
                 >
-                  <Bot size={18} />
+                  <Bot size={18} className={selectedMode === "bot" ? "text-[#f3b72c]" : "text-[#d4c5ad]"} />
                   <span>AI Bot</span>
                 </button>
               </div>
@@ -345,18 +357,18 @@ export function LudoEntryFlowModal({
                 <div
                   style={{
                     marginTop: "10px",
-                    padding: "8px 12px",
-                    background: "rgba(245, 158, 11, 0.12)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    background: "rgba(243, 183, 44, 0.1)",
+                    border: "1px solid rgba(243, 183, 44, 0.3)",
+                    borderRadius: "10px",
                     fontSize: "11px",
-                    color: "#fde047",
+                    color: "#ffdea4",
                     display: "flex",
                     alignItems: "center",
-                    gap: "6px",
+                    gap: "8px",
                   }}
                 >
-                  <Sparkles size={14} color="#f59e0b" />
+                  <Sparkles size={16} className="text-[#f3b72c] shrink-0" />
                   <span>
                     <strong>Instant House Match:</strong> Platform bankroll matches your {formatNim(currentStake)} NIM stake! Beat the AI to win the on-chain pot.
                   </span>
@@ -364,7 +376,7 @@ export function LudoEntryFlowModal({
               )}
 
               {selectedMode === "friend" && (
-                <div style={{ marginTop: "8px" }}>
+                <div style={{ marginTop: "10px" }}>
                   <input
                     type="text"
                     placeholder="Friend's username or player tag…"
@@ -372,14 +384,15 @@ export function LudoEntryFlowModal({
                     onChange={e => setFriendUsername(e.target.value)}
                     style={{
                       width: "100%",
-                      background: "rgba(0, 0, 0, 0.4)",
-                      border: "1px solid rgba(245, 158, 11, 0.4)",
-                      borderRadius: "8px",
+                      background: "#080e1c",
+                      border: "1px solid #2f3544",
+                      borderRadius: "10px",
                       padding: "10px 12px",
-                      color: "#ffffff",
+                      color: "#dde2f6",
                       fontSize: "12px",
                       fontFamily: "'IBM Plex Mono', monospace",
                       boxSizing: "border-box",
+                      outline: "none",
                     }}
                   />
                 </div>

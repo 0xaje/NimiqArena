@@ -57,13 +57,28 @@ export default function Home() {
   const logoutMutation = trpc.auth.logout.useMutation();
 
   // Interactive UI state
-  const [selectedStake, setSelectedStake] = useState<number>(50);
+  const [quickPlayGame, setQuickPlayGame] = useState<"ludo-league" | "connect-four">("ludo-league");
+  const [selectedUsdStake, setSelectedUsdStake] = useState<number>(10);
+  const USD_STAKES = [10, 50, 100, 500];
+
+  const calculateNimFromUsd = (usd: number): number => {
+    if (priceUsd && priceUsd > 0) {
+      const rawNim = usd / priceUsd;
+      if (rawNim >= 1000) {
+        return Math.round(rawNim / 100) * 100;
+      }
+      return Math.max(10, Math.round(rawNim));
+    }
+    return usd * 2500;
+  };
+
+  const [selectedStake, setSelectedStake] = useState<number>(() => calculateNimFromUsd(10));
   const [isLudoFlowOpen, setIsLudoFlowOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
   const [isWagerSheetOpen, setIsWagerSheetOpen] = useState(false);
   const [isWalletSheetOpen, setIsWalletSheetOpen] = useState(false);
-  const [sheetGameTitle, setSheetGameTitle] = useState("Ludo Classic");
+  const [sheetGameTitle, setSheetGameTitle] = useState("Ludo Blitz");
   const [sheetStake, setSheetStake] = useState(50);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [isDripping, setIsDripping] = useState(false);
@@ -120,11 +135,7 @@ export default function Home() {
 
   const confirmWagerAndLaunch = () => {
     setIsWagerSheetOpen(false);
-    if (sheetGameTitle.toLowerCase().includes("connect")) {
-      window.location.href = `/games/connect-four`;
-    } else {
-      setIsLudoFlowOpen(true);
-    }
+    setIsLudoFlowOpen(true);
   };
 
   const activeMatches = activeMatchesQuery.data || [];
@@ -143,45 +154,42 @@ export default function Home() {
         {/* ========================================================================= */}
         {/* TOP FIXED APP HEADER                                                      */}
         {/* ========================================================================= */}
-        <header className="fixed top-0 max-w-md w-full z-40 bg-[#0d1321]/90 backdrop-blur-xl border-b border-[#242a39]/60 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
-          <div className="h-16 px-4 flex items-center justify-between">
-            {/* Left: Brand Identity */}
-            <div className="flex items-center gap-2.5">
-              <NimiqArenaLogo size={32} />
-              <div className="flex flex-col">
-                <span className="font-extrabold text-[#ffffff] text-base tracking-tight leading-none">
-                  NIMIQ ARENA
-                </span>
-                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
-                  The Honest Matchroom
-                </span>
-              </div>
-            </div>
+        <header className="fixed top-0 inset-x-0 z-50 pointer-events-none">
+          <div className="max-w-md mx-auto w-full pointer-events-auto bg-[#0d1321]/85 backdrop-blur-xl border-b border-[#242a39]/80 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
+            <div className="h-16 px-4 flex items-center justify-between">
+              
+              {/* Left: Brand Identity Emblem */}
+              <Link href="/" className="flex items-center gap-2.5 group">
+                <NimiqArenaLogo size={32} />
+                <div className="flex flex-col">
+                  <span className="text-base font-bold text-[#ffdea4] tracking-tight leading-none group-hover:text-white transition-colors">
+                    NIMIQ ARENA
+                  </span>
+                  <span className="text-[10px] text-[#ffd78d] uppercase tracking-wider font-mono mt-0.5">
+                    Web3 Matchroom
+                  </span>
+                </div>
+              </Link>
 
-            {/* Right: Wallet Balance Pill */}
-            <button
-              onClick={() => {
-                if (isConnected) {
-                  setIsWalletSheetOpen(true);
-                } else {
-                  setIsWalletModalOpen(true);
-                }
-              }}
-              className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#2f3544] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-transform"
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  isConnected
-                    ? "bg-[#22c55e] shadow-[0_0_8px_#22c55e]"
-                    : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
-                }`}
-              />
-              <span className="text-xs font-semibold text-[#dde2f6]">
-                {balanceNim != null ? formatNim(balanceNim) : "0"}{" "}
-                <span className="text-[#ffd78d] font-bold">NIM</span>
-              </span>
-              <Wallet size={15} className="text-[#a5e7ff]" />
-            </button>
+              {/* Right: Wallet Balance Pill */}
+              <button
+                onClick={() => setIsWalletSheetOpen(true)}
+                className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#2f3544] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-transform"
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected
+                      ? "bg-[#22c55e] shadow-[0_0_8px_#22c55e]"
+                      : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
+                  }`}
+                />
+                <span className="text-xs font-semibold text-[#dde2f6]">
+                  {balanceNim != null ? formatNim(balanceNim) : "0"}{" "}
+                  <span className="text-[#ffd78d] font-bold">NIM</span>
+                </span>
+                <Wallet size={15} className="text-[#a5e7ff]" />
+              </button>
+            </div>
           </div>
         </header>
 
@@ -366,37 +374,92 @@ export default function Home() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-[#dde2f6]">Quick Play</span>
-                  <span className="text-xs text-[#94a3b8]">Instant entry into queue</span>
+                  <span className="text-xs text-[#94a3b8]">Select game & stake to enter matchmaking</span>
                 </div>
                 <Zap size={20} className="text-[#f3b72c]" />
               </div>
 
-              {/* Stake Chips Selector */}
-              <div className="grid grid-cols-4 gap-2 my-3">
-                {[10, 50, 100, 500].map(amount => (
-                  <button
-                    key={amount}
-                    type="button"
-                    onClick={() => setSelectedStake(amount)}
-                    className={`h-11 rounded-xl flex flex-col items-center justify-center font-mono text-xs transition-all active:scale-95 ${
-                      selectedStake === amount
-                        ? "bg-[#f3b72c] text-[#412d00] font-bold shadow-[0_0_16px_rgba(243,183,44,0.35)]"
-                        : "bg-[#191f2e] text-[#94a3b8] border border-[#2f3544] hover:border-[#4f4534]"
-                    }`}
-                  >
-                    <span className="font-bold">{amount}</span>
-                    <span className="text-[9px] opacity-75">NIM</span>
-                  </button>
-                ))}
+              {/* Game Selector Toggle */}
+              <div className="grid grid-cols-2 gap-2 mt-3 mb-2 p-1 rounded-xl bg-[#080e1c] border border-[#242a39]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickPlayGame("ludo-league");
+                    setSheetGameTitle("Ludo Blitz");
+                  }}
+                  className={`h-9 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold font-mono transition-all active:scale-95 ${
+                    quickPlayGame === "ludo-league"
+                      ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.4)]"
+                      : "text-[#d4c5ad] hover:text-[#dde2f6]"
+                  }`}
+                >
+                  <span className="text-sm">🎲</span>
+                  <span>Ludo Blitz</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickPlayGame("connect-four");
+                    setSheetGameTitle("Connect 4 NIM");
+                  }}
+                  className={`h-9 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold font-mono transition-all active:scale-95 ${
+                    quickPlayGame === "connect-four"
+                      ? "bg-[#00d2ff] text-[#003543] shadow-[0_0_12px_rgba(0,210,255,0.4)]"
+                      : "text-[#d4c5ad] hover:text-[#dde2f6]"
+                  }`}
+                >
+                  <span className="text-sm">🔴</span>
+                  <span>Connect 4</span>
+                </button>
+              </div>
+
+              {/* Stake Chips Selector (USD Denominations with live NIM conversion) */}
+              <div className="grid grid-cols-4 gap-2 my-2.5">
+                {USD_STAKES.map((usd) => {
+                  const nimEquivalent = calculateNimFromUsd(usd);
+                  const isSelected = selectedUsdStake === usd;
+                  return (
+                    <button
+                      key={usd}
+                      type="button"
+                      onClick={() => {
+                        setSelectedUsdStake(usd);
+                        setSelectedStake(nimEquivalent);
+                      }}
+                      className={`h-13 py-1.5 rounded-xl flex flex-col items-center justify-center font-mono transition-all active:scale-95 ${
+                        isSelected
+                          ? "bg-[#f3b72c] text-[#412d00] font-bold shadow-[0_0_16px_rgba(243,183,44,0.35)]"
+                          : "bg-[#191f2e] text-[#d4c5ad] border border-[#2f3544] hover:border-[#4f4534]"
+                      }`}
+                    >
+                      <span className="text-sm font-black">${usd}</span>
+                      <span
+                        className={`text-[9px] font-semibold leading-none mt-0.5 ${
+                          isSelected ? "text-[#412d00]/80" : "text-[#94a3b8]"
+                        }`}
+                      >
+                        ~{formatNim(nimEquivalent)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Primary Action CTA */}
               <button
-                onClick={() => openWagerConfirmation("Ludo Classic", selectedStake)}
+                onClick={() => {
+                  const currentNim = calculateNimFromUsd(selectedUsdStake);
+                  openWagerConfirmation(
+                    quickPlayGame === "connect-four" ? "Connect 4 NIM" : "Ludo Blitz",
+                    currentNim
+                  );
+                }}
                 className="w-full h-12 rounded-xl bg-[#f3b72c] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-98 transition-all"
               >
                 <Play size={16} fill="currentColor" />
-                <span>Enter Matchmaking ({selectedStake} NIM)</span>
+                <span>
+                  Enter Matchmaking (${selectedUsdStake} · ~{formatNim(calculateNimFromUsd(selectedUsdStake))} NIM)
+                </span>
               </button>
             </div>
           </section>
@@ -773,6 +836,8 @@ export default function Home() {
         <LudoEntryFlowModal
           isOpen={isLudoFlowOpen}
           onClose={() => setIsLudoFlowOpen(false)}
+          defaultStake={sheetStake}
+          gameSlug={quickPlayGame}
         />
         <WalletConnectModal
           isOpen={isWalletModalOpen}
