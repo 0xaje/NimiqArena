@@ -13,6 +13,7 @@ import MatchRoom from "./pages/MatchRoom";
 import Leaderboard from "./pages/Leaderboard";
 import SyndicateRanks from "./pages/SyndicateRanks";
 import SyndicatePlayoffs from "./pages/SyndicatePlayoffs";
+import NimiqWatchExplorer from "./pages/NimiqWatchExplorer";
 import CashoutReceiptPage from "./pages/CashoutReceiptPage";
 import MatchVictoryPage from "./pages/MatchVictoryPage";
 import MatchReplay from "./pages/MatchReplay";
@@ -40,6 +41,10 @@ function Router() {
       <Route path="/playoffs" component={SyndicatePlayoffs} />
       <Route path="/syndicates/playoffs" component={SyndicatePlayoffs} />
       <Route path="/tournament" component={SyndicatePlayoffs} />
+      <Route path="/explorer" component={NimiqWatchExplorer} />
+      <Route path="/watch" component={NimiqWatchExplorer} />
+      <Route path="/watch/:hash" component={NimiqWatchExplorer} />
+      <Route path="/tx/:hash" component={NimiqWatchExplorer} />
       <Route path="/cashout-receipt" component={CashoutReceiptPage} />
       <Route path="/receipt" component={CashoutReceiptPage} />
       <Route path="/victory" component={MatchVictoryPage} />

@@ -352,10 +352,8 @@ export function CashoutReceiptModal({
           </div>
 
           {/* Nimiq Explorer Card Anchor */}
-          <a
-            href={`https://testnet.nimiq.watch/#/${receipt.txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/watch"
             className="flex items-center justify-between p-3.5 rounded-2xl bg-[#151b29] hover:bg-[#191f2e] border border-[#242a39] active:scale-[0.99] transition-all shadow-md group"
           >
             <div className="flex items-center gap-3">
@@ -375,7 +373,7 @@ export function CashoutReceiptModal({
             <span className="text-[10px] font-mono text-[#00d2ff] bg-[#00d2ff]/10 px-2 py-0.5 rounded-full border border-[#00d2ff]/20">
               Live Block
             </span>
-          </a>
+          </Link>
 
           {/* Post-Cashout Vault Snapshot */}
           <div className="rounded-2xl bg-[#191f2e] border border-[#242a39] p-4 space-y-2 shadow-md">
