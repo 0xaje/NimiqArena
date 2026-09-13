@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
 import { useNimiqPrice } from "@/lib/nimiq-price";
+import { MatchVictoryModal } from "./MatchVictoryModal";
 
 interface VictoryPayoutBannerProps {
   matchId: string;
@@ -41,6 +42,7 @@ export function VictoryPayoutBanner({
 }: VictoryPayoutBannerProps) {
   const { formatUsd, nimToUsd } = useNimiqPrice();
   const isWinner = yourUserId === winnerUserId;
+  const [showModal, setShowModal] = useState(true);
   const { data: refStats } = trpc.auth.getReferralStats.useQuery(undefined, { enabled: isWinner });
   const referralCode = refStats?.referralCode || "player";
   const origin = typeof window !== "undefined" ? window.location.origin : "https://arena.nimiq.com";
@@ -92,7 +94,36 @@ export function VictoryPayoutBanner({
     : calculatePotDistribution(totalPotNim, false);
 
   return (
-    <div className={`victory-result-card ${isWinner ? "winner-theme" : "loser-theme"}`}>
+    <>
+      {showModal && (
+        <MatchVictoryModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          onInspectBoard={() => setShowModal(false)}
+          onRematch={onPlayAgain}
+          onReturnToLobby={onReturnToLobby}
+          isWinner={isWinner}
+          grossPotNim={totalPotNim > 0 ? totalPotNim : 200}
+          netPayoutNim={totalPotNim > 0 ? dist.winnerNim : 190}
+          protocolFeeNim={totalPotNim > 0 ? totalPotNim - dist.winnerNim : 10}
+          txHash={settlement?.payoutTxHash || "0x8f3c7b209e14a1c5d91a"}
+        />
+      )}
+
+      {!showModal && (
+        <div className="fixed top-20 right-4 z-40">
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f3b72c] text-[#412d00] font-black text-xs shadow-lg active:scale-95 transition-transform"
+          >
+            <Trophy size={14} />
+            <span>Show Victory Receipt</span>
+          </button>
+        </div>
+      )}
+
+      <div className={`victory-result-card ${isWinner ? "winner-theme" : "loser-theme"}`}>
       {/* Grand Result Moment */}
       <div className="victory-header-moment">
         <div className="status-badge-glow">
@@ -382,6 +413,7 @@ export function VictoryPayoutBanner({
           </button>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
