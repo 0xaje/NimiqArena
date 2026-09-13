@@ -1368,6 +1368,11 @@ export default function MatchRoom() {
             }
             yourUserId={authQuery.data?.id ?? 0}
             totalPotNim={escrow?.totalPotNim || 0}
+            gameSlug={isC4 ? "connect-four" : "ludo-league"}
+            gameTitle={isC4 ? "Connect 4 NIM" : "Ludo Blitz"}
+            p1Name={p1Name}
+            p2Name={p2Name}
+            turnCount={(snapshot as any)?.turnCount ?? 1}
             isReplaying={isReplaying}
             onPlayAgain={async () => {
               if (isReplaying) return;

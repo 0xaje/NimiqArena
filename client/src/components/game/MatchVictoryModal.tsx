@@ -94,46 +94,46 @@ export function MatchVictoryModal({
   onInspectBoard,
 
   isWinner = true,
-  gameTitle = "Connect 4 Pro Duel · Best of 1",
-  winNarrative = "Flawless vertical quadrant lock in Turn 24. Stake pool released!",
+  gameTitle = "Arena Match",
+  winNarrative = "Victory confirmed! Outstanding strategic execution.",
   blockHeight = 3982425,
 
-  winnerName = "Valkyrie",
-  winnerClan = "[GLDN] Gold Legion",
+  winnerName = "Player 1",
+  winnerClan = "Nimiq Arena",
   winnerAvatar = DEFAULT_WINNER_AVATAR,
-  winnerScore = "WINNER (4-2)",
+  winnerScore = "WINNER",
 
-  loserName = "CyberRonin",
-  loserClan = "[CYBR] NeoOps",
+  loserName = "Player 2",
+  loserClan = "Nimiq Arena",
   loserAvatar = DEFAULT_LOSER_AVATAR,
 
-  grossPotNim = 200,
-  netPayoutNim = 190,
-  protocolFeeNim = 10,
-  txHash = "0x8f3c7b209e14a1c5d91a",
+  grossPotNim = 0,
+  netPayoutNim = 0,
+  protocolFeeNim = 0,
+  txHash,
 
-  eloGain = 42,
-  newElo = 2182,
-  oldElo = 2140,
-  eloTier = "Diamond II (Top 3.1%)",
-  eloProgressPct = 78,
-  eloToNextTier = 18,
+  eloGain = 15,
+  newElo = 1515,
+  oldElo = 1500,
+  eloTier = "Silver I",
+  eloProgressPct = 50,
+  eloToNextTier = 50,
 
-  honorGain = 120,
-  winStreak = 6,
-  streakBonusNim = 15,
-  clanName = "Gold Legion",
-  clanRank = "Rank #3 Syndicate",
+  honorGain = 50,
+  winStreak = 1,
+  streakBonusNim = 0,
+  clanName = "Nimiq Arena",
+  clanRank = "Arena Contender",
 
-  matchDuration = "3m 42s",
-  movesCount = 24,
-  trapsSet = 3,
-  turnSpeed = "1.4s",
-  accuracyPercent = 94,
+  matchDuration = "2m 15s",
+  movesCount = 18,
+  trapsSet = 1,
+  turnSpeed = "1.8s",
+  accuracyPercent = 88,
 
   boardSnapshotUrl = DEFAULT_SNAPSHOT_IMAGE,
-  snapshotCaption = "Diagonal trap executed on row 3-4",
-  rematchStakeNim = 100,
+  snapshotCaption = "Match completion snapshot",
+  rematchStakeNim = 0,
 }: MatchVictoryModalProps) {
   const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -404,54 +404,71 @@ export function MatchVictoryModal({
             </div>
 
             {/* Net Payout Figure */}
-            <div className="flex flex-col items-center text-center py-1">
-              <span className="text-[11px] text-[#d4c5ad]">Total Net Prize Claimed</span>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-3xl font-black text-[#ffd78d] tracking-tight drop-shadow-[0_0_12px_rgba(243,183,44,0.4)] font-mono">
-                  +{formatNim(netPayoutNim)}
-                </span>
-                <span className="text-base font-bold text-[#ffdea4] font-mono">NIM</span>
-              </div>
-              <div className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full bg-[#242a39] text-[#d4c5ad] text-[10px] font-mono">
-                <span>≈ ${usdNet} USD</span>
-                <span className="text-[#d4c5ad]/40">·</span>
-                <span className="text-[#68f5b8] font-medium">Finalized in 0.84s</span>
-              </div>
-            </div>
+            {grossPotNim > 0 ? (
+              <>
+                <div className="flex flex-col items-center text-center py-1">
+                  <span className="text-[11px] text-[#d4c5ad]">Total Net Prize Claimed</span>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-3xl font-black text-[#ffd78d] tracking-tight drop-shadow-[0_0_12px_rgba(243,183,44,0.4)] font-mono">
+                      +{formatNim(netPayoutNim)}
+                    </span>
+                    <span className="text-base font-bold text-[#ffdea4] font-mono">NIM</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full bg-[#242a39] text-[#d4c5ad] text-[10px] font-mono">
+                    <span>≈ ${usdNet} USD</span>
+                    <span className="text-[#d4c5ad]/40">·</span>
+                    <span className="text-[#68f5b8] font-medium">Finalized in 0.84s</span>
+                  </div>
+                </div>
 
-            {/* Settlement Breakdown Subtable */}
-            <div className="mt-2.5 bg-[#080e1c]/90 rounded-lg p-2.5 flex flex-col gap-1.5 font-mono text-xs border border-[#242a39]">
-              <div className="flex justify-between items-center text-[#d4c5ad]">
-                <span className="flex items-center gap-1 text-[11px]">
-                  <Award size={13} className="text-[#ffd78d]" /> Gross Match Purse
-                </span>
-                <span className="text-[#dde2f6] text-[11px] font-bold">
-                  {formatNim(grossPotNim)}.00 NIM
-                </span>
+                {/* Settlement Breakdown Subtable */}
+                <div className="mt-2.5 bg-[#080e1c]/90 rounded-lg p-2.5 flex flex-col gap-1.5 font-mono text-xs border border-[#242a39]">
+                  <div className="flex justify-between items-center text-[#d4c5ad]">
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <Award size={13} className="text-[#ffd78d]" /> Gross Match Purse
+                    </span>
+                    <span className="text-[#dde2f6] text-[11px] font-bold">
+                      {formatNim(grossPotNim)}.00 NIM
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[#d4c5ad]">
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <Activity size={13} className="text-[#d4c5ad]" /> Protocol Escrow Fee (5%)
+                    </span>
+                    <span className="text-[#ffb4ab] text-[11px]">
+                      -{formatNim(protocolFeeNim)}.00 NIM
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[#d4c5ad]">
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <Zap size={13} className="text-[#68f5b8]" /> Relayer Fee
+                    </span>
+                    <span className="text-[#68f5b8] text-[10px] font-bold bg-[#68f5b8]/10 px-1.5 py-0.5 rounded">
+                      FREE (Arena Relayed)
+                    </span>
+                  </div>
+                  <div className="pt-1.5 border-t border-[#242a39] flex justify-between items-center">
+                    <span className="text-[#dde2f6] font-semibold flex items-center gap-1 text-[11px]">
+                      <ShieldCheck size={14} className="text-[#00d2ff]" /> Dispatched To
+                    </span>
+                    <span className="text-[#00d2ff] text-[11px] font-bold">Nimiq Pay Wallet</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center text-center py-2">
+                <span className="text-[11px] text-[#d4c5ad]">Practice Arena Match</span>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-2xl font-black text-[#68f5b8] tracking-tight font-mono">
+                    0 NIM
+                  </span>
+                  <span className="text-xs font-bold text-[#a5e7ff] font-mono">FREE MATCH</span>
+                </div>
+                <div className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full bg-[#080e1c] text-[#d4c5ad] text-[10px] font-mono border border-[#242a39]">
+                  <span className="text-[#68f5b8] font-medium">Unranked Practice · No Tokens Staked</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center text-[#d4c5ad]">
-                <span className="flex items-center gap-1 text-[11px]">
-                  <Activity size={13} className="text-[#d4c5ad]" /> Protocol Escrow Fee (5%)
-                </span>
-                <span className="text-[#ffb4ab] text-[11px]">
-                  -{formatNim(protocolFeeNim)}.00 NIM
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-[#d4c5ad]">
-                <span className="flex items-center gap-1 text-[11px]">
-                  <Zap size={13} className="text-[#68f5b8]" /> Relayer Fee
-                </span>
-                <span className="text-[#68f5b8] text-[10px] font-bold bg-[#68f5b8]/10 px-1.5 py-0.5 rounded">
-                  FREE (Arena Relayed)
-                </span>
-              </div>
-              <div className="pt-1.5 border-t border-[#242a39] flex justify-between items-center">
-                <span className="text-[#dde2f6] font-semibold flex items-center gap-1 text-[11px]">
-                  <ShieldCheck size={14} className="text-[#00d2ff]" /> Dispatched To
-                </span>
-                <span className="text-[#00d2ff] text-[11px] font-bold">Nimiq Pay Wallet</span>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* ========================================================================= */}

@@ -392,45 +392,51 @@ export function applyCommand(
       return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
     }
   } else {
-    // Auto-select valid die for this piece from remaining
-    const validDice = remaining.filter(d =>
-      from === -1 ? d === 6 : from + d <= LUDO_HOME_ENTRY
-    );
-    if (validDice.length === 0) {
-      return reject(
-        "ILLEGAL_MOVE",
-        from === -1
-          ? "A piece can only leave base on a six."
-          : "The move overshoots the home entry."
+    // If this is the sole piece that can move and multiple dice remain, move the combined sum
+    if (isMultiDice && !otherPiecesCanMove && from >= 0 && from + remainingSum <= LUDO_HOME_ENTRY) {
+      isCombinedMove = true;
+      dieToUse = remainingSum;
+    } else {
+      // Auto-select valid die for this piece from remaining
+      const validDice = remaining.filter(d =>
+        from === -1 ? d === 6 : from + d <= LUDO_HOME_ENTRY
       );
-    }
+      if (validDice.length === 0) {
+        return reject(
+          "ILLEGAL_MOVE",
+          from === -1
+            ? "A piece can only leave base on a six."
+            : "The move overshoots the home entry."
+        );
+      }
 
-    // Prioritize die that captures an opponent piece
-    let chosenDie = validDice[0];
-    if (validDice.length > 1 && from >= 0) {
-      for (const d of validDice) {
-        const testTo = from + d;
-        if (testTo < TRACK_CELLS_BEFORE_HOME) {
-          const testLanding = globalTrackPosition(command.playerId, testTo, command.pieceIndex, mode);
-          if (!LUDO_SAFE_SQUARES.has(testLanding)) {
-            const wouldCapture = snapshot.players.some(opp =>
-              opp.id !== command.playerId &&
-              opp.pieces.some(
-                (oppP, oppIdx) =>
-                  oppP.position >= 0 &&
-                  oppP.position < TRACK_CELLS_BEFORE_HOME &&
-                  globalTrackPosition(opp.id, oppP.position, oppIdx, mode) === testLanding
-              )
-            );
-            if (wouldCapture) {
-              chosenDie = d;
-              break;
+      // Prioritize die that captures an opponent piece
+      let chosenDie = validDice[0];
+      if (validDice.length > 1 && from >= 0) {
+        for (const d of validDice) {
+          const testTo = from + d;
+          if (testTo < TRACK_CELLS_BEFORE_HOME) {
+            const testLanding = globalTrackPosition(command.playerId, testTo, command.pieceIndex, mode);
+            if (!LUDO_SAFE_SQUARES.has(testLanding)) {
+              const wouldCapture = snapshot.players.some(opp =>
+                opp.id !== command.playerId &&
+                opp.pieces.some(
+                  (oppP, oppIdx) =>
+                    oppP.position >= 0 &&
+                    oppP.position < TRACK_CELLS_BEFORE_HOME &&
+                    globalTrackPosition(opp.id, oppP.position, oppIdx, mode) === testLanding
+                )
+              );
+              if (wouldCapture) {
+                chosenDie = d;
+                break;
+              }
             }
           }
         }
       }
+      dieToUse = chosenDie;
     }
-    dieToUse = chosenDie;
   }
 
   const to = from === -1 ? 0 : from + dieToUse;
@@ -467,11 +473,8 @@ export function applyCommand(
   }
 
   // Capturing an opponent piece sends ONLY one opponent piece to yard (-1)
-  // The capturing pawn successfully eliminates the piece and scores to center circle (LUDO_HOME_ENTRY)
-  if (capturedPiece) {
-    nextPiece.position = LUDO_HOME_ENTRY;
-  }
-  const effectiveTo = nextPiece.position;
+  // The capturing pawn stays on its landing track square (to)
+  const effectiveTo = to;
 
   // Splice used die / dice from next.remainingDice
   if (!next.remainingDice || next.remainingDice.length === 0) {
