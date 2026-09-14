@@ -198,173 +198,80 @@ export default function Home() {
         {/* ========================================================================= */}
         <main className="flex-1 flex flex-col w-full pt-20 pb-28 px-4">
           
-          {/* SECTION 1: NIMIQ ARENA PLATFORM HERO */}
-          <section className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={13} className="text-[#f3b72c]" />
-                <span className="text-[11px] uppercase tracking-widest text-[#ffd78d] font-bold font-mono">
-                  Web3 Gaming Arcade
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#151b29] border border-[#242a39]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#68f5b8] animate-pulse" />
-                <span className="text-[10px] text-[#68f5b8] font-mono font-bold">ALBATROSS PoS</span>
-              </div>
+          {/* SECTION 1: CLEAN ARCADE HERO */}
+          <section className="mb-5 text-center">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#191f2e] border border-[#f3b72c]/30 text-[#ffd78d] text-[11px] font-mono font-bold uppercase tracking-wider mb-2">
+              <Sparkles size={12} className="text-[#f3b72c]" />
+              <span>Instant On-Chain Arena</span>
             </div>
+            <h1 className="text-3xl font-black text-[#ffffff] tracking-tight">
+              STAKE · PLAY · WIN
+            </h1>
+            <p className="text-xs text-[#94a3b8] mt-1 max-w-xs mx-auto">
+              Real-time 1v1 board game duels with instant non-custodial payouts.
+            </p>
+          </section>
 
-            {/* Apple Arcade / Console Style Flagship Launcher Card */}
-            <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-b from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#f3b72c]/30 shadow-[0_10px_35px_rgba(0,0,0,0.6)] flex flex-col">
-              {/* Media Container with Cyber Gradients */}
-              <div className="relative w-full h-64 overflow-hidden bg-[#0a0f1d]">
-                <img
-                  className="w-full h-full object-cover scale-105 transition-transform duration-700 hover:scale-110 opacity-75"
-                  alt="Nimiq Arena Cyber Web3 Arcade Showcase"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZuABU9HEKvn6QmmNqTQOLN6DIHNcLlY0_SIt8Re7OVzHRmSfe2ft_9dd3Jid8RymZzUctXUhwjSXK-4usymr5Q_7oZ_ZbkSJqMi3kJIwdhoMstQnHnVfebmBgdcCz_SOgnUvuledCRdzrNY7RR2pUas7XTTXd_JuINRku8ppQOUYgOgyS_qq4xHlx_wqlsHawKPH0iBka0pIkkSwbqNpBVT5G5aUyK0hWQD_Zu75BwH_nYUBhRlw8sQ"
-                />
-                {/* Scrim Gradients */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#151b29] via-[#151b29]/50 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-b from-[#080e1c]/80 via-transparent to-transparent" />
-
-                {/* Floating Badges */}
-                <div className="absolute top-3 inset-x-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#080e1c]/85 border border-[#2f3544] backdrop-blur-md shadow-md">
-                    <Zap size={12} className="text-[#f3b72c]" />
-                    <span className="text-[10px] text-[#dde2f6] font-mono font-semibold">Instant Escrow</span>
-                  </div>
-                  <div className="px-2.5 py-1 rounded-full bg-[#f3b72c]/20 border border-[#f3b72c]/40 backdrop-blur-md">
-                    <span className="text-[10px] text-[#ffd78d] font-mono font-bold tracking-wide">
-                      90% WINNER POT
-                    </span>
-                  </div>
+          {/* SECTION 2: THE 2 MAIN GAMES (FLAGSHIP CARDS) */}
+          <section className="mb-6 space-y-3">
+            {/* Connect 4 Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#f3b72c]/30 p-4 shadow-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-14 h-14 rounded-xl bg-[#242a39] flex-shrink-0 flex items-center justify-center border border-[#f3b72c]/30 text-2xl shadow-[0_0_16px_rgba(243,183,44,0.2)]">
+                  🔴
                 </div>
-
-                {/* Cover Details */}
-                <div className="absolute bottom-3 inset-x-3 flex flex-col gap-1.5">
-                  <div className="inline-flex items-center gap-1.5 w-fit px-2.5 py-0.5 rounded-full bg-[#242a39]/90 border border-[#3b4356] backdrop-blur-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c]" />
-                    <span className="text-[10px] text-[#ffdea4] uppercase tracking-wider font-mono font-semibold">
-                      Non-Custodial Micro-Stakes
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-[#dde2f6] truncate">
+                      Connect 4 Blitz
+                    </h3>
+                    <span className="px-1.5 py-0.5 rounded bg-[#f3b72c]/20 text-[#ffd78d] text-[9px] font-bold font-mono">
+                      1v1 DUEL
                     </span>
                   </div>
-                  <h1 className="text-2xl font-black text-[#ffffff] tracking-tight flex items-center gap-2">
-                    Nimiq Arena
-                  </h1>
-                  <p className="text-xs text-[#94a3b8] line-clamp-2 leading-relaxed">
-                    The honest Web3 matchroom. Real-time multiplayer board games backed by cryptographic smart escrow and instant NIM payouts.
+                  <p className="text-xs text-[#94a3b8] mt-0.5">
+                    Fast 4-in-a-row tactical grid showdown
                   </p>
                 </div>
               </div>
 
-              {/* Card Action Deck */}
-              <div className="p-3.5 bg-[#151b29] flex items-center justify-between gap-3 border-t border-[#242a39]">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">
-                    Live Market Rate
-                  </span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-                    <span className="text-xs text-[#ffd78d] font-bold font-mono">
-                      1 NIM ≈ {formatUsd(priceUsd)}
+              <Link
+                href="/games/connect-four"
+                className="h-11 px-5 flex-shrink-0 bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition-transform shadow-[0_4px_16px_rgba(243,183,44,0.3)]"
+              >
+                <span>PLAY</span>
+                <Play size={14} fill="currentColor" />
+              </Link>
+            </div>
+
+            {/* Ludo Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#00d2ff]/30 p-4 shadow-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-14 h-14 rounded-xl bg-[#242a39] flex-shrink-0 flex items-center justify-center border border-[#00d2ff]/30 text-2xl shadow-[0_0_16px_rgba(0,210,255,0.2)]">
+                  🎲
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-[#dde2f6] truncate">
+                      Ludo League
+                    </h3>
+                    <span className="px-1.5 py-0.5 rounded bg-[#00d2ff]/20 text-[#00d2ff] text-[9px] font-bold font-mono">
+                      2-4P RACE
                     </span>
                   </div>
+                  <p className="text-xs text-[#94a3b8] mt-0.5">
+                    Strategic token race &amp; capture board game
+                  </p>
                 </div>
-
-                <button
-                  onClick={() => {
-                    const el = document.getElementById("choose-your-game");
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth" });
-                    }
-                  }}
-                  className="h-11 px-5 flex items-center justify-center gap-2 bg-gradient-to-r from-[#f3b72c] to-[#e5a00d] hover:brightness-110 text-[#191f2e] rounded-xl text-xs font-black shadow-[0_4px_20px_-2px_rgba(243,183,44,0.4)] active:scale-95 transition-all"
-                >
-                  <span>CHOOSE A GAME</span>
-                  <ArrowRight size={15} />
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* SECTION 2: CHOOSE YOUR GAME */}
-          <section id="choose-your-game" className="mb-6 scroll-mt-20">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex flex-col">
-                <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">
-                  Choose Your Game
-                </h2>
-                <span className="text-xs text-[#94a3b8]">Direct instant-wager titles</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {/* Game Card 1: Ludo */}
-              <div className="bg-[#191f2e] border border-[#2f3544] p-3 rounded-2xl shadow-lg flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-14 h-14 rounded-xl bg-[#2f3544] flex-shrink-0 relative overflow-hidden flex items-center justify-center shadow-inner">
-                    <img
-                      className="w-full h-full object-cover"
-                      alt="Ludo Token 3D"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkTvJ9uzBhh7kyzsasy-vXXornODY7DMCcSZaQPvNUhJ6ZYYUlx6gJ0gHP7DQf_xMi1StB3Iam-30FhREOTt9_uavfbrSVq_WRnzAwajTB4LcBxbxRJwoNlZ-1v1IqvTHruoGmc498cH6fR26VgMUWOm1wgUlQEpflPbqTpp7jcs1EtThpIqys8gj35Uytz9DsJJobs-2BBZvxf98xZZueXafL_AVVqel7cjIB4S9JbGTrSs4zmUBeCg"
-                    />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-[#dde2f6] text-sm truncate">
-                        Ludo Classic
-                      </span>
-                      <span className="px-1.5 py-0.2 rounded bg-[#2f3544] text-[#a5e7ff] text-[10px] font-bold font-mono">
-                        2–4P
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#94a3b8] mt-0.5 truncate">
-                      Classic tactical race board game
-                    </p>
-                  </div>
-                </div>
-
-                <Link
-                  href="/games/ludo-league"
-                  className="h-10 px-4 flex-shrink-0 bg-[#2f3544] hover:bg-[#3b4356] text-[#dde2f6] hover:text-[#ffd78d] rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
-                >
-                  <span>Play</span>
-                  <Play size={13} fill="currentColor" />
-                </Link>
               </div>
 
-              {/* Game Card 2: Connect 4 */}
-              <div className="bg-[#191f2e] border border-[#2f3544] p-3 rounded-2xl shadow-lg flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-14 h-14 rounded-xl bg-[#2f3544] flex-shrink-0 relative overflow-hidden flex items-center justify-center shadow-inner">
-                    <img
-                      className="w-full h-full object-cover"
-                      alt="Connect 4 Grid 3D"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm8Od4RcOx9iRzCyQLZsYOjftOIctc0ZlwKjc8wf2W9DFfzeP_MaWj-vVqznduGf-PG-j-0MHVZabJtqdE26RDmJ8HEluuNsmnH_2QoPwiqb7NP47LiL3tHdg8f_PBW7Kddj6Wbv_N5j06DqJMbhfYMFyDyjTcCl2UbUoNanQHoHzAFwtbzo7T-Yu7Bl3TV4jBVDF5waShdneBu7WgDs-2o-FXSJSlXaNr56DBu2NjK_gkm_aoJBvHLg"
-                    />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-[#dde2f6] text-sm truncate">
-                        Connect NIM
-                      </span>
-                      <span className="px-1.5 py-0.2 rounded bg-[#2f3544] text-[#ffd78d] text-[10px] font-bold font-mono">
-                        1v1
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#94a3b8] mt-0.5 truncate">
-                      Vertical alignment showdown
-                    </p>
-                  </div>
-                </div>
-
-                <Link
-                  href="/games/connect-four"
-                  className="h-10 px-4 flex-shrink-0 bg-[#2f3544] hover:bg-[#3b4356] text-[#dde2f6] hover:text-[#ffd78d] rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
-                >
-                  <span>Play</span>
-                  <Play size={13} fill="currentColor" />
-                </Link>
-              </div>
+              <Link
+                href="/games/ludo-league"
+                className="h-11 px-5 flex-shrink-0 bg-[#00d2ff] hover:bg-[#a5e7ff] text-[#003543] rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition-transform shadow-[0_4px_16px_rgba(0,210,255,0.3)]"
+              >
+                <span>PLAY</span>
+                <Play size={14} fill="currentColor" />
+              </Link>
             </div>
           </section>
 

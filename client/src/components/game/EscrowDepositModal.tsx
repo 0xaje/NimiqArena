@@ -336,189 +336,56 @@ export function EscrowDepositModal({
         {/* Content Container */}
         <div className="px-4 space-y-3 pb-4">
           
-          {/* Mode & Match Summary Pill Card */}
-          <div className="bg-[#191f2e] border border-[#242a39] rounded-xl p-3 shadow-md flex items-center justify-between">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-11 h-11 rounded-lg bg-[#2f3544] overflow-hidden flex-shrink-0 flex items-center justify-center border border-white/5">
-                <img
-                  className="w-full h-full object-cover"
-                  alt="3D Glowing Game Dice"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYhvuCq_sHkLkZ--n3N7hzQPMUC6P5nNLwtHVwcY48NvoKopVjALQxK9lVOvapxfolCMaB3WYeFQNazjrlWEZr6G3gojXQTfT30DnNZxlkJQqCJY5yOXS20SCXezsCNaXeApgnqDPDd17wtSk-66d-9ugCR_z7JRCqfVIcY05SqZ8JWm496OsWd9a_RrVbj4Bp3jO1yJp0IJuLWZalf-Obm5WX7E0yTVnICGWsrUBXkWf4n_gQWFruwQ"
-                />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm text-[#dde2f6] font-semibold truncate">
-                  {gameTitle}
-                </span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#68f5b8] shadow-[0_0_6px_#68f5b8]" />
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">
-                    {shortWallet}
-                  </span>
+          {/* Match & Prize Highlight Card */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#1e2638] via-[#151b29] to-[#1e2638] border border-[#f3b72c]/30 rounded-2xl p-4 shadow-lg">
+            <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#f3b72c]/10 rounded-full blur-xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between pb-3 border-b border-[#242a39]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#242a39] flex items-center justify-center border border-[#f3b72c]/30 text-[#f3b72c]">
+                  <Coins size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#dde2f6]">{gameTitle}</h3>
+                  <span className="text-[10px] text-[#94a3b8] font-mono">{shortWallet}</span>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col items-end flex-shrink-0 pl-2">
-              <span className="text-[10px] text-[#d4c5ad] uppercase font-mono">
-                Your Stake
-              </span>
-              <span className="text-sm text-[#ffd78d] font-bold font-mono">
-                {displayStakeNim} NIM
+              <span className="px-2 py-0.5 rounded-full bg-[#f3b72c]/15 text-[#ffd78d] text-[10px] font-mono font-bold">
+                1v1 DUEL
               </span>
             </div>
-          </div>
 
-          {/* Pot & Payout Highlight Banner */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#242a39] via-[#191f2e] to-[#242a39] border border-[#2f3544] rounded-xl p-3.5 shadow-lg">
-            <div className="absolute -right-8 -top-8 w-28 h-28 bg-[#f3b72c]/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="flex items-end justify-between relative z-10">
-              <div>
-                <div className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-                  Total Match Pot
-                </div>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-2xl text-[#dde2f6] font-black tracking-tight font-mono">
-                    {totalPot}
-                  </span>
-                  <span className="text-xs text-[#ffd78d] font-bold font-mono">
-                    NIM
-                  </span>
-                </div>
+            <div className="grid grid-cols-2 gap-2 pt-3">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-[#94a3b8] font-mono uppercase">Your Stake</span>
+                <span className="text-lg font-black text-[#dde2f6] font-mono">{displayStakeNim} NIM</span>
               </div>
               <div className="flex flex-col items-end">
-                <span className="h-5 px-2 rounded-full bg-[#f3b72c]/20 text-[#ffdea4] text-[11px] font-bold tracking-tight inline-flex items-center justify-center mb-1 font-mono">
-                  1.8x Payout
-                </span>
-                <div className="text-[10px] text-[#d4c5ad] font-mono">
-                  Champion Wins
-                </div>
-                <div className="text-lg text-[#f3b72c] font-black font-mono">
-                  +{championWins} <span className="text-xs font-semibold">NIM</span>
-                </div>
+                <span className="text-[10px] text-[#68f5b8] font-mono uppercase font-bold">Winner Takes</span>
+                <span className="text-lg font-black text-[#ffd78d] font-mono">+{championWins} NIM</span>
               </div>
             </div>
           </div>
 
-          {/* Transparent Prize Distribution Section */}
-          <div className="bg-[#191f2e] border border-[#242a39] rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-                Pot Breakdown
-              </span>
-              <span className="text-[11px] text-[#a5e7ff] flex items-center gap-1 font-mono font-medium">
-                <Zap size={13} className="text-[#a5e7ff]" /> Instant Escrow
-              </span>
-            </div>
-
-            {/* Segmented Visual Bar */}
-            <div className="w-full h-2 rounded-full bg-[#2f3544] overflow-hidden flex">
-              <div
-                className="h-full bg-[#f3b72c]"
-                style={{ width: "90%" }}
-                title="Winner 90%"
-              />
-              <div
-                className="h-full bg-[#00d2ff]"
-                style={{ width: "5%" }}
-                title="Arena Builder 5%"
-              />
-              <div
-                className="h-full bg-[#68f5b8]"
-                style={{ width: "3%" }}
-                title="Ecosystem 3%"
-              />
-              <div
-                className="h-full bg-[#333948]"
-                style={{ width: "2%" }}
-                title="Public Good 2%"
-              />
-            </div>
-
-            {/* Structured Rows */}
-            <div className="space-y-1 pt-1 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#f3b72c]" />
-                  <span className="text-[#dde2f6] font-medium">Winner Takes</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[11px]">
-                  <span className="px-1.5 py-0.5 rounded bg-[#f3b72c]/15 text-[#ffdea4] font-bold">
-                    90%
-                  </span>
-                  <span className="text-[#ffd78d] font-semibold">
-                    {championWins} NIM
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00d2ff]" />
-                  <span className="text-[#d4c5ad]">Arena Builder</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[11px]">
-                  <span className="text-[#d4c5ad]">5%</span>
-                  <span className="text-[#dde2f6]">{builderCut} NIM</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#68f5b8]" />
-                  <span className="text-[#d4c5ad]">Nimiq Ecosystem Pool</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[11px]">
-                  <span className="text-[#d4c5ad]">3%</span>
-                  <span className="text-[#dde2f6]">{ecosystemCut} NIM</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#333948]" />
-                  <span className="text-[#d4c5ad]">Community Public Good</span>
-                </div>
-                <div className="flex items-center gap-2 font-mono text-[11px]">
-                  <span className="text-[#d4c5ad]">2%</span>
-                  <span className="text-[#dde2f6]">{publicGoodCut} NIM</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-1 text-[10px] leading-tight text-[#d4c5ad]/80 flex items-start gap-1.5">
-              <Info size={13} className="text-[#a5e7ff] mt-0.5 flex-shrink-0" />
-              <span>
-                Settled automatically via Nimiq micro-contracts upon match checkmate or opponent forfeit.
-              </span>
-            </div>
-          </div>
-
-          {/* Wallet Balance Ledger Verification */}
-          <div className="bg-[#080e1c]/70 border border-[#242a39] rounded-xl px-3 py-2.5 flex items-center justify-between">
+          {/* Wallet Balance Strip */}
+          <div className="bg-[#080e1c]/70 border border-[#242a39] rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs font-mono">
             <div className="flex flex-col">
-              <span className="text-[10px] text-[#d4c5ad] font-mono">
-                Available Balance
-              </span>
-              <span className="text-xs text-[#dde2f6] font-semibold font-mono">
-                {userBalance != null ? `${userBalance.toFixed(2)} NIM` : "1,420.00 NIM"}
+              <span className="text-[9px] text-[#94a3b8] uppercase">Balance</span>
+              <span className="text-[#dde2f6] font-bold">
+                {userBalance != null ? `${userBalance.toFixed(2)} NIM` : "0 NIM"}
               </span>
             </div>
-            <div className="h-6 w-[1px] bg-[#333948]" />
+            <div className="h-5 w-[1px] bg-[#242a39]" />
             <div className="flex flex-col items-end">
-              <span className="text-[10px] text-[#d4c5ad] font-mono">
-                Balance After Entry
-              </span>
-              <span className="text-xs text-[#a5e7ff] font-semibold font-mono">
-                {balanceAfter} NIM
-              </span>
+              <span className="text-[9px] text-[#94a3b8] uppercase">After Entry</span>
+              <span className="text-[#a5e7ff] font-bold">{balanceAfter} NIM</span>
             </div>
           </div>
-
-          {/* Insufficient Balance / 1-Click Faucet Callout */}
+                        {/* Insufficient Balance / 1-Click Faucet Callout */}
           {userBalance !== null && userBalance < displayStakeNim && (
             <div className="p-2.5 rounded-xl bg-[#93000a]/20 border border-[#ffb4ab]/30 flex items-center justify-between gap-2">
               <span className="text-[11px] text-[#ffb4ab]">
-                Low balance: Need {displayStakeNim} NIM to enter.
+                Need {displayStakeNim} NIM to enter.
               </span>
               <button
                 onClick={handleRequestDrip}

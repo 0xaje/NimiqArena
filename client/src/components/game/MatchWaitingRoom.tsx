@@ -239,7 +239,7 @@ export function MatchWaitingRoom({
           </div>
           <div className="vs-pot-display">
             <span className="vs-pot-label">
-              {isWagered ? "TABLE ESCROW POT" : "MATCH POT"}
+              {isWagered ? "MATCH POT" : "PRACTICE DUEL"}
             </span>
             <span className="vs-pot-amount">
               {effectivePot > 0 ? `${formatNim(effectivePot)} NIM` : "FREE PLAY"}
@@ -248,38 +248,18 @@ export function MatchWaitingRoom({
               <span
                 style={{
                   display: "inline-block",
-                  marginTop: "6px",
-                  fontSize: "10.5px",
+                  marginTop: "4px",
+                  fontSize: "10px",
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontWeight: 700,
-                  padding: "3px 8px",
+                  padding: "2px 8px",
                   borderRadius: "6px",
-                  background:
-                    allVerified
-                      ? "rgba(34, 197, 94, 0.2)"
-                      : (totalFundedNim || 0) > 0
-                      ? "rgba(245, 158, 11, 0.2)"
-                      : "rgba(255, 255, 255, 0.06)",
-                  color:
-                    allVerified
-                      ? "#4ade80"
-                      : (totalFundedNim || 0) > 0
-                      ? "#fbbf24"
-                      : "rgba(251, 248, 241, 0.6)",
-                  border: `1px solid ${
-                    allVerified
-                      ? "rgba(74, 222, 128, 0.35)"
-                      : (totalFundedNim || 0) > 0
-                      ? "rgba(245, 158, 11, 0.35)"
-                      : "rgba(251, 248, 241, 0.1)"
-                  }`,
+                  background: allVerified ? "rgba(34, 197, 94, 0.15)" : "rgba(243, 183, 44, 0.15)",
+                  color: allVerified ? "#4ade80" : "#ffd78d",
+                  border: `1px solid ${allVerified ? "rgba(74, 222, 128, 0.3)" : "rgba(243, 183, 44, 0.3)"}`,
                 }}
               >
-                {allVerified
-                  ? `FUNDED (${formatNim(effectivePot)} NIM IN ESCROW)`
-                  : (totalFundedNim || 0) > 0
-                  ? `PARTIALLY FUNDED (${formatNim(totalFundedNim || 0)} / ${formatNim(effectivePot)} NIM)`
-                  : "PENDING DEPOSITS (0 NIM IN ESCROW)"}
+                {allVerified ? "✓ STAKES LOCKED" : "WAITING FOR PLAYERS"}
               </span>
             )}
           </div>

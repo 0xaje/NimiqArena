@@ -331,71 +331,23 @@ export default function Connect4Detail() {
 
           {/* HERO VISUAL CARD */}
           <div className="px-4">
-            <div className="relative w-full rounded-xl overflow-hidden bg-[#080e1c] border border-[#242a39] shadow-xl">
-              
-              {/* Media Banner with Gradient Scrim */}
-              <div className="relative w-full h-52 overflow-hidden">
-                <img
-                  alt="Nim Connect 7x6 Matrix Arena"
-                  className="w-full h-full object-cover object-center transform scale-105 transition-transform duration-700 hover:scale-110"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlUvBQEgkd3BBZ9QMrcPxBrdKmovoJO2LNjgyjJxceSIh1uh6StcQBE1rIB3-haFZWp9TYMY1L1SfuYFPNqM2gN_jziwYHWzHfUw5rbs9rnyXxWzfvI2v7kUE0cT5KuRro1ZAA5MaWQj4djFJEGxUEkaF-j6SK88gIL_XyO4PcowM-mlr53s61Uv7FFAofyvLPVaP81CaVubnakv0XeXCK90Hc74O-Sy2OxJX_15__ydJdDDV7R7fJIw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#151b29] via-[#151b29]/40 to-transparent" />
-                
-                {/* Top Floating Badges */}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-[#080e1c]/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-                  <Zap size={14} className="text-[#f3b72c]" />
-                  <span className="text-[10px] font-bold text-[#ffdea4] uppercase tracking-wider font-mono">
-                    Instant Payout
-                  </span>
+            <div className="relative w-full rounded-2xl overflow-hidden bg-[#151b29] border border-[#242a39] shadow-xl p-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-xl bg-[#242a39] flex items-center justify-center text-2xl border border-[#f3b72c]/30 shadow-[0_0_12px_rgba(243,183,44,0.15)] flex-shrink-0">
+                  🔴
                 </div>
-                <div className="absolute top-3 right-3 bg-[#080e1c]/80 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-[#d4c5ad] border border-white/10">
-                  <Users size={14} className="text-[#a5e7ff]" />
-                  <span className="text-[11px] font-medium font-mono">1v1 Duel</span>
-                </div>
-              </div>
-
-              {/* Hero Body Content */}
-              <div className="bg-[#151b29] p-3.5 pt-1">
-                <div className="flex items-center justify-between">
-                  <h1 className="text-2xl text-[#dde2f6] font-extrabold tracking-tight">
-                    Nim Connect 7×6
-                  </h1>
-                  <div className="flex items-center gap-1 text-[#ffd78d]">
-                    <Star size={17} className="fill-[#ffd78d] text-[#ffd78d]" />
-                    <span className="text-xs font-bold font-mono">4.9</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#d4c5ad] mt-1 leading-relaxed">
-                  Vertical 7×6 tactical grid. Drop your gold and cyan discs, anticipate opponent diagonals, connect 4-in-a-row, and claim the winner pot settled directly on the Nimiq chain.
-                </p>
-
-                {/* Quick Specs Matrix */}
-                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 bg-[#191f2e]/70 border border-[#242a39] rounded-lg p-2">
-                  <div className="flex flex-col items-center text-center">
-                    <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
-                      <Timer size={13} className="text-[#a5e7ff]" /> Turn Clock
-                    </span>
-                    <span className="text-xs text-[#dde2f6] font-semibold mt-0.5 font-mono">
-                      30s Timer
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="text-base font-bold text-[#dde2f6] truncate">
+                      Connect 4 Blitz
+                    </h1>
+                    <span className="px-1.5 py-0.2 rounded bg-[#f3b72c]/20 text-[#ffd78d] text-[9px] font-bold font-mono">
+                      7×6
                     </span>
                   </div>
-                  <div className="flex flex-col items-center text-center border-x border-[#242a39]">
-                    <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
-                      <Grid size={13} className="text-[#68f5b8]" /> Matrix
-                    </span>
-                    <span className="text-xs text-[#dde2f6] font-semibold mt-0.5 font-mono">
-                      7 Cols × 6 Rows
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center text-center">
-                    <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
-                      <Coins size={13} className="text-[#ffd78d]" /> Pot Share
-                    </span>
-                    <span className="text-xs text-[#ffd78d] font-semibold mt-0.5 font-mono">
-                      90% Net
-                    </span>
-                  </div>
+                  <p className="text-xs text-[#94a3b8] mt-0.5 truncate">
+                    Drop 4 counters in a row to win the match pot
+                  </p>
                 </div>
               </div>
             </div>
