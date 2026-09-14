@@ -1,24 +1,23 @@
 import React, { useEffect, useState } from "react";
 import {
-  CheckCircle2,
-  ExternalLink,
-  Globe,
-  Hammer,
-  Heart,
-  RefreshCw,
-  ShieldAlert,
-  ShieldCheck,
   Trophy,
-  Users,
-  Copy,
-  Share2,
+  ShieldAlert,
   Sparkles,
+  RefreshCw,
+  Eye,
+  Share2,
+  Copy,
+  ExternalLink,
+  ArrowRight,
   Gamepad2,
   Swords,
+  Coins,
+  CheckCircle2,
+  Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { calculatePotDistribution, formatNim } from "@shared/game/pot-distribution";
+import { formatNim } from "@shared/game/pot-distribution";
 import { useNimiqPrice } from "@/lib/nimiq-price";
 
 export interface VictoryPayoutBannerProps {
@@ -47,11 +46,14 @@ export function VictoryPayoutBanner({
   gameSlug,
   gameTitle,
   p1Name = "Player 1",
-  p2Name = "Nimiq AI",
+  p2Name = "Opponent",
   turnCount = 1,
 }: VictoryPayoutBannerProps) {
   const { formatUsd, nimToUsd } = useNimiqPrice();
-  const isWinner = yourUserId === winnerUserId;
+  
+  const isDraw = winnerUserId === 0;
+  const isWinner = !isDraw && yourUserId === winnerUserId;
+  const isDefeat = !isDraw && !isWinner;
   const isFreeMatch = totalPotNim <= 0;
 
   const { data: refStats } = trpc.auth.getReferralStats.useQuery(undefined, { enabled: isWinner });
@@ -63,340 +65,270 @@ export function VictoryPayoutBanner({
   const [settlement, setSettlement] = useState<{
     netPayoutNim: number;
     protocolFeeNim: number;
-    distribution?: {
-      winnerNim: number;
-      referrerNim?: number;
-      builderNim: number;
-      ecosystemNim: number;
-      charityNim: number;
-    };
     payoutTxHash: string | null;
     explorerUrl: string | null;
     settlementStatus?: string;
+    isDraw?: boolean;
     notice?: string;
   } | null>(null);
 
   useEffect(() => {
     if (totalPotNim <= 0) return;
     settlePayout
-      .mutateAsync({ matchId, winnerUserId })
-      .then(res => setSettlement(res as any))
-      .catch(err => {
+      .mutateAsync({ matchId, winnerUserId: winnerUserId || 0 })
+      .then((res: any) => setSettlement(res))
+      .catch((err) => {
         console.error("Payout settlement note:", err);
       });
   }, [matchId, winnerUserId, totalPotNim]);
 
-  const hasReferrer = Boolean(settlement?.distribution?.referrerNim && settlement.distribution.referrerNim > 0);
-  const dist = settlement?.distribution
-    ? {
-        totalPotNim,
-        winnerNim: settlement.distribution.winnerNim,
-        referrerNim: settlement.distribution.referrerNim || 0,
-        builderNim: settlement.distribution.builderNim,
-        ecosystemNim: settlement.distribution.ecosystemNim,
-        charityNim: settlement.distribution.charityNim,
-        percentages: {
-          winner: 90,
-          referrer: hasReferrer ? 2 : 0,
-          builder: hasReferrer ? 5 : 7,
-          ecosystem: 2,
-          charity: 1,
-        },
-      }
-    : calculatePotDistribution(totalPotNim, false);
+  const displayGameTitle =
+    gameTitle || (gameSlug === "connect-four" ? "Connect 4 NIM" : "Ludo Blitz");
 
-  const displayGameTitle = gameTitle || (gameSlug === "connect-four" ? "Connect 4 NIM" : "Ludo Blitz");
+  const stakePerPlayerNim = totalPotNim > 0 ? totalPotNim / 2 : 0;
+  const winnerNetNim = settlement?.netPayoutNim ?? totalPotNim * 0.9;
+  const refundNetNim = stakePerPlayerNim;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#080e1c]/80 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className={`victory-result-card w-full max-w-lg ${isWinner ? "winner-theme" : "loser-theme"} my-auto animate-in fade-in zoom-in-95 duration-200`}>
-        {/* Grand Result Moment */}
-        <div className="victory-header-moment">
-          <div className="trophy-ring">
+    <div className="fixed inset-0 z-50 bg-[#080e1c]/85 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+      <div className="fixed inset-0" onClick={onReturnToLobby} />
+
+      {/* Main Elevated Card */}
+      <div
+        className={`w-full max-w-md bg-[#151b29] border rounded-3xl shadow-[0_16px_50px_rgba(0,0,0,0.9)] p-5 sm:p-6 flex flex-col relative z-10 my-auto overflow-hidden animate-in zoom-in-95 duration-300 ${
+          isWinner
+            ? "border-[#f3b72c]/40 shadow-[0_0_40px_rgba(243,183,44,0.18)]"
+            : isDraw
+            ? "border-[#68f5b8]/40 shadow-[0_0_40px_rgba(104,245,184,0.15)]"
+            : "border-[#2f3544]"
+        }`}
+      >
+        {/* Top Radial Glow Accent */}
+        <div
+          className={`absolute -top-24 inset-x-0 h-44 rounded-full blur-3xl pointer-events-none ${
+            isWinner
+              ? "bg-[#f3b72c]/20"
+              : isDraw
+              ? "bg-[#68f5b8]/15"
+              : "bg-[#00d2ff]/10"
+          }`}
+        />
+
+        {/* 1. HERO TROPHY / BADGE */}
+        <div className="flex flex-col items-center text-center relative z-10">
+          <div
+            className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-3 shadow-lg transition-transform hover:scale-105 ${
+              isWinner
+                ? "bg-gradient-to-br from-[#f3b72c] to-[#d97706] text-[#412d00] shadow-[0_0_24px_rgba(243,183,44,0.4)] ring-4 ring-[#f3b72c]/30"
+                : isDraw
+                ? "bg-gradient-to-br from-[#68f5b8] to-[#10b981] text-[#042f1f] shadow-[0_0_24px_rgba(104,245,184,0.35)] ring-4 ring-[#68f5b8]/30"
+                : "bg-gradient-to-br from-[#242a39] to-[#191f2e] text-[#94a3b8] ring-2 ring-[#2f3544]"
+            }`}
+          >
             {isWinner ? (
-              <Trophy size={42} className="trophy-gold" />
+              <Trophy size={42} className="animate-bounce" />
+            ) : isDraw ? (
+              <Scale size={40} />
             ) : (
-              <ShieldAlert size={42} className="shield-silver" />
+              <ShieldAlert size={40} />
             )}
           </div>
 
-          <div className="status-badge-glow">
+          {/* Outcome Status Pill */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase mb-2 ${
+              isWinner
+                ? "bg-[#f3b72c]/15 text-[#ffd78d] border border-[#f3b72c]/40"
+                : isDraw
+                ? "bg-[#68f5b8]/15 text-[#68f5b8] border border-[#68f5b8]/40"
+                : "bg-[#242a39] text-[#94a3b8] border border-[#2f3544]"
+            }`}
+          >
             {isWinner ? (
               <>
-                <Sparkles size={16} className="text-[#f3b72c]" />
+                <Sparkles size={14} className="text-[#f3b72c]" />
                 <span>VICTORY CONFIRMED</span>
               </>
+            ) : isDraw ? (
+              <>
+                <CheckCircle2 size={14} className="text-[#68f5b8]" />
+                <span>MATCH DRAW • STAKES REFUNDED</span>
+              </>
             ) : (
               <>
-                <ShieldAlert size={16} className="text-[#94a3b8]" />
-                <span>DEFEAT</span>
+                <ShieldAlert size={14} className="text-[#94a3b8]" />
+                <span>MATCH DEFEAT</span>
               </>
             )}
           </div>
 
-          <h2 className="victory-main-title mt-2">
-            {isWinner ? "You Conquered the Arena!" : "Better Luck Next Round"}
+          <h2 className="text-2xl font-black text-[#dde2f6] tracking-tight">
+            {isWinner
+              ? "You Won the Arena!"
+              : isDraw
+              ? "Stalemate — 100% Refund"
+              : "Defeat this Round"}
           </h2>
 
-          <p className="victory-subline mt-1">
+          <p className="text-xs text-[#d4c5ad] mt-1 max-w-[320px] leading-relaxed">
             {isWinner
               ? isFreeMatch
-                ? "Great match! You outplayed the opponent in this practice duel."
-                : "Your 90% winner's share has been committed to the on-chain ledger."
+                ? "Tactical mastery! You defeated your opponent in this free duel."
+                : "Your 90% prize pool entitlement is locked and credited to your wallet."
+              : isDraw
+              ? "The board filled with no 4-in-a-row. Both players received 100% of their deposit back."
               : isFreeMatch
-              ? "Good effort! Practice matches are free to play and sharpen your tactics."
-              : "The opposing player claimed the match prize pool."}
+              ? "Good fight! Free matches sharpen your strategy for competitive tables."
+              : "Your opponent claimed the prize pool this round. Ready for a rematch?"}
           </p>
         </div>
 
-        {/* Real Matchup Details Card */}
-        <div className="p-3 rounded-xl bg-[#080e1c]/80 border border-[#242a39] mb-3 flex items-center justify-between text-xs font-mono">
-          <div className="flex items-center gap-2">
-            <Gamepad2 size={16} className="text-[#f3b72c]" />
+        {/* 2. PAYOUT HIGHLIGHT BOX */}
+        <div
+          className={`mt-4 p-4 rounded-2xl border flex items-center justify-between font-mono relative z-10 ${
+            isWinner
+              ? "bg-[#080e1c] border-[#f3b72c]/40 shadow-inner"
+              : isDraw
+              ? "bg-[#080e1c] border-[#68f5b8]/30 shadow-inner"
+              : "bg-[#080e1c] border-[#242a39]"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                isWinner
+                  ? "bg-[#f3b72c]/15 text-[#f3b72c]"
+                  : isDraw
+                  ? "bg-[#68f5b8]/15 text-[#68f5b8]"
+                  : "bg-[#242a39] text-[#94a3b8]"
+              }`}
+            >
+              <Coins size={22} />
+            </div>
             <div className="flex flex-col text-left">
-              <span className="text-[10px] text-[#94a3b8] uppercase">Game &amp; Table</span>
+              <span className="text-[10px] uppercase tracking-wider text-[#d4c5ad]">
+                {isWinner
+                  ? "Net Winner Prize"
+                  : isDraw
+                  ? "Returned to Wallet"
+                  : "Match Wager Pool"}
+              </span>
+              <span className="text-xs text-[#94a3b8]">
+                {isFreeMatch
+                  ? "Free Practice Duel"
+                  : isWinner
+                  ? `≈ ${formatUsd(nimToUsd(winnerNetNim))} USD`
+                  : isDraw
+                  ? `100% Stake Returned`
+                  : `${formatNim(totalPotNim)} NIM total pot`}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col text-right">
+            <span
+              className={`text-xl font-black ${
+                isWinner
+                  ? "text-[#ffd78d]"
+                  : isDraw
+                  ? "text-[#68f5b8]"
+                  : "text-[#dde2f6]"
+              }`}
+            >
+              {isFreeMatch
+                ? "0 NIM"
+                : isWinner
+                ? `+${formatNim(winnerNetNim)} NIM`
+                : isDraw
+                ? `${formatNim(refundNetNim)} NIM`
+                : `${formatNim(stakePerPlayerNim)} NIM`}
+            </span>
+            <span className="text-[10px] font-bold text-[#f3b72c] uppercase tracking-wider">
+              {isFreeMatch
+                ? "PRACTICE"
+                : isWinner
+                ? "90% WINNER TAKE"
+                : isDraw
+                ? "FULL REFUND"
+                : "COMPLETED"}
+            </span>
+          </div>
+        </div>
+
+        {/* 3. MATCH STATS STRIP */}
+        <div className="mt-3 p-3 rounded-xl bg-[#080e1c]/60 border border-[#242a39] flex items-center justify-between text-xs font-mono relative z-10">
+          <div className="flex items-center gap-2 text-left">
+            <Gamepad2 size={15} className="text-[#f3b72c]" />
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase text-[#94a3b8]">Game</span>
               <span className="text-xs font-bold text-[#dde2f6]">{displayGameTitle}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Swords size={16} className="text-[#00d2ff]" />
-            <div className="flex flex-col text-right">
-              <span className="text-[10px] text-[#94a3b8] uppercase">Opponent</span>
+          <div className="flex items-center gap-2 text-left">
+            <Swords size={15} className="text-[#00d2ff]" />
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase text-[#94a3b8]">Matchup</span>
               <span className="text-xs font-bold text-[#dde2f6]">vs {p2Name}</span>
             </div>
           </div>
 
           <div className="flex flex-col text-right">
-            <span className="text-[10px] text-[#94a3b8] uppercase">Rounds</span>
+            <span className="text-[9px] uppercase text-[#94a3b8]">Duration</span>
             <span className="text-xs font-bold text-[#ffd78d]">Turn {turnCount}</span>
           </div>
         </div>
 
-        {/* Financial Split Breakdown Card or Free Practice Banner */}
-        {!isFreeMatch ? (
-          <div className="payout-summary-card">
-            <div className="split-header">
-              <span className="split-title">POT DISTRIBUTION (100% OF {formatNim(totalPotNim)} NIM)</span>
-              <span className="split-rule">Zero Hidden Rake</span>
-            </div>
-
-            <div className="split-breakdown">
-              <div className="winner-take-row">
-                <div className="winner-take-left">
-                  <Trophy size={24} className="trophy-gold" />
-                  <div className="winner-take-label">
-                    <span className="winner-take-role">Winner Payout (90%)</span>
-                    <span className="winner-take-sub">Escrowed securely &amp; distributed instantly</span>
-                  </div>
-                </div>
-                <div className="winner-take-right">
-                  <span className="winner-take-usd">
-                    ~{formatUsd(nimToUsd(dist.winnerNim))}
-                  </span>
-                  <span className="winner-take-amount">{formatNim(dist.winnerNim)} NIM</span>
-                </div>
-              </div>
-
-              <div className="platform-split-grid">
-                {dist.referrerNim > 0 && (
-                  <div className="platform-split-item">
-                    <Users size={15} className="icon-purple" />
-                    <div className="split-info">
-                      <span className="split-role">Referrer ({dist.percentages.referrer}%)</span>
-                      <span className="split-num">{formatNim(dist.referrerNim)} NIM</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="platform-split-item">
-                  <Hammer size={15} className="icon-blue" />
-                  <div className="split-info">
-                    <span className="split-role">Builder &amp; Stakers ({dist.percentages.builder}%)</span>
-                    <span className="split-num">{formatNim(dist.builderNim)} NIM</span>
-                  </div>
-                </div>
-
-                {dist.percentages.ecosystem > 0 && (
-                  <div className="platform-split-item">
-                    <Globe size={15} className="icon-teal" />
-                    <div className="split-info">
-                      <span className="split-role">Ecosystem ({dist.percentages.ecosystem}%)</span>
-                      <span className="split-num">{formatNim(dist.ecosystemNim)} NIM</span>
-                    </div>
-                  </div>
-                )}
-
-                {dist.percentages.charity > 0 && (
-                  <div className="platform-split-item">
-                    <Heart size={15} className="icon-pink" />
-                    <div className="split-info">
-                      <span className="split-role">Charity ({dist.percentages.charity}%)</span>
-                      <span className="split-num">{formatNim(dist.charityNim)} NIM</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Truthful Settlement Notice */}
-            <div className="settlement-truth-badge">
-              <div className="truth-status-line">
-                <CheckCircle2 size={16} className="icon-emerald" />
-                <span>
-                  Status:{" "}
-                  <strong>
-                    {settlement?.settlementStatus === "settled_on_chain"
-                      ? "Disbursed On-Chain"
-                      : "Ledger Entitlement Recorded"}
-                  </strong>
-                </span>
-              </div>
-              <p className="truth-notice-text">
-                {settlement?.notice ||
-                  "Winner pot entitlement (90% of pot) recorded authoritatively on Testnet ledger."}
-              </p>
-              {settlement?.explorerUrl && (
-                <a
-                  href={settlement.explorerUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="truth-explorer-link"
-                >
-                  <span>View On-Chain Receipt</span>
-                  <ExternalLink size={13} />
-                </a>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="p-3.5 rounded-xl bg-[#080e1c] border border-[#2f3544] mb-3 flex items-center gap-3 text-left">
-            <div className="w-10 h-10 rounded-full bg-[#10b981]/15 border border-[#10b981]/30 flex items-center justify-center shrink-0 text-[#10b981]">
-              <ShieldCheck size={20} />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-[#dde2f6] font-mono">
-                  FREE PRACTICE ARENA
-                </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#10b981]/20 text-[#10b981] font-mono">
-                  0 NIM STAKE
-                </span>
-              </div>
-              <p className="text-[11px] text-[#94a3b8] mt-0.5 leading-relaxed">
-                Practice matches have zero wagered funds. This match outcome is recorded directly in your player stats!
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Viral Victory Share Card */}
+        {/* 4. VIRAL VICTORY SHARE (Winner only) */}
         {isWinner && (
-          <div
-            style={{
-              marginTop: "12px",
-              marginBottom: "14px",
-              padding: "12px 14px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(56, 189, 248, 0.08))",
-              border: "1px solid rgba(245, 158, 11, 0.35)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Sparkles size={15} color="#fbbf24" />
-                <strong style={{ fontSize: "12px", color: "#f8fafc" }}>
-                  Share Victory &amp; Earn 2% On Challenges!
-                </strong>
+          <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-[#f3b72c]/10 via-[#00d2ff]/10 to-transparent border border-[#f3b72c]/30 flex flex-col gap-2 relative z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-[#f3b72c]" />
+                <span className="text-xs font-bold text-[#dde2f6]">
+                  Share Victory &amp; Earn 2% On Challenges
+                </span>
               </div>
-              <span style={{ fontSize: "10px", color: "#4ade80", fontWeight: 700, fontFamily: "monospace" }}>
+              <span className="text-[10px] font-mono font-bold text-[#68f5b8]">
                 +2% COMMISSIONS
               </span>
             </div>
 
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   const text = encodeURIComponent(
-                    `⚔️ I just won ${totalPotNim > 0 ? formatNim(dist.winnerNim) + " NIM" : "a match"} on Nimiq Arena! Think you can beat me? Challenge me now:`
+                    `⚔️ I just won ${
+                      totalPotNim > 0 ? formatNim(winnerNetNim) + " NIM" : "a match"
+                    } on Nimiq Arena! Think you can beat me? Challenge me now:`
                   );
-                  window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`, "_blank");
-                }}
-                style={{
-                  flex: 1,
-                  minWidth: "100px",
-                  padding: "7px 10px",
-                  borderRadius: "8px",
-                  background: "rgba(56, 189, 248, 0.2)",
-                  border: "1px solid rgba(56, 189, 248, 0.4)",
-                  color: "#38bdf8",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "5px",
-                  cursor: "pointer",
-                }}
-              >
-                <Share2 size={13} /> Telegram
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const text = encodeURIComponent(
-                    `⚔️ I just won ${totalPotNim > 0 ? formatNim(dist.winnerNim) + " NIM" : "a match"} on Nimiq Arena! Think you can beat me? Challenge me now: ${shareUrl}`
+                  window.open(
+                    `https://t.me/share/url?url=${encodeURIComponent(
+                      shareUrl
+                    )}&text=${text}`,
+                    "_blank"
                   );
-                  window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
                 }}
-                style={{
-                  flex: 1,
-                  minWidth: "100px",
-                  padding: "7px 10px",
-                  borderRadius: "8px",
-                  background: "rgba(37, 211, 102, 0.2)",
-                  border: "1px solid rgba(37, 211, 102, 0.4)",
-                  color: "#25D366",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "5px",
-                  cursor: "pointer",
-                }}
+                className="flex-1 py-1.5 rounded-lg bg-[#00d2ff]/15 border border-[#00d2ff]/30 hover:bg-[#00d2ff]/25 text-[#00d2ff] text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
               >
-                <Share2 size={13} /> WhatsApp
+                <Share2 size={12} /> Telegram
               </button>
 
               <button
                 type="button"
                 onClick={() => {
                   const text = encodeURIComponent(
-                    `⚔️ I just won ${totalPotNim > 0 ? formatNim(dist.winnerNim) + " NIM" : "a match"} on @Nimiq Arena! Non-custodial Web3 gaming arcade. Challenge me: ${shareUrl}`
+                    `⚔️ I just won ${
+                      totalPotNim > 0 ? formatNim(winnerNetNim) + " NIM" : "a match"
+                    } on @Nimiq Arena! Non-custodial Web3 gaming arcade. Challenge me: ${shareUrl}`
                   );
-                  window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+                  window.open(
+                    `https://twitter.com/intent/tweet?text=${text}`,
+                    "_blank"
+                  );
                 }}
-                style={{
-                  flex: 1,
-                  minWidth: "90px",
-                  padding: "7px 10px",
-                  borderRadius: "8px",
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  color: "#f8fafc",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "5px",
-                  cursor: "pointer",
-                }}
+                className="flex-1 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/15 text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
               >
                 X / Twitter
               </button>
@@ -405,48 +337,55 @@ export function VictoryPayoutBanner({
                 type="button"
                 onClick={() => {
                   void navigator.clipboard?.writeText(shareUrl);
-                  toast.success("Referral Link Copied!", {
-                    description: "Share it with friends to earn 2% of their match winnings!",
-                  });
+                  toast.success("Referral Link Copied!");
                 }}
-                style={{
-                  padding: "7px 12px",
-                  borderRadius: "8px",
-                  background: "rgba(245, 158, 11, 0.2)",
-                  border: "1px solid rgba(245, 158, 11, 0.4)",
-                  color: "#fbbf24",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  cursor: "pointer",
-                }}
+                className="px-3 py-1.5 rounded-lg bg-[#f3b72c]/15 border border-[#f3b72c]/30 hover:bg-[#f3b72c]/25 text-[#ffd78d] text-[11px] font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer"
+                title="Copy Invite Link"
               >
-                <Copy size={13} /> Copy Link
+                <Copy size={12} />
               </button>
             </div>
           </div>
         )}
 
-        {/* Post-Match Action CTAs */}
-        <div className="victory-action-row mt-2">
-          {onPlayAgain && (
-            <button
-              type="button"
-              className="btn-victory-primary"
-              onClick={onPlayAgain}
-              disabled={isReplaying}
-            >
-              <RefreshCw size={17} className={isReplaying ? "spin" : ""} />
-              <span>{isReplaying ? "STARTING REPLAY…" : "PLAY AGAIN"}</span>
-            </button>
-          )}
-          {onReturnToLobby && (
-            <button type="button" className="btn-victory-secondary" onClick={onReturnToLobby}>
-              <span>RETURN HOME</span>
-            </button>
-          )}
+        {/* 5. ACTION BUTTONS */}
+        <div className="mt-4 flex flex-col gap-2 relative z-10">
+          {/* Direct Replay Button (Solves dispute & lets players review exact moves) */}
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = `/matches/${matchId}/replay`;
+            }}
+            className="w-full h-11 rounded-xl bg-[#191f2e] border border-[#00d2ff]/40 hover:border-[#00d2ff] text-[#00d2ff] hover:text-white font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,210,255,0.15)] active:scale-95 transition-all cursor-pointer"
+          >
+            <Eye size={16} />
+            <span>WATCH MOVE-BY-MOVE REPLAY</span>
+          </button>
+
+          <div className="flex gap-2">
+            {onPlayAgain && (
+              <button
+                type="button"
+                onClick={onPlayAgain}
+                disabled={isReplaying}
+                className="flex-1 h-12 rounded-xl bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw size={16} className={isReplaying ? "animate-spin" : ""} />
+                <span>{isReplaying ? "STARTING…" : "PLAY AGAIN"}</span>
+              </button>
+            )}
+
+            {onReturnToLobby && (
+              <button
+                type="button"
+                onClick={onReturnToLobby}
+                className="flex-1 h-12 rounded-xl bg-[#151b29] border border-[#2f3544] hover:bg-[#191f2e] text-[#dde2f6] font-mono text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+              >
+                <span>RETURN HOME</span>
+                <ArrowRight size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -717,7 +717,7 @@ export const appRouter = router({
       .input(
         z.object({
           matchId: matchIdSchema,
-          winnerUserId: z.number().int().positive(),
+          winnerUserId: z.number().int().min(0),
         })
       )
       .mutation(async ({ ctx, input }) => {

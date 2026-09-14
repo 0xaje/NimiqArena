@@ -3513,11 +3513,43 @@ export async function settleMatchWinnerPayout(input: {
   if (match.status !== "finished") {
     throw new Error("Match is not finished yet.");
   }
+
+  const escrow = await getMatchEscrowDetails(input.matchId);
+  const grossPotNim = escrow.totalPotNim || 0;
+  const stakeNim = escrow.stakeNim || (grossPotNim > 0 ? grossPotNim / 2 : 0);
+
+  // Handle Draw / Stalemate: 100% refund of initial stake to both players
+  if (input.winnerUserId === 0 || !match.winnerUserId) {
+    const isTestnet = ENV.nimiqNetworkId === 5;
+    return {
+      success: true,
+      matchId: input.matchId,
+      isDraw: true,
+      winnerUserId: 0,
+      winnerName: "Match Draw",
+      grossPotNim,
+      protocolFeeNim: 0,
+      netPayoutNim: stakeNim,
+      distribution: {
+        winnerNim: stakeNim,
+        referrerNim: 0,
+        builderNim: 0,
+        ecosystemNim: 0,
+        charityNim: 0,
+      },
+      settlementStatus: "draw_refunded",
+      payoutTxHash: null,
+      settledAt: new Date().toISOString(),
+      network: isTestnet ? "testnet" : "mainnet",
+      explorerUrl: null,
+      notice: `Match concluded in a draw. 100% of player stakes (${stakeNim} NIM each) refunded with zero fees.`,
+    };
+  }
+
   if (match.winnerUserId !== input.winnerUserId) {
     throw new Error("Winner mismatch for payout settlement.");
   }
 
-  const escrow = await getMatchEscrowDetails(input.matchId);
   const winnerUser = (
     await db
       .select()
@@ -3526,7 +3558,6 @@ export async function settleMatchWinnerPayout(input: {
       .limit(1)
   )[0];
 
-  const grossPotNim = escrow.totalPotNim || 0;
   const hasReferrer = Boolean(winnerUser?.referredByUserId && winnerUser.referredByUserId !== winnerUser.id);
   const dist = calculatePotDistribution(grossPotNim, hasReferrer);
 
