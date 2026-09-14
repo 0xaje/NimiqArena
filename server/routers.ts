@@ -30,6 +30,7 @@ import {
   getMatchEscrowDetails,
   getMatchPlayer,
   getMatchPlayers,
+  getMatchReplayDetails,
   getMatchQueueStatus,
   getPlayerStats,
   getUserByOpenId,
@@ -846,6 +847,19 @@ export const appRouter = router({
           isSpectator: !player,
           expiresAt: match.expiresAt,
         };
+      }),
+    replayDetails: publicProcedure
+      .input(z.object({ matchId: matchIdSchema }))
+      .query(async ({ input }) => {
+        try {
+          return await getMatchReplayDetails(input.matchId);
+        } catch (error) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              error instanceof Error ? error.message : "Replay not found.",
+          });
+        }
       }),
     heartbeat: protectedProcedure
       .input(z.object({ id: matchIdSchema }))

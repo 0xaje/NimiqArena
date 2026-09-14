@@ -4,7 +4,7 @@ import {
   MATCH_PLAY_WINDOW_MS,
   PLAYER_HEARTBEAT_TIMEOUT_MS,
 } from "@shared/const";
-import { and, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertGame,
@@ -1877,10 +1877,94 @@ export async function getMatchPlayers(matchId: string) {
       lastSeenAt: matchPlayers.lastSeenAt,
       name: users.name,
       address: users.address,
+      avatar: users.avatar,
     })
     .from(matchPlayers)
     .leftJoin(users, eq(matchPlayers.userId, users.id))
     .where(eq(matchPlayers.matchId, matchId));
+}
+
+export async function getMatchReplayDetails(matchId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Match service is unavailable.");
+
+  const match = await getMatchById(matchId);
+  if (!match) throw new Error("Match not found.");
+
+  const [players, rawEvents, escrow] = await Promise.all([
+    getMatchPlayers(matchId),
+    db
+      .select()
+      .from(matchEvents)
+      .where(eq(matchEvents.matchId, matchId))
+      .orderBy(asc(matchEvents.version)),
+    getMatchEscrowDetails(matchId).catch(() => null),
+  ]);
+
+  const gameSlug =
+    match.engineVersion === "connect4-v1" ? "connect-four" : "ludo-league";
+  const gameTitle =
+    match.engineVersion === "connect4-v1" ? "Connect 4 NIM" : "Ludo Blitz";
+
+  const history = rawEvents.map((ev, idx) => {
+    let command: any = null;
+    let event: any = null;
+    let snapshot: any = null;
+    try {
+      command = JSON.parse(ev.commandJson);
+    } catch {}
+    try {
+      event = JSON.parse(ev.eventJson);
+    } catch {}
+    try {
+      snapshot = JSON.parse(ev.snapshotJson);
+    } catch {}
+
+    return {
+      turn: idx + 1,
+      version: ev.version,
+      userId: ev.userId,
+      command,
+      event,
+      snapshot,
+      timestamp: ev.createdAt.toISOString(),
+    };
+  });
+
+  let finalSnapshot: any = null;
+  try {
+    finalSnapshot = match.stateJson ? JSON.parse(match.stateJson) : null;
+  } catch {}
+
+  const p1 = players.find(p => p.seat === 0);
+  const p2 = players.find(p => p.seat === 1);
+
+  return {
+    matchId: match.id,
+    joinCode: match.joinCode,
+    status: match.status,
+    engineVersion: match.engineVersion,
+    gameSlug,
+    gameTitle,
+    stakeNim: escrow?.stakeNim || 0,
+    totalPotNim: escrow?.totalPotNim || 0,
+    winnerUserId: match.winnerUserId,
+    winnerSeat: finalSnapshot?.winner ?? null,
+    winningLine: finalSnapshot?.winningLine ?? null,
+    players: players.map(p => ({
+      userId: p.userId,
+      name: p.name || `Player ${p.seat + 1}`,
+      seat: p.seat,
+      avatar: p.avatar || undefined,
+      address: p.address || undefined,
+    })),
+    p1Name: p1?.name || "Player 1",
+    p2Name: p2?.name || (match.joinCode?.startsWith("BOT") ? "Arena Bot" : "Player 2"),
+    totalTurns: history.length || (finalSnapshot?.turnCount ?? 1),
+    history,
+    initialSnapshot: history.length > 0 ? history[0].snapshot : finalSnapshot,
+    finalSnapshot,
+  };
 }
 
 export async function getActiveSeason(): Promise<Season | null> {

@@ -189,6 +189,7 @@ export default function MatchRoom() {
   const createWagered = trpc.match.createWageredMatch.useMutation();
 
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [hasLocalDepositSucceeded, setHasLocalDepositSucceeded] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const [isRecoveringAuth, setIsRecoveringAuth] = useState(false);
   const [showProvablyFair, setShowProvablyFair] = useState(false);
@@ -607,6 +608,7 @@ export default function MatchRoom() {
     const myDepositVerified = Boolean(
       !isWageredMatchTable ||
         isSpectator ||
+        hasLocalDepositSucceeded ||
         escrow?.playerStatuses?.find((p) => p.seat === yourSeat)?.verified
     );
     const isDepositNeeded = Boolean(
@@ -678,7 +680,11 @@ export default function MatchRoom() {
             onClose={() => setIsDepositModalOpen(false)}
             matchId={matchId}
             stakeNim={effectiveStakeNim}
+            yourSeat={yourSeat}
+            isAlreadyDeposited={myDepositVerified}
             onDepositSuccess={() => {
+              setHasLocalDepositSucceeded(true);
+              setIsDepositModalOpen(false);
               void escrowQuery.refetch();
               void stateQuery.refetch();
             }}
@@ -1350,7 +1356,16 @@ export default function MatchRoom() {
             onClose={() => setIsDepositModalOpen(false)}
             matchId={matchId}
             stakeNim={gameplayStakeNim}
+            yourSeat={yourSeat}
+            isAlreadyDeposited={Boolean(
+              !isWagered ||
+                isSpectator ||
+                hasLocalDepositSucceeded ||
+                escrow?.playerStatuses?.find((p) => p.seat === yourSeat)?.verified
+            )}
             onDepositSuccess={() => {
+              setHasLocalDepositSucceeded(true);
+              setIsDepositModalOpen(false);
               void escrowQuery.refetch();
               void stateQuery.refetch();
             }}

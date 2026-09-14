@@ -37,6 +37,8 @@ interface EscrowDepositModalProps {
   stakeNim: number;
   onDepositSuccess: () => void;
   gameTitle?: string;
+  yourSeat?: number;
+  isAlreadyDeposited?: boolean;
 }
 
 export function EscrowDepositModal({
@@ -46,6 +48,8 @@ export function EscrowDepositModal({
   stakeNim,
   onDepositSuccess,
   gameTitle = "Ludo Arena — 1v1",
+  yourSeat,
+  isAlreadyDeposited = false,
 }: EscrowDepositModalProps) {
   useModalBackHandler(isOpen, onClose);
   const utils = trpc.useUtils();
@@ -158,13 +162,18 @@ export function EscrowDepositModal({
   const modalEscrowQuery = trpc.match.escrowDetails.useQuery(
     { matchId },
     {
-      enabled: Boolean(isOpen && matchId && (!stakeNim || stakeNim <= 0)),
-      staleTime: 5_000,
+      enabled: Boolean(isOpen && matchId),
+      staleTime: 3_000,
     }
   );
   const [intentStakeNim, setIntentStakeNim] = useState<number | null>(null);
 
   if (!isOpen) return null;
+
+  const myStatus = modalEscrowQuery.data?.playerStatuses?.find(
+    (p) => typeof yourSeat === "number" && p.seat === yourSeat
+  );
+  const isAlreadyVerified = isAlreadyDeposited || Boolean(myStatus?.verified);
 
   const displayStakeNim =
     intentStakeNim && intentStakeNim > 0
@@ -191,6 +200,15 @@ export function EscrowDepositModal({
       : "1,370.00";
 
   const handleStartDeposit = async () => {
+    if (isAlreadyVerified) {
+      toast.info("Stake Already Verified", {
+        description: "Your stake is already locked in on-chain escrow for this match.",
+      });
+      return;
+    }
+    if (step !== "idle" && step !== "error") {
+      return;
+    }
     if (accountInfo?.status === "wrong_network") {
       toast.error("Network Mismatch", {
         description: "Please switch Nimiq Pay to Testnet in developer settings.",
@@ -515,43 +533,64 @@ export function EscrowDepositModal({
 
           {/* Primary Call to Action Button & Cancel Option */}
           <div className="space-y-1.5 pt-1">
-            <button
-              onClick={handleStartDeposit}
-              disabled={step === "creating" || step === "paying" || step === "verifying"}
-              className={`w-full h-13 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(243,183,44,0.35)] ${
-                step === "success"
-                  ? "bg-[#68f5b8] text-[#003824]"
-                  : step === "error"
-                  ? "bg-[#f3b72c] text-[#412d00]"
-                  : "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4]"
-              }`}
-            >
-              {step === "creating" || step === "paying" || step === "verifying" ? (
-                <>
-                  <RotateCw size={18} className="animate-spin" />
-                  <span>Signing Micro-Escrow…</span>
-                </>
-              ) : step === "success" ? (
-                <>
+            {isAlreadyVerified ? (
+              <div className="p-3 rounded-xl bg-[#68f5b8]/10 border border-[#68f5b8]/30 flex flex-col items-center gap-2 text-center">
+                <div className="flex items-center gap-2 text-[#68f5b8] font-bold text-sm">
                   <CheckCircle2 size={18} />
-                  <span>Match Joined! Entering Arena…</span>
-                </>
-              ) : (
-                <>
-                  <Lock size={18} className="font-bold" />
-                  <span>Pay {displayStakeNim} NIM &amp; Enter Match</span>
-                  <ArrowRight size={18} />
-                </>
-              )}
-            </button>
+                  <span>Stake Verified &amp; Locked in Escrow</span>
+                </div>
+                <p className="text-[11px] text-[#d4c5ad]">
+                  Your {displayStakeNim} NIM stake has been securely deposited. Waiting for your opponent or match start.
+                </p>
+                <button
+                  onClick={onClose}
+                  type="button"
+                  className="w-full h-10 mt-1 bg-[#68f5b8] hover:bg-[#85ffc7] text-[#003824] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <span>Return to Match Table</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={handleStartDeposit}
+                  disabled={step === "creating" || step === "paying" || step === "verifying"}
+                  className={`w-full h-13 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(243,183,44,0.35)] ${
+                    step === "success"
+                      ? "bg-[#68f5b8] text-[#003824]"
+                      : step === "error"
+                      ? "bg-[#f3b72c] text-[#412d00]"
+                      : "bg-[#f3b72c] text-[#412d00] hover:bg-[#ffdea4]"
+                  }`}
+                >
+                  {step === "creating" || step === "paying" || step === "verifying" ? (
+                    <>
+                      <RotateCw size={18} className="animate-spin" />
+                      <span>Signing Micro-Escrow…</span>
+                    </>
+                  ) : step === "success" ? (
+                    <>
+                      <CheckCircle2 size={18} />
+                      <span>Match Joined! Entering Arena…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={18} className="font-bold" />
+                      <span>Pay {displayStakeNim} NIM &amp; Enter Match</span>
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
 
-            <button
-              onClick={onClose}
-              type="button"
-              className="w-full h-9 text-[#d4c5ad] hover:text-[#dde2f6] text-xs font-semibold active:scale-95 transition-all flex items-center justify-center"
-            >
-              Cancel
-            </button>
+                <button
+                  onClick={onClose}
+                  type="button"
+                  className="w-full h-9 text-[#d4c5ad] hover:text-[#dde2f6] text-xs font-semibold active:scale-95 transition-all flex items-center justify-center"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
 
           {/* Security Badge Micro-Footer */}
