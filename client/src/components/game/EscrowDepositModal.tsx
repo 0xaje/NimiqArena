@@ -137,7 +137,11 @@ export function EscrowDepositModal({
               NIMIQ ESCROW DEPOSIT
             </span>
           </div>
-          <button className="quickmatch-close-btn" onClick={onClose}>
+          <button
+            className="quickmatch-close-btn"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={18} />
           </button>
         </div>

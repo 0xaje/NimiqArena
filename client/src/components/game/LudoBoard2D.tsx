@@ -516,7 +516,7 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = ({
                   <>
                     <span className="yard-badge-dot yellow-dot" />
                     <span className="yard-label">
-                      {yourSeat === 0 ? "PLAYER 1 (GOLD)" : "PLAYER 1"}
+                      {yourSeat === 0 ? "PLAYER 1 (YOU) · GOLD" : "PLAYER 1 (GOLD)"}
                     </span>
                   </>
                 ) : isBotMatch ? (

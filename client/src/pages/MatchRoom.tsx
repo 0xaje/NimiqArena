@@ -11,7 +11,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useRoute } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { reconnectDelayMs, shouldResync } from "@/lib/reconnect-policy";
@@ -42,6 +42,7 @@ function formatGrace(totalSeconds: number): string {
 
 export default function MatchRoom() {
   const [, params] = useRoute("/matches/:id");
+  const [, navigate] = useLocation();
   const matchId = params?.id ?? "";
   const utils = trpc.useUtils();
 
@@ -203,23 +204,18 @@ export default function MatchRoom() {
             OPPONENT_PRESENCE_WARNING_MS))
   );
 
-  // Turn Countdown Timer (30s per turn)
+  // Turn clock: counts up how long the current turn has run. There is no
+  // time limit on a turn — nothing happens when this reaches any number —
+  // so it counts up rather than down. A countdown with no penalty behind it
+  // would be a threat this app doesn't back up.
   useEffect(() => {
     if (state?.status !== "in_progress" || snapshot?.winner !== null) {
       return;
     }
-    setTurnSecondsLeft(30);
+    setTurnSecondsLeft(0);
 
     const interval = window.setInterval(() => {
-      setTurnSecondsLeft(prev => {
-        if (prev <= 1) {
-          return 0;
-        }
-        if (prev <= 6 && isYourTurn) {
-          soundEngine.playTimerWarning();
-        }
-        return prev - 1;
-      });
+      setTurnSecondsLeft(prev => prev + 1);
     }, 1000);
 
     return () => window.clearInterval(interval);
@@ -554,9 +550,15 @@ export default function MatchRoom() {
             type="button"
             className="gameplay-back-btn"
             onClick={() => {
-              if (isFinished || confirm("Leave table and return to lobby?")) {
-                window.location.href = "/games/ludo-league";
+              if (!isFinished && !confirm("Leave table and return to lobby?")) {
+                return;
               }
+              // Tell the server now, rather than letting the opponent see
+              // this seat as connected until the heartbeat grace window
+              // expires. A client-side route change (not a hard reload)
+              // so the request isn't cancelled mid-flight by navigation.
+              if (matchId) disconnectRef.current.mutate({ id: matchId });
+              navigate("/games/ludo-league");
             }}
           >
             <ArrowLeft size={14} />
@@ -607,11 +609,11 @@ export default function MatchRoom() {
             </div>
           </div>
 
-          <div className="center-timer-badge">
+          <div className="center-timer-badge" title="Time on this turn — there's no limit">
             <span
               style={{
                 font: "800 11px 'IBM Plex Mono', monospace",
-                color: turnSecondsLeft <= 8 ? "#ef4444" : "#fbbf24",
+                color: "#fbbf24",
               }}
             >
               ⏱️ {turnSecondsLeft}s
@@ -924,8 +926,8 @@ export default function MatchRoom() {
                 </strong>
               </div>
               <div>
-                <span className="card-label">TURN TIMER</span>
-                <strong style={{ color: turnSecondsLeft <= 8 ? "#e74c3c" : "#EC9918", fontWeight: 700 }}>
+                <span className="card-label">TURN CLOCK</span>
+                <strong style={{ color: "#EC9918", fontWeight: 700 }}>
                   ⏱️ {turnSecondsLeft}s
                 </strong>
               </div>

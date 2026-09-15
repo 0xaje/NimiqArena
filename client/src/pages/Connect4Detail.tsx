@@ -358,10 +358,7 @@ export default function Connect4Detail() {
             </div>
             <div className="trust-line">
               <ShieldCheck size={15} />
-              <span>
-                Deterministic server-authoritative engine. Every drop and victory
-                line is verified.
-              </span>
+              <span>Every drop and win is verified server-side.</span>
             </div>
           </div>
 
