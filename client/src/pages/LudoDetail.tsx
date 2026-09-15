@@ -30,7 +30,6 @@ import { useNimiqWallet } from "@/lib/useNimiqWallet";
 import { formatNim } from "@shared/game/pot-distribution";
 import { LudoEntryFlowModal } from "@/components/game/LudoEntryFlowModal";
 import { PlayWithFriendModal } from "@/components/game/PlayWithFriendModal";
-import { TournamentCupModal } from "@/components/tournament/TournamentCupModal";
 import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { ActiveTablesDirectory } from "@/components/game/ActiveTablesDirectory";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
@@ -79,7 +78,6 @@ export default function LudoDetail() {
   const [isConfirmEntryOpen, setIsConfirmEntryOpen] = useState(false);
   const [isPlayWithFriendOpen, setIsPlayWithFriendOpen] = useState(false);
   const [isEntryFlowOpen, setIsEntryFlowOpen] = useState(false);
-  const [isTournamentOpen, setIsTournamentOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isWalletSheetOpen, setIsWalletSheetOpen] = useState(false);
   const [isDripping, setIsDripping] = useState(false);
@@ -734,7 +732,11 @@ export default function LudoDetail() {
               <span>Custom Table</span>
             </button>
             <button
-              onClick={() => setIsTournamentOpen(true)}
+              onClick={() =>
+                toast.info("8-Player Cup isn't live yet", {
+                  description: "Brackets, buy-ins, and payouts for this format aren't wired up on the server yet.",
+                })
+              }
               className="flex-1 py-2 px-3 rounded-xl bg-[#191f2e] border border-[#242a39] text-[11px] text-[#dde2f6] hover:text-[#ffd78d] font-semibold flex items-center justify-center gap-1.5 transition-colors"
             >
               <Trophy size={14} className="text-[#ffd78d]" />
@@ -742,16 +744,11 @@ export default function LudoDetail() {
             </button>
           </div>
 
-          {/* LIVE ACTIVE ARENA TABLES DIRECTORY */}
+          {/* LIVE ACTIVE ARENA TABLES DIRECTORY — the component below has its
+              own "LIVE ARENA DIRECTORY / REAL-TIME MATCH RADAR" header, so a
+              second header here was two ways of saying "here are the live
+              tables" stacked on top of each other. */}
           <div className="px-4 pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-[#dde2f6] uppercase tracking-wider font-mono">
-                Live Tables Radar
-              </span>
-              <span className="text-[10px] text-[#94a3b8] font-mono">
-                {activeMatches.length} Open Now
-              </span>
-            </div>
             <ActiveTablesDirectory />
           </div>
 
@@ -880,10 +877,6 @@ export default function LudoDetail() {
           defaultStake={selectedStake}
         />
 
-        <TournamentCupModal
-          isOpen={isTournamentOpen}
-          onClose={() => setIsTournamentOpen(false)}
-        />
 
         <WalletConnectModal
           isOpen={isWalletModalOpen}
