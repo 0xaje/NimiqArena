@@ -226,6 +226,7 @@ export function PlayWithFriendModal({
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Close"
           style={{
             position: "absolute",
             top: "16px",

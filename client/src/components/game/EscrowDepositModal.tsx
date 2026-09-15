@@ -326,6 +326,7 @@ export function EscrowDepositModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="w-9 h-9 rounded-full bg-[#242a39] active:bg-[#333948] flex items-center justify-center text-[#d4c5ad] hover:text-[#dde2f6] transition-colors"
             type="button"
           >

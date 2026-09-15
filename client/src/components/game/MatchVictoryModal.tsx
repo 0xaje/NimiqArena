@@ -288,6 +288,7 @@ export function MatchVictoryModal({
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close"
                   className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#191f2e] border border-[#242a39] active:scale-95 transition-transform text-[#d4c5ad] hover:text-[#dde2f6]"
                 >
                   <X size={16} />

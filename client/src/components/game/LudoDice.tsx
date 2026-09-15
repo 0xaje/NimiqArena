@@ -126,10 +126,27 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
     );
   };
 
-  const handleDieClick = (dieVal: number | null, e: React.MouseEvent) => {
+  const handleDieClick = (
+    dieVal: number | null,
+    e: React.MouseEvent | React.KeyboardEvent
+  ) => {
     e.stopPropagation();
     if (!dieVal || canRoll || isRolling || !onSelectDie) return;
     onSelectDie(selectedDie === dieVal ? null : dieVal);
+  };
+
+  // The die cells are plain divs (styling depends on inline transforms that
+  // would fight a real <button>'s own box model), so keyboard support has to
+  // be added by hand: without this, choosing which rolled die to play only
+  // works with a mouse or touch.
+  const handleDieKeyDown = (
+    dieVal: number | null,
+    available: boolean,
+    e: React.KeyboardEvent
+  ) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    if (available) handleDieClick(dieVal, e);
   };
 
   return (
@@ -164,13 +181,23 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
           </div>
         </button>
       ) : (
-        <div className="dual-dice-button p${playerSeat}-dice-btn interactive-dice-btn">
+        <div className={`dual-dice-button p${playerSeat}-dice-btn interactive-dice-btn`}>
           <div className="dual-dice-pair">
             <div
               className={`ludo-dice-cube dice-one p${playerSeat}-dice ${
                 !d1Available ? "die-used" : "die-clickable"
               } ${selectedDie === val1 ? "die-selected" : ""}`}
+              role="button"
+              tabIndex={d1Available ? 0 : -1}
+              aria-disabled={!d1Available}
+              aria-pressed={selectedDie === val1}
+              aria-label={
+                d1Available
+                  ? `Use die showing ${val1} for your next move`
+                  : `Die showing ${val1}, already played`
+              }
               onClick={e => d1Available && handleDieClick(val1, e)}
+              onKeyDown={e => handleDieKeyDown(val1, d1Available, e)}
               title={d1Available ? `Click to use ${val1} for your next move` : "Die already played"}
               style={{
                 opacity: d1Available ? 1 : 0.35,
@@ -187,7 +214,17 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
               className={`ludo-dice-cube dice-two p${playerSeat}-dice ${
                 !d2Available ? "die-used" : "die-clickable"
               } ${selectedDie === val2 ? "die-selected" : ""}`}
+              role="button"
+              tabIndex={d2Available ? 0 : -1}
+              aria-disabled={!d2Available}
+              aria-pressed={selectedDie === val2}
+              aria-label={
+                d2Available
+                  ? `Use die showing ${val2} for your next move`
+                  : `Die showing ${val2}, already played`
+              }
               onClick={e => d2Available && handleDieClick(val2, e)}
+              onKeyDown={e => handleDieKeyDown(val2, d2Available, e)}
               title={d2Available ? `Click to use ${val2} for your next move` : "Die already played"}
               style={{
                 opacity: d2Available ? 1 : 0.35,
