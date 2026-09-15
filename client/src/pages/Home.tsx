@@ -27,7 +27,7 @@ import { WalletConnectModal } from "@/components/game/WalletConnectModal";
 import { IdentityRegistrationModal } from "@/components/profile/IdentityRegistrationModal";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
 import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
-import { useNimiqPrice } from "@/lib/nimiq-price";
+import { useNimiqPrice, DEFAULT_NIM_USD_PRICE } from "@/lib/nimiq-price";
 
 export default function Home() {
   const utils = trpc.useUtils();
@@ -62,14 +62,17 @@ export default function Home() {
   const USD_STAKES = [10, 50, 100, 500];
 
   const calculateNimFromUsd = (usd: number): number => {
-    if (priceUsd && priceUsd > 0) {
-      const rawNim = usd / priceUsd;
-      if (rawNim >= 1000) {
-        return Math.round(rawNim / 100) * 100;
-      }
-      return Math.max(10, Math.round(rawNim));
+    // priceUsd comes from useNimiqPrice, seeded with its own DEFAULT_NIM_USD_PRICE
+    // before any fetch resolves, so it's never actually 0 here — this used to
+    // guard that with a *second*, different hardcoded rate (2500 NIM/$1, vs.
+    // the price module's ~2573), a fallback-behind-a-fallback that could never
+    // run and would have disagreed with the real one if it ever did.
+    const rate = priceUsd > 0 ? priceUsd : DEFAULT_NIM_USD_PRICE;
+    const rawNim = usd / rate;
+    if (rawNim >= 1000) {
+      return Math.round(rawNim / 100) * 100;
     }
-    return usd * 2500;
+    return Math.max(10, Math.round(rawNim));
   };
 
   const [selectedStake, setSelectedStake] = useState<number>(() => calculateNimFromUsd(10));
@@ -138,7 +141,10 @@ export default function Home() {
     setIsLudoFlowOpen(true);
   };
 
-  const activeMatches = activeMatchesQuery.data || [];
+  const activeMatches = activeMatchesQuery.data?.matches || [];
+  // The query above is capped at 5 rows for the preview list; this is the
+  // real system-wide count, not that page size.
+  const totalActiveMatches = activeMatchesQuery.data?.totalCount ?? activeMatches.length;
   const topChampions = leaderboardQuery.data || [];
 
   // Short formatted address e.g. NQ07 ···· 32F1
@@ -370,7 +376,7 @@ export default function Home() {
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-[#00d2ff]/15 text-[#00d2ff] text-[10px] font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] shadow-[0_0_8px_#00d2ff] animate-pulse" />
-                  <span>{activeMatches.length} ACTIVE</span>
+                  <span>{totalActiveMatches} ACTIVE</span>
                 </span>
               </div>
               <Link href="/games/ludo-league" className="text-xs text-[#a5e7ff] hover:underline font-mono">
@@ -556,7 +562,7 @@ export default function Home() {
         {/* ========================================================================= */}
         {/* FIXED BOTTOM NAVIGATION                                                   */}
         {/* ========================================================================= */}
-        <MobileBottomNav activeMatchesCount={activeMatches.length} />
+        <MobileBottomNav activeMatchesCount={totalActiveMatches} />
 
         {/* ========================================================================= */}
         {/* MODAL BOTTOM SHEET 1: WAGER CONFIRMATION SHEET                            */}

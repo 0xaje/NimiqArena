@@ -22,23 +22,26 @@ import {
 } from "lucide-react";
 
 export function NimiqForensicPanel() {
-  const { address, balanceNim, balanceStatus, syncNimiqPayAccount, isInsideNimiqPay, setAddress } = useNimiqWallet();
+  const { address, balanceNim, balanceStatus, syncNimiqPayAccount, setAddress } = useNimiqWallet();
   const [report, setReport] = useState<NimiqForensicReport | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Auto-display in mobile Nimiq Pay or when debug flag is in URL
+  // Dev-only tool. It used to also auto-show for every player inside the
+  // real Nimiq Pay app (isInsideNimiqPay/window.nimiq) or with a plain
+  // "?dev=1" — that's the app's actual production distribution channel, so
+  // every real user got a fixed z-index:99999 diagnostics panel glued over
+  // their bottom nav. The only way in now is an explicit "?debug" or "?diag"
+  // query param, or NODE_ENV=development.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
-    const hasDebugFlag = urlParams.has("debug") || urlParams.has("diag") || urlParams.get("dev") === "1";
-    const insideApp = isInsideNimiqPay || Boolean((window as any).nimiq || (window as any).nimiqPay);
+    const hasDebugFlag = urlParams.has("debug") || urlParams.has("diag");
 
-    // Show floating button automatically if inside Nimiq Pay or with query flag or dev mode
-    setIsVisible(hasDebugFlag || insideApp || process.env.NODE_ENV === "development");
-  }, [isInsideNimiqPay]);
+    setIsVisible(hasDebugFlag || process.env.NODE_ENV === "development");
+  }, []);
 
   const executeAudit = useCallback(async () => {
     setIsRunning(true);

@@ -10,10 +10,18 @@ let _cachedPrice: number = DEFAULT_NIM_USD_PRICE;
 let _lastFetchedAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-export async function fetchNimiqUsdPrice(): Promise<number> {
+/**
+ * Fetches the live price. `live` tells the caller whether this actually
+ * came from CoinGecko just now, or is the cached/default rate standing in
+ * for a request that failed, was rate-limited, or hasn't run yet — the two
+ * cases used to be indistinguishable to callers, so a stale fallback could
+ * be shown labeled "Live" on the screen where players pick a real-money
+ * stake.
+ */
+export async function fetchNimiqUsdPrice(): Promise<{ price: number; live: boolean }> {
   const now = Date.now();
-  if (now - _lastFetchedAt < CACHE_TTL_MS && _cachedPrice > 0) {
-    return _cachedPrice;
+  if (now - _lastFetchedAt < CACHE_TTL_MS && _lastFetchedAt > 0) {
+    return { price: _cachedPrice, live: true };
   }
   try {
     const res = await fetch(
@@ -26,12 +34,13 @@ export async function fetchNimiqUsdPrice(): Promise<number> {
       if (typeof price === "number" && price > 0) {
         _cachedPrice = price;
         _lastFetchedAt = now;
+        return { price, live: true };
       }
     }
   } catch {
     // Network or rate-limit fallback
   }
-  return _cachedPrice;
+  return { price: _cachedPrice, live: false };
 }
 
 export function useNimiqPrice() {
@@ -40,10 +49,10 @@ export function useNimiqPrice() {
 
   useEffect(() => {
     let mounted = true;
-    fetchNimiqUsdPrice().then(price => {
+    fetchNimiqUsdPrice().then(({ price, live }) => {
       if (mounted) {
         setPriceUsd(price);
-        setIsLive(true);
+        setIsLive(live);
       }
     });
     return () => {
