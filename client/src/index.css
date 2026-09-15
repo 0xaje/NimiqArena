@@ -71,12 +71,19 @@ a:focus-visible {
 .arena-sidebar {
   width: 232px;
   flex: 0 0 232px;
-  min-height: 100vh;
+  height: 100vh;
   border-right: 1px solid var(--rule);
   padding: 28px 24px 24px;
   display: flex;
   flex-direction: column;
-  position: relative;
+  /* Pinned to the viewport, not the row: without this the sidebar stretches
+     to match the (much taller) main column and scrolls off with it, taking
+     nav, wallet status and "Connect wallet" out of reach for most of the
+     page. align-self stops the flex row from stretching it to that height. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  overflow-y: auto;
   z-index: 3;
   background: rgba(245, 239, 228, 0.92);
 }
@@ -1257,8 +1264,18 @@ h1 em,
   .platform-intro {
     gap: 30px;
   }
-  .search-button {
+  /* Only the faucet shortcut goes — it's a testnet convenience with no
+     other UI cost. The account button stays: it's the only way to sign in
+     or switch identity from the header, and has no fallback below this
+     width besides scrolling to the profile teaser near the page bottom. */
+  .faucet-button {
     display: none;
+  }
+}
+@media (max-width: 460px) {
+  .account-button {
+    font-size: 10px;
+    padding: 9px 10px;
   }
 }
 @media (max-width: 780px) {

@@ -5,9 +5,7 @@ import {
   Coins,
   Copy,
   Gamepad2,
-  LockKeyhole,
   ShieldCheck,
-  Users,
   WalletCards,
   Zap,
 } from "lucide-react";
@@ -249,16 +247,10 @@ export default function LudoDetail() {
           <article className="detail-panel">
             <span className="card-label">MATCH CREATION</span>
             <h2>Start a private table.</h2>
-            <p>
-              Challenge Friend creates the match on the backend and returns a
-              unique match ID and invite code. Joining a friend, turn execution,
-              and reconnection are separate dependencies and remain unavailable
-              until implemented.
-            </p>
             {createdMatch ? (
               <div className="match-created">
                 <div>
-                  <span className="card-label">REAL MATCH ID</span>
+                  <span className="card-label">MATCH ID</span>
                   <strong>{createdMatch.id}</strong>
                 </div>
                 <div>
@@ -276,29 +268,35 @@ export default function LudoDetail() {
                 </button>
               </div>
             ) : (
-              <div className="availability-note">
-                <LockKeyhole size={15} />
-                <span>
-                  Authentication is required before a match can be created.
-                </span>
-              </div>
+              <>
+                <p>Get an invite code to share with one other player.</p>
+                <button
+                  className="primary-action"
+                  onClick={createMatch}
+                  disabled={createChallenge.isPending}
+                  style={{ padding: "12px 20px", fontSize: "13px" }}
+                >
+                  {createChallenge.isPending
+                    ? "Creating…"
+                    : "Create challenge match"}
+                </button>
+              </>
             )}
           </article>
           <article className="detail-panel detail-panel-dark">
             <span className="card-label">WHAT IS REAL HERE</span>
             <ul className="detail-list">
               <li>
-                <Check size={14} /> Game record comes from the database.
+                <Check size={14} /> Opponent, turns, and results are live —
+                server-authoritative, not simulated.
               </li>
               <li>
-                <Check size={14} /> Match ID and code come from the backend.
+                <Check size={14} /> Reconnection is covered by a heartbeat
+                and disconnect-grace window.
               </li>
               <li>
-                <Check size={14} /> Initial engine snapshot is persisted.
-              </li>
-              <li>
-                <span className="unavailable-dot" /> Opponent, turns, and
-                results are not live yet.
+                <Check size={14} /> NIM entry is verified on-chain before a
+                wagered seat is granted.
               </li>
             </ul>
           </article>
@@ -312,13 +310,13 @@ export default function LudoDetail() {
           </div>
           <div>
             <span className="card-label">PLAYERS</span>
-            <strong>2 planned</strong>
-            <p>Match currently waits for a real join.</p>
+            <strong>2, live</strong>
+            <p>Quick Match, invite code, or a bot practice seat.</p>
           </div>
           <div>
             <span className="card-label">ENTRY / NIM</span>
-            <strong>Not settled</strong>
-            <p>Payment remains separate from match creation.</p>
+            <strong>Optional stake</strong>
+            <p>Verified on-chain; 90% of the pot goes to the winner.</p>
           </div>
           <div>
             <span className="card-label">SAFETY</span>
