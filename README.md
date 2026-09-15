@@ -265,7 +265,7 @@ BUILDER FEE ALLOCATION (5% of Total Pot)
 ### Step 6: Victory Settlement & Payout
 - Upon checkmate or final home run, the authoritative engine computes the final score.
 - The 90% prize pot is credited to the winner, the 5% builder fee is credited to the referrer, and the ecosystem/charity pools are updated.
-- Results appear instantly on the global Leaderboard, updating player Elo ratings and seasonal tournament standings.
+- Results appear instantly on the global Leaderboard, updating player Elo ratings, and seasonal tournament standings.
 
 ---
 
