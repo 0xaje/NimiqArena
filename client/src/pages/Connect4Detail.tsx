@@ -86,7 +86,7 @@ export default function Connect4Detail() {
   const [copiedAddress, setCopiedAddress] = useState(false);
 
   const user = authQuery.data;
-  const activeMatches = (activeMatchesQuery.data || []).filter(
+  const activeMatches = (activeMatchesQuery.data?.matches || []).filter(
     (m) => m.gameId === "connect-four"
   );
   const activeCount = activeMatches.length;

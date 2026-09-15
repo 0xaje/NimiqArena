@@ -169,6 +169,7 @@ export function TournamentCupModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: "transparent",
               border: "none",

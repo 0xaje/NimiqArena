@@ -12,10 +12,6 @@ import JoinMatch from "./pages/JoinMatch";
 import MatchRoom from "./pages/MatchRoom";
 import Leaderboard from "./pages/Leaderboard";
 import SyndicateRanks from "./pages/SyndicateRanks";
-import SyndicatePlayoffs from "./pages/SyndicatePlayoffs";
-import NimiqWatchExplorer from "./pages/NimiqWatchExplorer";
-import CashoutReceiptPage from "./pages/CashoutReceiptPage";
-import MatchVictoryPage from "./pages/MatchVictoryPage";
 import MatchReplay from "./pages/MatchReplay";
 import PlayerProfile from "./pages/PlayerProfile";
 import GamesShowroom from "./pages/GamesShowroom";
@@ -38,17 +34,18 @@ function Router() {
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/syndicates" component={SyndicateRanks} />
       <Route path="/guilds" component={SyndicateRanks} />
-      <Route path="/playoffs" component={SyndicatePlayoffs} />
-      <Route path="/syndicates/playoffs" component={SyndicatePlayoffs} />
-      <Route path="/tournament" component={SyndicatePlayoffs} />
-      <Route path="/explorer" component={NimiqWatchExplorer} />
-      <Route path="/watch" component={NimiqWatchExplorer} />
-      <Route path="/watch/:hash" component={NimiqWatchExplorer} />
-      <Route path="/tx/:hash" component={NimiqWatchExplorer} />
-      <Route path="/cashout-receipt" component={CashoutReceiptPage} />
-      <Route path="/receipt" component={CashoutReceiptPage} />
-      <Route path="/victory" component={MatchVictoryPage} />
-      <Route path="/match-victory" component={MatchVictoryPage} />
+      {/*
+        /playoffs, /explorer, /watch, /tx/:hash, /cashout-receipt, /victory
+        and their aliases used to route to fully hardcoded pages — a
+        tournament bracket, a blockchain explorer, and a payout receipt
+        that made zero backend calls between them. Each rendered fabricated
+        data (a fake tx hash, a made-up validator quorum, an invented match
+        result) as if it were real, reachable by anyone with the URL. Pulled
+        rather than left half-built; they fall through to the catch-all
+        below like any other route that doesn't exist yet. The page
+        components are still in client/src/pages if someone wires them to
+        real data later.
+      */}
       <Route path="/profile" component={PlayerProfile} />
       <Route path="/earn" component={Earn} />
       <Route path="/404" component={NotFound} />

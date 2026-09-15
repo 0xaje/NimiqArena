@@ -48,7 +48,7 @@ export default function MatchesHub() {
 
   // Active matches query
   const activeMatchesQuery = trpc.match.listActiveMatches.useQuery({ limit: 10 });
-  const activeMatches = activeMatchesQuery.data || [];
+  const activeMatches = activeMatchesQuery.data?.matches || [];
 
   // Player stats query
   const statsQuery = trpc.auth.stats.useQuery(

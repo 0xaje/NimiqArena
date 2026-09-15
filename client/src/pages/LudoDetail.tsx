@@ -91,8 +91,13 @@ export default function LudoDetail() {
   );
 
   const user = authQuery.data;
-  const activeMatches = activeMatchesQuery.data || [];
-  const activeCount = Math.max(activeMatches.length * 2, 8);
+  const activeMatches = activeMatchesQuery.data?.matches || [];
+  // The real count — Home, Connect4Detail, and GamesShowroom all show this
+  // number as-is. This page used to double it and floor it at 8, so it
+  // never read below "8 Battling Now" no matter how many matches were
+  // actually running. Uses the server's real total, not the capped list
+  // length, for the same reason Home's "N Active" needed the same fix.
+  const activeCount = activeMatchesQuery.data?.totalCount ?? activeMatches.length;
 
   const totalPot = selectedStake * 2;
   const payoutPreview = (totalPot * 0.9).toFixed(1).replace(/\.0$/, "");
@@ -402,10 +407,6 @@ export default function LudoDetail() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#dde2f6] font-bold">
                     Find a Match
-                  </span>
-                  <span className="bg-[#ffd78d]/20 text-[#ffd78d] text-[10px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] animate-ping" />
-                    12s Queue
                   </span>
                 </div>
                 <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
@@ -936,7 +937,7 @@ export default function LudoDetail() {
         {/* ========================================================================= */}
         {/* MOBILE BOTTOM NAVIGATION BAR                                              */}
         {/* ========================================================================= */}
-        <MobileBottomNav activeMatchesCount={activeMatches.length} />
+        <MobileBottomNav activeMatchesCount={activeCount} />
       </div>
     </div>
   );

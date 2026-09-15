@@ -151,6 +151,7 @@ export function MiniAppDevModal({ isOpen, onClose }: MiniAppDevModalProps) {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
           >
             <X className="w-5 h-5" />

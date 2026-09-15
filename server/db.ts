@@ -4,7 +4,7 @@ import {
   MATCH_PLAY_WINDOW_MS,
   PLAYER_HEARTBEAT_TIMEOUT_MS,
 } from "@shared/const";
-import { and, asc, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertGame,
@@ -3778,7 +3778,12 @@ export function stopMatchHeartbeatDaemon() {
 
 export async function getActiveMatchesForDirectory(limit: number = 10) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return { matches: [], totalCount: 0 };
+  const activeFilter = or(
+    eq(matches.status, "in_progress"),
+    eq(matches.status, "waiting")
+  );
+
   const list = await db
     .select({
       id: matches.id,
@@ -3791,11 +3796,20 @@ export async function getActiveMatchesForDirectory(limit: number = 10) {
       paymentIntentId: matches.paymentIntentId,
     })
     .from(matches)
-    .where(or(eq(matches.status, "in_progress"), eq(matches.status, "waiting")))
+    .where(activeFilter)
     .orderBy(desc(matches.updatedAt))
     .limit(limit);
 
-  return list;
+  // The directory list is capped at `limit`, but "N Active" labels across
+  // the UI need the real system-wide count, not the page size — a client
+  // that requests 5 and shows "5 Active" understates every time there are
+  // more than 5 real matches running.
+  const [{ count: totalCount }] = await db
+    .select({ count: count() })
+    .from(matches)
+    .where(activeFilter);
+
+  return { matches: list, totalCount };
 }
 
 export async function createHouseWageredMatch(input: {

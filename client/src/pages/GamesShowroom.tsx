@@ -151,8 +151,8 @@ export default function GamesShowroom() {
     setNotifyContact("");
   };
 
-  const activeMatches = activeMatchesQuery.data || [];
-  const activeCount = activeMatches.length;
+  const activeMatches = activeMatchesQuery.data?.matches || [];
+  const activeCount = activeMatchesQuery.data?.totalCount ?? activeMatches.length;
 
   const categories: { id: GameCategory; label: string }[] = [
     { id: "all", label: "All Games" },
@@ -572,7 +572,7 @@ export default function GamesShowroom() {
         {/* ========================================================================= */}
         {/* FIXED BOTTOM NAVIGATION                                                   */}
         {/* ========================================================================= */}
-        <MobileBottomNav activeMatchesCount={activeMatches.length} />
+        <MobileBottomNav activeMatchesCount={activeCount} />
 
         {/* ========================================================================= */}
         {/* MODAL BOTTOM SHEET: WALLET PREVIEW SHEET                                  */}

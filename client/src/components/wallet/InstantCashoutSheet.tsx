@@ -10,13 +10,11 @@ import {
   ArrowRight,
   ShieldCheck,
   Gauge,
-  Sparkles,
   Wallet,
   Clock,
 } from "lucide-react";
 import { formatNim } from "@shared/game/pot-distribution";
 import { toast } from "sonner";
-import { CashoutReceiptModal, type CashoutReceiptData } from "./CashoutReceiptModal";
 import { useNimiqPrice } from "@/lib/nimiq-price";
 
 interface InstantCashoutSheetProps {
@@ -49,10 +47,6 @@ export function InstantCashoutSheet({
   const [isSwitchingTarget, setIsSwitchingTarget] = useState(false);
   const [customTarget, setCustomTarget] = useState("");
   const [targetAddress, setTargetAddress] = useState(connectedAddress || "NQ07 39F2 88KA 19BL 4920 32F1");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDispatched, setIsDispatched] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [receiptData, setReceiptData] = useState<CashoutReceiptData | null>(null);
 
   useEffect(() => {
     if (connectedAddress) {
@@ -62,26 +56,11 @@ export function InstantCashoutSheet({
 
   useEffect(() => {
     if (isOpen) {
-      setIsDispatched(false);
-      setIsSubmitting(false);
       const defaultAmount = Math.min(500, maxCashout);
       setAmount(defaultAmount);
       setSelectedRatio(maxCashout > 0 ? defaultAmount / maxCashout : 0.5);
     }
   }, [isOpen, maxCashout]);
-
-  if (showReceipt && receiptData) {
-    return (
-      <CashoutReceiptModal
-        isOpen={true}
-        onClose={() => {
-          setShowReceipt(false);
-          onClose();
-        }}
-        data={receiptData}
-      />
-    );
-  }
 
   if (!isOpen) return null;
 
@@ -121,32 +100,18 @@ export function InstantCashoutSheet({
   };
 
   const handleConfirmCashout = () => {
-    setIsSubmitting(true);
-    // Simulate real PoS instant finality broadcast
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsDispatched(true);
-      const dummyTx = `0x${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
-      toast.success(`🎉 ${formatNim(amount)} NIM settled directly to your wallet!`);
-      onSuccess?.(amount, dummyTx);
-
-      const rData: CashoutReceiptData = {
-        amountNim: amount,
-        txHash: dummyTx,
-        blockHeight: 3982416,
-        timestamp: "Just now · On-Chain Finalized",
-        senderAddress: "NQ42 8K9L 27MN 91BZ",
-        recipientAddress: targetAddress,
-        recipientName: "Valkyrie Vault (Nimiq Pay)",
-        remainingVaultNim: Math.max(0, availableBalance - amount),
-        inPlayNim: lockedInDuelsNim,
-      };
-      setReceiptData(rData);
-
-      setTimeout(() => {
-        setShowReceipt(true);
-      }, 1000);
-    }, 1200);
+    // There is no on-demand withdrawal endpoint on the server — the only
+    // real payout path is settleMatchWinnerPayout, tied to a finished match,
+    // not a standing "vault" balance. This used to fake the whole thing: a
+    // 1200ms delay, a random client-generated hash dressed up as a
+    // transaction id, and a receipt claiming "On-Chain Finalized" — none of
+    // it touching the chain, while telling the player their NIM had been
+    // settled to their wallet. Rather than build a general withdrawal
+    // system to make this real, be honest that it isn't one yet.
+    toast.info("Instant Cashout isn't available yet", {
+      description:
+        "Withdrawals aren't wired up on the server yet. Your NIM balance is unaffected — nothing was sent.",
+    });
   };
 
   const sliderPercent = maxCashout > 0 ? Math.min(100, Math.max(0, (amount / maxCashout) * 100)) : 0;
@@ -183,6 +148,7 @@ export function InstantCashoutSheet({
             </div>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="w-9 h-9 rounded-full bg-[#242a39] hover:bg-[#2f3544] flex items-center justify-center active:scale-90 transition-transform text-[#d4c5ad]"
             >
               <X size={18} />
@@ -431,11 +397,11 @@ export function InstantCashoutSheet({
             </div>
           </div>
 
-          {/* 5. Provably Secure Trust Badge */}
+          {/* 5. Availability notice */}
           <div className="flex items-start gap-2.5 px-1">
-            <ShieldCheck size={16} className="text-[#68f5b8] shrink-0 mt-0.5" />
+            <ShieldCheck size={16} className="text-[#d4c5ad] shrink-0 mt-0.5" />
             <p className="text-[10px] text-[#d4c5ad] leading-snug">
-              Non-custodial dispatch. Arena smart contract directly unlocks your tokens to your private key with zero intermediary delay.
+              On-demand withdrawal isn't wired up on the server yet — confirming below won't move any NIM.
             </p>
           </div>
 
@@ -444,31 +410,11 @@ export function InstantCashoutSheet({
             <button
               type="button"
               onClick={handleConfirmCashout}
-              disabled={isSubmitting || isDispatched || amount <= 0}
-              className={`w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-black text-sm transition-all shadow-lg active:scale-[0.98] ${
-                isDispatched
-                  ? "bg-[#68f5b8] text-[#003824]"
-                  : isSubmitting
-                  ? "bg-[#f3b72c]/80 text-[#412d00] cursor-wait"
-                  : "bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] shadow-[0_4px_24px_rgba(243,183,44,0.35)]"
-              }`}
+              disabled={amount <= 0}
+              className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-black text-sm transition-all shadow-lg active:scale-[0.98] bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] shadow-[0_4px_24px_rgba(243,183,44,0.35)]"
             >
-              {isDispatched ? (
-                <>
-                  <Sparkles size={20} />
-                  <span>Dispatched! Funds Credited</span>
-                </>
-              ) : isSubmitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-[#412d00] border-t-transparent rounded-full animate-spin" />
-                  <span>Broadcasting to PoS Consensus...</span>
-                </>
-              ) : (
-                <>
-                  <LockKeyholeOpen size={20} />
-                  <span>Confirm &amp; Cashout {formatNim(amount)} NIM</span>
-                </>
-              )}
+              <LockKeyholeOpen size={20} />
+              <span>Confirm &amp; Cashout {formatNim(amount)} NIM</span>
             </button>
 
             {/* Signature Security Footer */}

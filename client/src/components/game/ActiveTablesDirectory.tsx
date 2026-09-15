@@ -4,10 +4,11 @@ import { Eye, Gamepad2, Coins, Play, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 export function ActiveTablesDirectory() {
-  const { data: matches, isLoading } = trpc.match.listActiveMatches.useQuery(
+  const { data, isLoading } = trpc.match.listActiveMatches.useQuery(
     { limit: 6 },
     { refetchInterval: 4000 }
   );
+  const matches = data?.matches;
 
   return (
     <section className="active-tables-section" id="active-tables">

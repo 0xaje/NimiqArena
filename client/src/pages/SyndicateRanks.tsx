@@ -745,13 +745,18 @@ export default function SyndicateRanks() {
                   </Link>
                 </div>
 
-                <Link
-                  href="/playoffs"
+                <button
+                  type="button"
+                  onClick={() =>
+                    toast.info("Syndicate Playoffs isn't live yet", {
+                      description: "The bracket, matches, and prize pool aren't wired up on the server yet.",
+                    })
+                  }
                   className="w-full h-11 rounded-xl bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all text-center"
                 >
                   <Trophy size={16} />
                   <span>View Syndicate Playoffs Bracket</span>
-                </Link>
+                </button>
               </div>
 
               <button
