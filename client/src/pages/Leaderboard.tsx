@@ -53,7 +53,8 @@ export default function Leaderboard() {
             </div>
             <h1>Arena Leaderboard</h1>
             <p className="detail-lede">
-              Official player rankings calculated authoritatively from completed, verified Arena matches. Ratings use competitive Elo ($K=32$) with seasonal tracking.
+              Rankings come from completed matches only, scored with Elo
+              (K-factor 32) each season.
             </p>
           </div>
 

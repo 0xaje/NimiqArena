@@ -9,13 +9,9 @@ import {
 } from "@/lib/nimiq-miniapp";
 import {
   ArrowUpRight,
-  ChevronRight,
-  CircleHelp,
   Coins,
   Gamepad2,
   Menu,
-  Radio,
-  Search,
   ShieldCheck,
   Sparkles,
   Terminal,
@@ -496,7 +492,7 @@ export default function Home() {
           </div>
           <div className="top-actions">
             <button
-              className="search-button"
+              className="search-button faucet-button"
               onClick={() => setIsFaucetOpen(true)}
               title="Get free Testnet NIM from the official PoS faucet"
               style={{ borderColor: "rgba(236, 153, 24, 0.4)", color: "#EC9918" }}
@@ -504,7 +500,7 @@ export default function Home() {
               💧 Get Testnet NIM
             </button>
             <button
-              className="search-button"
+              className="search-button account-button"
               onClick={() =>
                 switchPlayer(
                   user?.name?.includes("1")
@@ -536,8 +532,8 @@ export default function Home() {
               <em>favorite game.</em>
             </h1>
             <p className="hero-dek">
-              Nimiq Arena is a growing home for games with real ownership,
-              honest competition, and room for more than one kind of player.
+              Real matches, real stakes, server-verified — no simulated
+              scores.
             </p>
             <div className="hero-actions" style={{ flexWrap: "wrap", gap: "12px" }}>
               <button
@@ -582,10 +578,7 @@ export default function Home() {
             </div>
             <div className="trust-line">
               <ShieldCheck size={15} />
-              <span>
-                Live players, balances, and match results appear only when
-                verified systems are connected.
-              </span>
+              <span>Every result is decided by the server, not the client.</span>
             </div>
           </div>
           <div className="feature-stage">
@@ -604,7 +597,7 @@ export default function Home() {
                   <Gamepad2 size={15} /> View game
                 </Link>
               </div>
-              <span className="feature-chip">FEATURED / NOT LIVE</span>
+              <span className="feature-chip">FEATURED / LIVE</span>
             </div>
             <div className="feature-footer">
               <span>
@@ -727,32 +720,6 @@ export default function Home() {
             <span className="marker-number">03</span>
             <span>TRUTH PANEL</span>
           </div>
-          <div className="status-card">
-            <div className="status-icon">
-              <Radio size={18} />
-            </div>
-            <div>
-              <span className="card-label">NIMIQ PAY</span>
-              <h2>
-                {providerState === "ready"
-                  ? "Provider is ready"
-                  : "Wallet host not connected"}
-              </h2>
-              <p>{providerMessage}</p>
-              <button
-                className="rail-link"
-                onClick={() => setIsDevModalOpen(true)}
-                style={{ marginTop: 8 }}
-              >
-                <Terminal size={14} /> Inspect Mini App SDK
-              </button>
-            </div>
-            <span
-              className={`state-chip ${providerState === "ready" ? "good" : "muted"}`}
-            >
-              {providerLabel}
-            </span>
-          </div>
           <div className="status-card payment-card">
             <div className="status-icon orange-icon">
               <Coins size={18} />
@@ -774,8 +741,8 @@ export default function Home() {
               </h2>
               <p>
                 {paymentPhase === "submitted"
-                  ? "Hash received. Arena has not credited anything until the server verifies it."
-                  : "The amount and recipient come from a server-created intent."}
+                  ? "Hash received, not yet credited — the server still has to verify it."
+                  : "Amount and recipient come from a server-issued intent, not the client."}
               </p>
               <button
                 className="pay-entry-button"
@@ -813,13 +780,10 @@ export default function Home() {
             </div>
             <div>
               <span className="card-label">MULTIPLAYER</span>
-              <h2>No rooms open</h2>
-              <p>
-                Real matchmaking and online players are not connected in this
-                build.
-              </p>
+              <h2>Quick Match &amp; Challenge Friend are live</h2>
+              <p>Real seats, real turns, server-authoritative state.</p>
             </div>
-            <span className="state-chip muted">NOT LIVE</span>
+            <span className="state-chip good">LIVE</span>
           </div>
         </section>
 

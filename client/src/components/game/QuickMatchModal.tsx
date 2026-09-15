@@ -242,7 +242,7 @@ export const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
 
               <div className="quickmatch-rating-badge">
                 <ShieldCheck size={14} className="rating-badge-icon" />
-                <span>Season 1 / FIDE Elo ($K=32$) / Ranked Public Match</span>
+                <span>Season 1 / FIDE Elo (K-factor 32) / Ranked Public Match</span>
               </div>
             </div>
           )}

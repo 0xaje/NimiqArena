@@ -460,7 +460,10 @@ h1 em,
 }
 .status-strip {
   display: grid;
-  grid-template-columns: 120px repeat(3, minmax(0, 1fr));
+  /* Two status cards now (a redundant third — a duplicate wallet-status
+     card — was folded into the rail-card above it), so the grid matches
+     that count instead of leaving an empty trailing track. */
+  grid-template-columns: 120px repeat(2, minmax(0, 1fr));
   gap: 18px;
   border-top: 2px solid var(--ink);
   border-bottom: 1px solid var(--rule);
@@ -771,7 +774,7 @@ h1 em,
     gap: 32px;
   }
   .status-strip {
-    grid-template-columns: 75px repeat(3, minmax(0, 1fr));
+    grid-template-columns: 75px repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .status-card {
