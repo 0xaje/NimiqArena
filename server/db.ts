@@ -314,6 +314,78 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
  */
 async function synchronizeSchemaMigrations(db: ReturnType<typeof drizzle>) {
   try {
+    const tableColumns: Record<string, Array<{ name: string; definition: string }>> = {
+      users: [
+        { name: "name", definition: "text NULL" },
+        { name: "email", definition: "varchar(320) NULL" },
+        { name: "loginMethod", definition: "varchar(64) NULL" },
+        { name: "role", definition: "enum('user','admin') NOT NULL DEFAULT 'user'" },
+        { name: "address", definition: "varchar(64) NULL" },
+        { name: "points", definition: "int NOT NULL DEFAULT 1000" },
+        { name: "referralCode", definition: "varchar(32) NULL" },
+        { name: "referredByUserId", definition: "int NULL" },
+        { name: "referralEarningsNim", definition: "int NOT NULL DEFAULT 0" },
+        { name: "evmAddress", definition: "varchar(64) NULL" },
+        { name: "avatar", definition: "varchar(255) NULL" },
+        { name: "welcomeClaimed", definition: "boolean NOT NULL DEFAULT false" },
+        { name: "lastSignedIn", definition: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP" },
+      ],
+      matches: [
+        { name: "seasonId", definition: "varchar(32) NOT NULL DEFAULT 'season-1'" },
+        { name: "winnerUserId", definition: "int NULL" },
+        { name: "loserUserId", definition: "int NULL" },
+        { name: "paymentIntentId", definition: "varchar(32) NULL" },
+        { name: "joinCode", definition: "varchar(16) NULL" },
+        { name: "visibility", definition: "enum('challenge_friend','public') NOT NULL DEFAULT 'challenge_friend'" },
+        { name: "status", definition: "enum('waiting','in_progress','finished','cancelled','expired') NOT NULL DEFAULT 'waiting'" },
+        { name: "engineVersion", definition: "varchar(16) NOT NULL DEFAULT '1.0.0'" },
+        { name: "stateVersion", definition: "int unsigned NOT NULL DEFAULT 0" },
+        { name: "stateJson", definition: "text NULL" },
+        { name: "expiresAt", definition: "timestamp NOT NULL DEFAULT (now() + INTERVAL 2 HOUR)" },
+      ],
+      settlements: [
+        { name: "referrerAmountLuna", definition: "bigint NOT NULL DEFAULT 0" },
+        { name: "referrerAddress", definition: "varchar(64) NULL" },
+        { name: "referrerUserId", definition: "int NULL" },
+        { name: "referralEligible", definition: "boolean NOT NULL DEFAULT false" },
+        { name: "errorMessage", definition: "text NULL" },
+      ],
+      match_players: [
+        { name: "paymentIntentId", definition: "varchar(32) NULL" },
+        { name: "status", definition: "enum('joined','disconnected','left') NOT NULL DEFAULT 'joined'" },
+        { name: "joinedAt", definition: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP" },
+        { name: "lastSeenAt", definition: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP" },
+      ],
+      player_ratings: [
+        { name: "rating", definition: "int NOT NULL DEFAULT 1000" },
+        { name: "wins", definition: "int unsigned NOT NULL DEFAULT 0" },
+        { name: "losses", definition: "int unsigned NOT NULL DEFAULT 0" },
+        { name: "currentStreak", definition: "int unsigned NOT NULL DEFAULT 0" },
+        { name: "bestStreak", definition: "int unsigned NOT NULL DEFAULT 0" },
+        { name: "matchesPlayed", definition: "int unsigned NOT NULL DEFAULT 0" },
+      ],
+    };
+
+    for (const [tableName, cols] of Object.entries(tableColumns)) {
+      for (const col of cols) {
+        try {
+          const [result]: any = await db.execute(
+            sql`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ${tableName} AND COLUMN_NAME = ${col.name}`
+          );
+          const rows = Array.isArray(result) ? result : (result as any)?.rows || [];
+          if (rows.length === 0) {
+            console.log(`[DatabaseMigration] Adding missing column ${col.name} to ${tableName}...`);
+            await db.execute(
+              sql.raw(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${col.name}\` ${col.definition}`)
+            );
+            console.log(`[DatabaseMigration] Column ${col.name} added to ${tableName} successfully.`);
+          }
+        } catch (colErr: any) {
+          console.warn(`[DatabaseMigration] Column check/migration notice for ${tableName}.${col.name}:`, colErr.message || colErr);
+        }
+      }
+    }
+
     // 1. Ensure verifiedTransactionHash column exists on payment_intents
     const [cols]: any = await db.execute(
       sql`SELECT COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_intents' AND COLUMN_NAME = 'verifiedTransactionHash'`
