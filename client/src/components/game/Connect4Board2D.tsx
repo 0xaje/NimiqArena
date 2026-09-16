@@ -114,7 +114,7 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
   return (
     <div className="w-full flex flex-col items-center select-none">
       {/* ARENA GRID CONTAINER (Connect 4 Board Hero) */}
-      <section className="relative w-full max-w-[390px] p-3 rounded-2xl bg-[#080e1c] border border-[#242a39] shadow-2xl overflow-hidden">
+      <section className="relative w-full max-w-[min(96vw,min(48dvh*1.2,390px))] p-2.5 sm:p-3 rounded-2xl bg-[#080e1c] border border-[#242a39] shadow-2xl overflow-hidden">
         {/* Ambient Holographic Glow Backdrop */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#00d2ff]/10 via-transparent to-[#f3b72c]/10 pointer-events-none" />
 

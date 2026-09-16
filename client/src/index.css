@@ -2478,11 +2478,13 @@ h1 em,
 
 .ludo-standard-board-wrapper {
   width: 100%;
-  max-width: min(96vw, min(54vh, 430px));
-  max-height: min(54vh, 430px);
+  max-width: min(96vw, min(48dvh, min(48vh, 430px)));
+  max-height: min(48dvh, min(48vh, 430px));
   margin: 0 auto;
   aspect-ratio: 1 / 1;
   touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ludo-standard-board-frame {

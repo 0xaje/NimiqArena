@@ -994,8 +994,8 @@ export default function MatchRoom() {
             </section>
           ) : (
             <>
-              <section className="relative px-3 my-1 flex flex-col items-center justify-center shrink-0">
-                <div className="relative w-full max-w-[min(96vw,min(54vh,430px))] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
+              <section className="relative px-2 sm:px-3 my-1 flex flex-col items-center justify-center shrink-0">
+                <div className="relative w-full max-w-[min(96vw,min(48dvh,min(48vh,430px)))] aspect-square rounded-2xl bg-[#080e1c] border border-[#242a39] p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center">
                   {/* Ambient Board Glow Elements */}
                   <div className="absolute -top-10 -left-10 w-36 h-36 rounded-full bg-[#00d2ff]/10 blur-2xl pointer-events-none" />
                   <div className="absolute -bottom-10 -right-10 w-36 h-36 rounded-full bg-[#f3b72c]/15 blur-2xl pointer-events-none" />

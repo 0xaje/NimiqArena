@@ -1,0 +1,19 @@
+{
+  "name": "Nimiq Arena",
+  "short_name": "NimiqArena",
+  "description": "High-energy arcade matchroom for NIM-powered Ludo and Connect 4.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1321",
+  "theme_color": "#0d1321",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/nimiq-arena-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"]
+}
