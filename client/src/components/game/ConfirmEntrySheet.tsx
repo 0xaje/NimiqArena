@@ -159,11 +159,11 @@ export function ConfirmEntrySheet({
             <div className="grid grid-cols-2 gap-2 pt-3">
               <div className="flex flex-col">
                 <span className="text-[10px] text-[#94a3b8] font-mono uppercase">Your Entry</span>
-                <span className="text-lg font-black text-[#dde2f6] font-mono">{stakeNim} NIM</span>
+                <span className="text-lg font-black text-[#dde2f6] font-mono">{formatNim(stakeNim)} NIM</span>
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-[10px] text-[#68f5b8] font-mono uppercase font-bold">Winner Takes</span>
-                <span className="text-lg font-black text-[#ffd78d] font-mono">+{championWins} NIM</span>
+                <span className="text-lg font-black text-[#ffd78d] font-mono">+{formatNim(Number(championWins))} NIM</span>
               </div>
             </div>
           </div>
@@ -187,7 +187,7 @@ export function ConfirmEntrySheet({
           {balanceNim !== null && balanceNim !== undefined && balanceNim < stakeNim && (
             <div className="p-2.5 rounded-xl bg-[#93000a]/20 border border-[#ffb4ab]/30 flex items-center justify-between gap-2">
               <span className="text-[11px] text-[#ffb4ab]">
-                Need {stakeNim} NIM to enter.
+                Need {formatNim(stakeNim)} NIM to enter.
               </span>
               <button
                 onClick={handleRequestDrip}
@@ -215,7 +215,7 @@ export function ConfirmEntrySheet({
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Lock {stakeNim} NIM &amp; Start Match</span>
+                  <span>Lock {formatNim(stakeNim)} NIM &amp; Start Match</span>
                   <ArrowRight size={16} />
                 </>
               )}

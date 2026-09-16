@@ -20,6 +20,7 @@ import {
   Star,
   Gamepad2,
   CheckCircle2,
+  Sliders,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -33,6 +34,13 @@ import { useNimiqPrice } from "@/lib/nimiq-price";
 import { NimiqArenaLogo } from "@/components/brand/NimiqArenaLogo";
 
 type GameMode = "match" | "friend" | "bot";
+
+const PRESET_STAKES = [
+  { label: "1k", value: 1000 },
+  { label: "10k", value: 10000 },
+  { label: "50k", value: 50000 },
+  { label: "100k", value: 100000 },
+];
 
 export default function Connect4Detail() {
   const [, navigate] = useLocation();
@@ -72,7 +80,9 @@ export default function Connect4Detail() {
 
   // Screen UI State
   const [currentMode, setCurrentMode] = useState<GameMode>("match");
-  const [selectedStake, setSelectedStake] = useState<number>(50);
+  const [selectedStake, setSelectedStake] = useState<number>(1000);
+  const [isCustomStake, setIsCustomStake] = useState<boolean>(false);
+  const [customStakeInput, setCustomStakeInput] = useState<string>("5000");
   const [isRulesExpanded, setIsRulesExpanded] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [isHouseBotWager, setIsHouseBotWager] = useState<boolean>(false);
@@ -92,7 +102,7 @@ export default function Connect4Detail() {
   const activeCount = activeMatches.length;
 
   const totalPot = selectedStake * 2;
-  const payoutPreview = (totalPot * 0.9).toFixed(1).replace(/\.0$/, "");
+  const payoutPreview = formatNim(totalPot * 0.9);
 
   const handleCopyAddress = () => {
     if (!address) return;
@@ -164,6 +174,7 @@ export default function Connect4Detail() {
     await utils.auth.me.invalidate();
   }
 
+  // Handle Matchmaking
   async function handlePrimaryAction() {
     if (currentMode === "friend") {
       setIsPlayWithFriendOpen(true);
@@ -174,15 +185,15 @@ export default function Connect4Detail() {
       if (isHouseBotWager) {
         try {
           setIsConnecting(true);
-          await ensureAuthenticated("Player 1 (Gladiator)");
-          toast.info(`Setting up ${selectedStake} NIM Match vs Tactical AI…`);
+          await ensureAuthenticated("Player 1 (Wager Host)");
+          toast.info(`Setting up ${formatNim(selectedStake)} NIM House Match vs Bot…`);
           const res = await createHouseWagered.mutateAsync({
             gameSlug: "connect-four",
             stakeNim: selectedStake,
           });
           navigate(`/matches/${res.id}`);
         } catch (err) {
-          toast.error("Failed to create house bot match", {
+          toast.error("Failed to create house match", {
             description: err instanceof Error ? err.message : "Try again.",
           });
         } finally {
@@ -191,8 +202,8 @@ export default function Connect4Detail() {
       } else {
         try {
           setIsConnecting(true);
-          await ensureAuthenticated("Player 1 (Solo)");
-          toast.info("Launching Practice Table vs Nim Connect Bot…");
+          await ensureAuthenticated("Player 1 (Practice)");
+          toast.info("Launching Solo Practice vs Minimax Bot…");
           const match = await createSolo.mutateAsync({
             gameSlug: "connect-four",
           });
@@ -218,22 +229,22 @@ export default function Connect4Detail() {
       await ensureAuthenticated("Player 1 (Gladiator)");
 
       if (isConnected && balanceNim != null && balanceNim < selectedStake) {
-        toast.error(`Insufficient NIM Balance (${balanceNim} NIM available)`, {
-          description: `You need at least ${selectedStake} NIM to enter. Use 1-Click Faucet in wallet.`,
+        toast.error(`Insufficient NIM Balance (${formatNim(balanceNim)} NIM available)`, {
+          description: `You need at least ${formatNim(selectedStake)} NIM to enter.`,
         });
         setIsConnecting(false);
         return;
       }
 
-      toast.info(`Searching live arena for ${selectedStake} NIM opponents…`);
+      toast.info(`Searching arena for ${formatNim(selectedStake)} NIM opponents…`);
       const res = await createWagered.mutateAsync({
         gameSlug: "connect-four",
         stakeNim: selectedStake,
       });
 
       setTimeout(() => {
-        toast.success("Match Ready!", {
-          description: `Entering Match Table #${res.id.slice(0, 8)}…`,
+        toast.success("Match Found!", {
+          description: `Entering Arena Table #${res.id.slice(0, 8)}…`,
         });
         setIsConfirmEntryOpen(false);
         navigate(`/matches/${res.id}`);
@@ -246,6 +257,14 @@ export default function Connect4Detail() {
     }
   }
 
+  const handleCustomStakeChange = (val: string) => {
+    setCustomStakeInput(val);
+    const parsed = parseInt(val, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      setSelectedStake(parsed);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0d1321] text-[#dde2f6] flex flex-col font-sans relative selection:bg-[#f3b72c]/30 selection:text-[#ffd78d]">
       {/* MOBILE MINI-APP CONSTRAINT CONTAINER */}
@@ -254,87 +273,79 @@ export default function Connect4Detail() {
         {/* ========================================================================= */}
         {/* FIXED APP HEADER                                                          */}
         {/* ========================================================================= */}
-        <header className="fixed top-0 inset-x-0 z-50 pointer-events-none">
-          <div className="max-w-md mx-auto w-full pointer-events-auto bg-[#0d1321]/85 backdrop-blur-xl border-b border-[#242a39]/80 shadow-[0_1px_12px_rgba(0,0,0,0.4)] pt-safe">
-            <div className="h-16 px-4 flex items-center justify-between">
-              
-              {/* Left: Brand / Profile avatar */}
-              <Link href="/" className="flex items-center gap-2.5 group">
-                <NimiqArenaLogo size={32} />
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-[#ffdea4] tracking-tight leading-none">
-                    NIMIQ ARENA
-                  </span>
-                  <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
-                    Nim Connect 7×6
-                  </span>
-                </div>
-              </Link>
-
-              {/* Right: Wallet Balance Pill */}
-              <button
-                onClick={() => {
-                  if (isConnected) {
-                    setIsWalletSheetOpen(true);
-                  } else {
-                    setIsWalletModalOpen(true);
-                  }
-                }}
-                className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#2f3544] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-transform cursor-pointer"
-                type="button"
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected
-                      ? "bg-[#68f5b8] shadow-[0_0_8px_#68f5b8]"
-                      : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
-                  }`}
-                />
-                <span className="text-xs font-semibold text-[#dde2f6] font-mono">
-                  {balanceNim != null ? formatNim(balanceNim) : "0.00"}{" "}
-                  <span className="text-[#ffd78d] font-bold">NIM</span>
+        <header className="sticky top-0 inset-x-0 z-40 bg-[#0d1321]/90 backdrop-blur-xl border-b border-[#242a39] pt-safe shadow-sm">
+          <div className="h-16 px-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <NimiqArenaLogo size={32} />
+              <div className="flex flex-col">
+                <span className="text-base font-bold text-[#ffd78d] tracking-tight leading-none">
+                  NIMIQ ARENA
                 </span>
-                <Wallet size={15} className="text-[#a5e7ff]" />
-              </button>
-            </div>
+                <span className="text-[10px] text-[#f3b72c] uppercase tracking-wider font-mono mt-0.5 font-semibold">
+                  Connect 4 Arena
+                </span>
+              </div>
+            </Link>
+
+            {/* Wallet Balance Pill */}
+            <button
+              onClick={() => {
+                if (isConnected) {
+                  setIsWalletSheetOpen(true);
+                } else {
+                  setIsWalletModalOpen(true);
+                }
+              }}
+              className="h-10 px-3 flex items-center gap-2 bg-[#191f2e] border border-[#242a39] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-transform"
+              type="button"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isConnected
+                    ? "bg-[#68f5b8] shadow-[0_0_8px_#68f5b8]"
+                    : "bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]"
+                }`}
+              />
+              <span className="text-xs font-mono font-bold text-[#dde2f6]">
+                {balanceNim != null ? formatNim(balanceNim) : "0.00"}{" "}
+                <span className="text-[#ffd78d]">NIM</span>
+              </span>
+              <Wallet size={15} className="text-[#a5e7ff]" />
+            </button>
           </div>
         </header>
 
         {/* ========================================================================= */}
         {/* MAIN SCROLLABLE CONTENT AREA                                              */}
         {/* ========================================================================= */}
-        <main
-          className={`flex-1 flex flex-col w-full pt-20 pb-28 space-y-4 transition-all duration-300 ${
-            isConfirmEntryOpen ? "opacity-40 blur-[1px] pointer-events-none filter" : ""
-          }`}
-        >
-          {/* Sub-Header: Back Nav & Quick Status */}
-          <div className="flex items-center justify-between px-4 pt-1">
+        <main className="flex-1 flex flex-col w-full pb-32 space-y-3.5 pt-2">
+          
+          {/* Sub-Header: Back Nav & Quick Radar */}
+          <div className="flex items-center justify-between px-4">
             <Link
-              href="/games"
-              className="flex items-center gap-1 text-[#d4c5ad] hover:text-[#dde2f6] transition-colors py-1 group cursor-pointer"
+              href="/"
+              className="flex items-center gap-1 text-[#d4c5ad] hover:text-[#dde2f6] transition-colors py-1 group"
             >
-              <ChevronLeft
-                size={20}
-                className="transition-transform group-active:-translate-x-1"
-              />
-              <span className="text-sm font-semibold">Games Showroom</span>
+              <ChevronLeft size={18} />
+              <span className="text-xs font-semibold">Back to Arena</span>
             </Link>
 
-            <div className="flex items-center gap-1.5 bg-[#151b29] border border-[#242a39] px-3 py-1 rounded-full shadow-inner">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] shadow-[0_0_6px_#00d2ff] animate-pulse" />
-              <span className="text-[11px] font-semibold text-[#b6ebff] font-mono">
-                {activeCount > 0 ? `${activeCount} Battles Live` : "Arena Ready"}
+            <div className="flex items-center gap-1.5 bg-[#151b29] border border-[#242a39] px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+              <span className="text-[10px] font-mono text-[#dde2f6]">
+                {activeCount > 0 ? `${activeCount} Live Tables` : "Radar Ready"}
               </span>
             </div>
           </div>
 
-          {/* HERO VISUAL CARD */}
+          {/* HERO GAME BANNER */}
           <div className="px-4">
-            <div className="relative w-full rounded-2xl overflow-hidden bg-[#151b29] border border-[#242a39] shadow-xl p-3.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-xl bg-[#242a39] flex items-center justify-center text-2xl border border-[#f3b72c]/30 shadow-[0_0_12px_rgba(243,183,44,0.15)] flex-shrink-0">
-                  🔴
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e2638] via-[#151b29] to-[#1e2638] border border-[#2f3544] p-4 shadow-lg">
+              <div className="absolute -right-8 -top-8 w-28 h-28 bg-[#f3b72c]/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-[#242a39] border border-[#f3b72c]/40 flex items-center justify-center text-[#f3b72c] shrink-0 shadow-inner">
+                  <Grid size={24} />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -439,10 +450,10 @@ export default function Connect4Detail() {
           </div>
 
           {/* ========================================================================= */}
-          {/* STAKE SELECTION MODULE                                                    */}
+          {/* STAKE SELECTION MODULE (1k, 10k, 50k, 100k + Custom)                     */}
           {/* ========================================================================= */}
           <div
-            className={`px-4 pt-1 flex flex-col space-y-3 transition-opacity ${
+            className={`px-4 pt-1 flex flex-col space-y-2.5 transition-opacity ${
               currentMode === "bot" && !isHouseBotWager
                 ? "opacity-35 pointer-events-none"
                 : "opacity-100"
@@ -450,40 +461,43 @@ export default function Connect4Detail() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-base font-bold text-[#dde2f6]">
-                  Match Stake
+                <span className="text-xs font-bold uppercase tracking-wider font-mono text-[#ffd78d]">
+                  2. Choose Match Stake
                 </span>
-                <p className="text-xs text-[#d4c5ad]">
-                  Locked in Nimiq Pay micro-escrow
+                <p className="text-[11px] text-[#94a3b8]">
+                  Non-custodial smart escrow
                 </p>
               </div>
               <div className="flex items-center gap-1.5 bg-[#151b29] border border-[#242a39] px-2.5 py-1 rounded-full text-right">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Balance:</span>
+                <span className="text-[10px] text-[#94a3b8] font-mono">Balance:</span>
                 <span className="text-[11px] text-[#ffd78d] font-bold font-mono">
                   {balanceNim != null ? formatNim(balanceNim) : "0"} NIM
                 </span>
               </div>
             </div>
 
-            {/* Stake Chips Grid */}
-            <div className="grid grid-cols-4 gap-2">
-              {[10, 25, 50, 100].map((amount) => {
-                const isSelected = selectedStake === amount;
+            {/* Stake Chips Grid: 1k, 10k, 50k, 100k, Custom */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {PRESET_STAKES.map((item) => {
+                const isSelected = !isCustomStake && selectedStake === item.value;
                 return (
                   <button
-                    key={amount}
-                    onClick={() => setSelectedStake(amount)}
-                    className={`h-12 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border cursor-pointer ${
+                    key={item.value}
+                    onClick={() => {
+                      setIsCustomStake(false);
+                      setSelectedStake(item.value);
+                    }}
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border cursor-pointer ${
                       isSelected
-                        ? "bg-[#f3b72c] border-[#ffd78d] text-[#412d00] shadow-[0_0_14px_rgba(243,183,44,0.3)]"
+                        ? "bg-[#f3b72c] border-[#ffd78d] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.35)]"
                         : "bg-[#151b29] border-[#242a39] text-[#dde2f6] hover:bg-[#191f2e]"
                     }`}
                     type="button"
                   >
-                    <span className="font-bold text-sm leading-tight">{amount}</span>
+                    <span className="font-bold text-xs font-mono leading-tight">{item.label}</span>
                     <span
-                      className={`text-[10px] font-mono leading-none ${
-                        isSelected ? "font-bold text-[#412d00]" : "text-[#d4c5ad]"
+                      className={`text-[8px] font-mono leading-none ${
+                        isSelected ? "font-bold text-[#412d00]" : "text-[#94a3b8]"
                       }`}
                     >
                       NIM
@@ -491,7 +505,51 @@ export default function Connect4Detail() {
                   </button>
                 );
               })}
+
+              {/* Custom Stake Trigger Chip */}
+              <button
+                onClick={() => {
+                  setIsCustomStake(true);
+                  const parsed = parseInt(customStakeInput, 10);
+                  if (!isNaN(parsed) && parsed > 0) {
+                    setSelectedStake(parsed);
+                  }
+                }}
+                className={`h-11 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 border cursor-pointer ${
+                  isCustomStake
+                    ? "bg-[#f3b72c] border-[#ffd78d] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.35)] font-bold"
+                    : "bg-[#151b29] border-[#242a39] text-[#d4c5ad] hover:bg-[#191f2e]"
+                }`}
+                type="button"
+              >
+                <Sliders size={13} className={isCustomStake ? "text-[#412d00]" : "text-[#ffd78d]"} />
+                <span className="text-[9px] font-mono font-bold mt-0.5">Custom</span>
+              </button>
             </div>
+
+            {/* Custom Stake Numeric Input Box (Visible when Custom is active) */}
+            {isCustomStake && (
+              <div className="p-2.5 rounded-xl bg-[#151b29] border border-[#f3b72c]/40 flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-mono text-[#ffd78d] font-bold">
+                    Custom Stake (NIM)
+                  </span>
+                  <span className="text-[10px] text-[#94a3b8]">Min: 1 NIM</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    step="100"
+                    value={customStakeInput}
+                    onChange={(e) => handleCustomStakeChange(e.target.value)}
+                    className="w-28 h-9 px-2.5 rounded-lg bg-[#0d1321] border border-[#2f3544] text-[#ffd78d] font-mono font-bold text-sm text-right focus:outline-none focus:border-[#f3b72c]"
+                    placeholder="5000"
+                  />
+                  <span className="text-xs font-mono font-bold text-[#d4c5ad]">NIM</span>
+                </div>
+              </div>
+            )}
 
             {/* Payout & CoinGecko Rate Preview Card */}
             <div className="bg-[#151b29] border border-[#242a39] rounded-xl p-3 flex items-center justify-between shadow-inner">
@@ -500,8 +558,8 @@ export default function Connect4Detail() {
                   <Trophy size={18} />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">
-                    Total Pot ({selectedStake * 2} NIM)
+                  <span className="text-[10px] text-[#94a3b8] font-mono">
+                    Total Pot ({formatNim(selectedStake * 2)} NIM)
                   </span>
                   <span className="text-xs text-[#dde2f6] font-bold tracking-tight font-mono">
                     ≈ {formatUsd(nimToUsd(selectedStake * 2))}
@@ -509,8 +567,8 @@ export default function Connect4Detail() {
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">
-                  Winner Payout (90%)
+                <span className="text-[10px] text-[#94a3b8] font-mono">
+                  Winner Takes (90%)
                 </span>
                 <div className="text-xs text-[#68f5b8] font-bold font-mono">
                   +{payoutPreview} NIM
@@ -530,13 +588,13 @@ export default function Connect4Detail() {
                 className="w-full flex items-center justify-between text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <Gamepad2 size={18} className="text-[#a5e7ff]" />
-                  <span className="text-sm font-semibold text-[#dde2f6]">
-                    Tactical Rules &amp; Fair Play
+                  <Gamepad2 size={16} className="text-[#a5e7ff]" />
+                  <span className="text-xs font-bold text-[#dde2f6]">
+                    Game Rules &amp; Fair Play
                   </span>
                 </div>
                 <ChevronDown
-                  size={18}
+                  size={16}
                   className={`text-[#d4c5ad] transition-transform duration-300 ${
                     isRulesExpanded ? "rotate-180" : "rotate-0"
                   }`}
@@ -544,29 +602,23 @@ export default function Connect4Detail() {
               </button>
 
               {isRulesExpanded && (
-                <div className="flex flex-col gap-2.5 pt-2 text-[#d4c5ad] text-xs border-t border-[#242a39]/80 animate-in fade-in duration-200">
+                <div className="flex flex-col gap-2 pt-2 text-[#d4c5ad] text-xs border-t border-[#242a39]/80 animate-in fade-in duration-200">
                   <div className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
                     <span>
-                      <strong className="text-[#dde2f6]">Drop Discs:</strong> Players alternate turns dropping 1 disc down any of the 7 columns.
+                      <strong className="text-[#dde2f6]">Drop Discs:</strong> Alternate turns dropping 1 disc into 7 columns.
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
                     <span>
-                      <strong className="text-[#dde2f6]">Victory Condition:</strong> Connect 4 discs in a straight line horizontally, vertically, or diagonally.
+                      <strong className="text-[#dde2f6]">Win Condition:</strong> Connect 4 discs in a line horizontally, vertically, or diagonally.
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
                     <span>
-                      <strong className="text-[#dde2f6]">30s Turn Clock:</strong> Failing to play before the timer expires forfeits the match to the opponent.
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffd78d] mt-1.5 shrink-0" />
-                    <span>
-                      <strong className="text-[#dde2f6]">Smart Settlement:</strong> Non-custodial escrow contract transfers 90% of the pot directly to the winner's vault.
+                      <strong className="text-[#dde2f6]">Instant Payout:</strong> Winner automatically receives 90% pot to their wallet upon victory.
                     </span>
                   </div>
                 </div>
@@ -590,7 +642,7 @@ export default function Connect4Detail() {
               </div>
 
               {activeCount === 0 ? (
-                <div className="p-3 text-center text-xs text-[#d4c5ad]/70 font-mono">
+                <div className="p-3 text-center text-xs text-[#94a3b8] font-mono">
                   No public Connect 4 rooms open right now. Be the first to start a table!
                 </div>
               ) : (
@@ -647,14 +699,14 @@ export default function Connect4Detail() {
                   <Bot size={18} />
                   <span>
                     {isHouseBotWager
-                      ? `Enter House Wager (${selectedStake} NIM)`
+                      ? `Enter House Wager (${formatNim(selectedStake)} NIM)`
                       : "Start Practice Match (Free)"}
                   </span>
                 </>
               ) : (
                 <>
                   <Play size={18} className="fill-[#412d00]" />
-                  <span>Enter 1v1 Arena Table ({selectedStake} NIM)</span>
+                  <span>Enter 1v1 Arena Table ({formatNim(selectedStake)} NIM)</span>
                 </>
               )}
             </button>
