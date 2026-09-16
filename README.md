@@ -41,8 +41,9 @@
 14. [Environment Variables](#environment-variables)
 15. [Automated Testing & Verification](#automated-testing--verification)
 16. [Current Status & Limitations](#current-status--limitations)
-17. [Judge Quickstart & Demo Guide](#judge-quickstart--demo-guide)
-18. [License](#license)
+17. [Product Roadmap](#product-roadmap)
+18. [Judge Quickstart & Demo Guide](#judge-quickstart--demo-guide)
+19. [License](#license)
 
 ---
 
@@ -483,7 +484,34 @@ npm run build
 
 ---
 
-## Judge Quickstart & Demo Guide
+## Product Roadmap
+
+```
+Phase 1: Core Duel Engine ➔ Phase 2: Multiplayer & Spectating ➔ Phase 3: Tournaments & Mainnet
+      (✅ Completed)                     (⏳ In Progress)                     (🔮 Planned)
+```
+
+### Phase 1: Core Foundation & Duel Engine (✅ Shipped)
+- [x] **Deterministic Game Engines**: Pure TypeScript state machines for 1v1 Ludo League and Connect 4 Blitz.
+- [x] **Nimiq Hub & Pay Dual-Mode Wallet**: One-click onboarding via `@nimiq/hub-api` (zero extension install) + `@nimiq/mini-app-sdk` mobile container auto-detection.
+- [x] **On-Chain Escrow & Payout Automation**: Pre-match payment intent verification, anti-replay hash validation, and hot-wallet payout worker with daily circuit breakers.
+- [x] **Real-Time Synchronous Transport**: Low-latency Server-Sent Events (SSE) stream with 15-second mobile keep-alive heartbeats and disconnect timeouts.
+- [x] **Match Event Sequencer & Replay**: Authoritative database event ledger reconstructing turn-by-turn state history with forward/back controls.
+- [x] **Full PWA Experience**: Installable standalone mobile app with dynamic viewport (`100dvh`) and custom Web Audio arcade sound engine.
+
+### Phase 2: Multiplayer Expansion & Scalability (⏳ In Progress)
+- [ ] **4-Player Ludo Mode**: Dynamic 4-quadrant board geometry (Red, Green, Yellow, Blue) with 4-way turn scheduling and 4-way pot split.
+- [ ] **Redis Pub/Sub SSE Adapter**: Decoupled message bus enabling horizontal scaling of match state broadcast across distributed node clusters.
+- [ ] **Live Match Spectator Mode**: Read-only SSE channel allowing community members to watch high-stakes duels in real time with live chat and emoji reactions.
+- [ ] **Challenge Deep Links & QR Codes**: One-tap native camera join flow for mobile players in Nimiq Pay.
+
+### Phase 3: Tournaments, Community Staking & Mainnet (🔮 Planned)
+- [ ] **Elimination Tournament Cups**: 8-player and 16-player single-elimination bracket engine with automated round progression and championship prize pots.
+- [ ] **Arena Builder Liquidity Staking**: Enable community members to stake NIM into arena liquidity pools and earn a pro-rata share of the 5% Builder fee cut.
+- [ ] **Nimiq Mainnet Deployment**: Transition from Testnet Albatross to Mainnet with funded treasury cold/hot wallet hierarchy.
+- [ ] **On-Chain Achievement Badges**: Verifiable proof-of-victory credentials for seasonal tournament winners.
+
+---
 
 To test Nimiq Arena in 2 minutes:
 
