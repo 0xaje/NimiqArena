@@ -156,10 +156,8 @@ export default function GamesShowroom() {
 
   const categories: { id: GameCategory; label: string }[] = [
     { id: "all", label: "All Games" },
-    { id: "board", label: "Board Classics" },
-    { id: "duels", label: "1v1 Duels" },
-    { id: "multiplayer", label: "Multiplayer" },
-    { id: "tournaments", label: "Tournaments" },
+    { id: "board", label: "Ludo League" },
+    { id: "duels", label: "Connect 4 Blitz" },
   ];
 
   // Short formatted address e.g. NQ07 ···· 32F1
@@ -225,10 +223,10 @@ export default function GamesShowroom() {
           {/* Title & Subtitle Header */}
           <div className="px-4 pt-2 pb-2 flex flex-col gap-1">
             <h1 className="text-2xl font-black text-[#ffffff] tracking-tight">
-              Games
+              Games Showroom
             </h1>
             <p className="text-xs text-[#94a3b8]">
-              Explore competitive wager titles and casual board battles
+              Choose a game, pick your stake, and play
             </p>
           </div>
 
@@ -252,7 +250,7 @@ export default function GamesShowroom() {
           </div>
 
           {/* SPOTLIGHT HERO BANNER: LUDO ARENA */}
-          {(activeCategory === "all" || activeCategory === "board" || activeCategory === "multiplayer") && (
+          {(activeCategory === "all" || activeCategory === "board") && (
             <div className="px-4 pt-2 pb-4">
               <div className="relative overflow-hidden rounded-2xl bg-[#151b29] border border-[#2f3544] shadow-[0_12px_32px_-4px_rgba(0,0,0,0.65)]">
                 {/* Media Header */}
@@ -268,7 +266,7 @@ export default function GamesShowroom() {
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#080e1c]/85 backdrop-blur-md border border-[#2f3544]">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c] shadow-[0_0_8px_#f3b72c]" />
                     <span className="text-[10px] text-[#ffdea4] uppercase font-mono font-bold tracking-wider">
-                      Featured Showdown • 2–4 Players
+                      Featured • 1v1 / 4P
                     </span>
                   </div>
                 </div>
@@ -277,7 +275,7 @@ export default function GamesShowroom() {
                 <div className="p-4 flex flex-col gap-3">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-[#dde2f6]">Ludo Arena</h2>
+                      <h2 className="text-xl font-bold text-[#dde2f6]">Ludo League</h2>
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#46d89d]/15 text-[#68f5b8]">
                         <Zap size={13} />
                         <span className="text-[10px] font-mono font-bold uppercase">
@@ -286,7 +284,7 @@ export default function GamesShowroom() {
                       </div>
                     </div>
                     <p className="text-xs text-[#94a3b8]">
-                      Tactical race board game. Roll dice, block opponents, and capture glory.
+                      Classic dice showdown. Roll, race tokens home, and claim the match pot.
                     </p>
                   </div>
 
@@ -294,35 +292,28 @@ export default function GamesShowroom() {
                   <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-[#242a39]/60 border border-[#2f3544]">
                     <div className="flex flex-col items-center text-center">
                       <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Avg Match</span>
-                      <span className="text-xs text-[#dde2f6] font-bold mt-0.5 font-mono">~6 mins</span>
+                      <span className="text-xs text-[#dde2f6] font-bold mt-0.5 font-mono">~4 mins</span>
                     </div>
                     <div className="flex flex-col items-center text-center">
-                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Pool Stakes</span>
-                      <span className="text-xs text-[#ffd78d] font-bold mt-0.5 font-mono">10–500 NIM</span>
+                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Stakes</span>
+                      <span className="text-xs text-[#ffd78d] font-bold mt-0.5 font-mono">1k–100k NIM</span>
                     </div>
                     <div className="flex flex-col items-center text-center">
-                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Active Hubs</span>
+                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Active</span>
                       <span className="text-xs text-[#00d2ff] font-bold mt-0.5 font-mono">
-                        {activeCount > 0 ? `${activeCount} Live` : "Open Hub"}
+                        {activeCount > 0 ? `${activeCount} Live` : "Radar Ready"}
                       </span>
                     </div>
                   </div>
 
                   {/* Action CTAs */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => setIsLudoFlowOpen(true)}
-                      className="flex-1 h-12 rounded-xl bg-[#f3b72c] hover:bg-[#ffc107] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] active:scale-[0.98] transition-transform"
-                    >
-                      <span>Play Now</span>
-                      <ArrowRight size={16} />
-                    </button>
+                  <div className="pt-1">
                     <Link
                       href="/games/ludo-league"
-                      className="h-12 px-4 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#dde2f6] text-xs font-bold flex items-center justify-center gap-1.5 border border-[#333948] active:scale-[0.98] transition-transform"
+                      className="w-full h-12 rounded-xl bg-[#f3b72c] hover:bg-[#ffc107] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_20px_-2px_rgba(243,183,44,0.35)] active:scale-[0.98] transition-transform"
                     >
-                      <BookOpen size={15} className="text-[#94a3b8]" />
-                      <span>Lobby</span>
+                      <Play size={16} fill="currentColor" />
+                      <span>Play Ludo League</span>
                     </Link>
                   </div>
                 </div>
@@ -333,13 +324,10 @@ export default function GamesShowroom() {
           {/* Section Header: All Titles */}
           <div className="px-4 pt-1 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-[#dde2f6]">All Titles</h2>
-              <span className="px-2 py-0.5 rounded-full bg-[#242a39] text-[10px] font-mono text-[#94a3b8]">
-                4
-              </span>
+              <h2 className="text-base font-bold text-[#dde2f6]">Available Games</h2>
             </div>
             <span className="text-[10px] text-[#94a3b8] uppercase font-mono tracking-wider">
-              Sorted by Popularity
+              Arcade Titles
             </span>
           </div>
 
@@ -372,18 +360,17 @@ export default function GamesShowroom() {
 
                 <div className="p-4 flex flex-col gap-3">
                   <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-bold text-[#dde2f6]">Connect NIM Arena</h3>
+                    <h3 className="text-base font-bold text-[#dde2f6]">Connect 4 Blitz</h3>
                     <p className="text-xs text-[#94a3b8] line-clamp-2 leading-relaxed">
-                      Vertical 4-in-a-row alignment showdown. Drop kinetic tokens and outsmart your rival in rapid turns.
+                      Vertical 4-in-a-row alignment showdown. Drop tokens and outsmart your rival in rapid turns.
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex flex-col">
-                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Entry Stake</span>
+                      <span className="text-[9px] text-[#94a3b8] uppercase font-mono">Stakes</span>
                       <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="text-[10px] text-[#94a3b8]">From</span>
-                        <span className="text-xs text-[#ffd78d] font-bold font-mono">10 NIM</span>
+                        <span className="text-xs text-[#ffd78d] font-bold font-mono">1k–100k NIM</span>
                       </div>
                     </div>
 

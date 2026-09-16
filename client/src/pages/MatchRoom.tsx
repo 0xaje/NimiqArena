@@ -1144,9 +1144,6 @@ export default function MatchRoom() {
                         value={currentDice}
                         isRolling={command.isPending}
                       />
-                      <div className="absolute bottom-0.5 right-1.5 text-[7px] text-[#f9bd32] font-mono tracking-widest uppercase">
-                        VRF
-                      </div>
                     </button>
 
                     {/* Primary Action CTA Button */}
@@ -1182,7 +1179,7 @@ export default function MatchRoom() {
                       {command.isPending ? (
                         <>
                           <RotateCw size={16} className="animate-spin" />
-                          <span>RESOLVING VRF…</span>
+                          <span>ROLLING…</span>
                         </>
                       ) : canRoll ? (
                         <>
@@ -1220,7 +1217,7 @@ export default function MatchRoom() {
                     {isSpectator ? p1Name : `You (${p1Name})`}
                   </span>
                   <span className="text-[11px] font-mono text-[#ffd78d] mt-0.5">
-                    {c4MyDiscsLeft} Discs in Mag
+                    {c4MyDiscsLeft} Discs Left
                   </span>
                 </div>
               </div>
