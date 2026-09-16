@@ -41,6 +41,7 @@ export function IdentityRegistrationModal({
   const [debouncedName, setDebouncedName] = useState("");
   const [isSigning, setIsSigning] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
@@ -117,6 +118,7 @@ export function IdentityRegistrationModal({
         username: clean,
         avatar: finalAvatar,
         referralCode: referralCode.trim() || undefined,
+        isAnonymous,
       });
 
       if ((res as any)?.token) {
@@ -519,6 +521,57 @@ export function IdentityRegistrationModal({
                 boxSizing: "border-box",
               }}
             />
+          </div>
+
+          {/* Stealth / Anonymous Mode Toggle */}
+          <div
+            onClick={() => setIsAnonymous(!isAnonymous)}
+            style={{
+              padding: "12px 14px",
+              borderRadius: "12px",
+              backgroundColor: isAnonymous ? "rgba(104, 245, 184, 0.08)" : "rgba(255, 255, 255, 0.03)",
+              border: isAnonymous ? "1px solid rgba(104, 245, 184, 0.3)" : "1px solid rgba(255, 255, 255, 0.08)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: isAnonymous ? "#68f5b8" : "#dde2f6", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🕶️</span> Play in Stealth / Anonymous Mode
+              </div>
+              <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)", marginTop: "2px" }}>
+                Hide your real handle & avatar from opponents during live matches.
+              </div>
+            </div>
+            <div
+              style={{
+                width: "40px",
+                height: "22px",
+                borderRadius: "999px",
+                backgroundColor: isAnonymous ? "#46d89d" : "rgba(255, 255, 255, 0.15)",
+                position: "relative",
+                transition: "background-color 0.15s ease",
+                flexShrink: 0,
+                marginLeft: "12px",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: "2px",
+                  left: isAnonymous ? "20px" : "2px",
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "50%",
+                  backgroundColor: "#fff",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                  transition: "left 0.15s ease",
+                }}
+              />
+            </div>
           </div>
 
           {/* Notice Card */}

@@ -34,6 +34,7 @@ import {
   Dices,
   Camera,
   Loader2,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -78,6 +79,7 @@ export default function PlayerProfile() {
   // Drip mutation for easy testnet faucet
   const dripMutation = trpc.payment.requestTestnetDrip.useMutation();
   const uploadAvatarMutation = trpc.auth.uploadAvatar.useMutation();
+  const toggleAnonMutation = trpc.auth.toggleAnonymous.useMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State
@@ -87,6 +89,24 @@ export default function PlayerProfile() {
   const [isDripping, setIsDripping] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [audioHapticFx, setAudioHapticFx] = useState(true);
+
+  const isAnonymousActive = Boolean((user as any)?.isAnonymous);
+
+  const handleToggleAnonymous = async () => {
+    if (!user) return;
+    const nextVal = !isAnonymousActive;
+    try {
+      await toggleAnonMutation.mutateAsync({ isAnonymous: nextVal });
+      await utils.auth.me.invalidate();
+      toast.success(
+        nextVal
+          ? "Stealth Mode Enabled: Opponents see you as Anonymous Duelist."
+          : "Stealth Mode Disabled: Handle & avatar are visible in matches."
+      );
+    } catch {
+      toast.error("Failed to update privacy settings.");
+    }
+  };
 
   // Helper to resize and compress selected photo to a crisp 256x256 square
   const processImageFile = (file: File): Promise<string> => {
@@ -346,10 +366,17 @@ export default function PlayerProfile() {
                     EDIT PROFILE
                   </button>
                 </div>
-                <p className="text-xs text-[#d4c5ad] flex items-center gap-1.5 mt-0.5 font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c]" />
-                  Season 1 Active Contender
-                </p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-xs text-[#d4c5ad] flex items-center gap-1.5 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c]" />
+                    Season 1 Active Contender
+                  </p>
+                  {isAnonymousActive && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#68f5b8]/15 border border-[#68f5b8]/30 text-[#68f5b8] text-[9px] font-mono font-bold flex items-center gap-1">
+                      <span>🕶️</span> STEALTH ACTIVE
+                    </span>
+                  )}
+                </div>
 
                 {/* Address Tag / Pill */}
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -669,6 +696,45 @@ export default function PlayerProfile() {
                 <span className="px-2.5 py-0.5 rounded-full bg-[#68f5b8]/10 text-[#68f5b8] text-[10px] font-mono font-bold">
                   Optimal
                 </span>
+              </div>
+
+              {/* Stealth / Anonymous Mode Toggle */}
+              <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-[#080e1c] flex items-center justify-center text-[#68f5b8] border border-white/5">
+                    <EyeOff size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[#dde2f6] flex items-center gap-1.5">
+                      <span>Play Anonymously (Stealth Mode)</span>
+                      {isAnonymousActive && (
+                        <span className="px-1.5 py-0.2 rounded bg-[#68f5b8]/20 text-[#68f5b8] text-[8px] font-mono font-bold">
+                          ACTIVE
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-[#d4c5ad] font-mono">
+                      {isAnonymousActive
+                        ? "Opponents see 'Anonymous Duelist' & masked avatar"
+                        : "Your handle & avatar are visible to opponents"}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleToggleAnonymous}
+                  disabled={toggleAnonMutation.isPending}
+                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                    isAnonymousActive ? "bg-[#46d89d]" : "bg-[#080e1c]"
+                  }`}
+                  type="button"
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#dde2f6] shadow-md transition-transform ${
+                      isAnonymousActive ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
 
               {/* Sound & Haptic FX Toggle */}

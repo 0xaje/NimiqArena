@@ -571,6 +571,7 @@ export async function registerUserIdentity(input: {
   avatar?: string;
   referralCodeUsed?: string;
   address?: string;
+  isAnonymous?: boolean;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
@@ -623,12 +624,28 @@ export async function registerUserIdentity(input: {
       address: input.address
         ? normalizeNimiqAddress(input.address)
         : currentUser.address,
+      isAnonymous: input.isAnonymous !== undefined ? input.isAnonymous : currentUser.isAnonymous,
       updatedAt: new Date(),
     })
     .where(eq(users.id, input.userId));
 
   return (
     await db.select().from(users).where(eq(users.id, input.userId)).limit(1)
+  )[0];
+}
+
+export async function updateUserPrivacy(userId: number, isAnonymous: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db
+    .update(users)
+    .set({
+      isAnonymous,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+  return (
+    await db.select().from(users).where(eq(users.id, userId)).limit(1)
   )[0];
 }
 
@@ -1950,6 +1967,7 @@ export async function getMatchPlayers(matchId: string) {
       name: users.name,
       address: users.address,
       avatar: users.avatar,
+      isAnonymous: users.isAnonymous,
     })
     .from(matchPlayers)
     .leftJoin(users, eq(matchPlayers.userId, users.id))

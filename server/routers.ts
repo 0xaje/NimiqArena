@@ -16,6 +16,7 @@ import {
   checkUsernameAvailable,
   registerUserIdentity,
   updateUserAvatar,
+  updateUserPrivacy,
   claimWelcomeReward,
   getUserReferralStats,
   linkUserEvmAddress,
@@ -297,6 +298,7 @@ export const appRouter = router({
           username: z.string().min(2).max(32),
           avatar: z.string().max(255).optional(),
           referralCode: z.string().max(32).optional(),
+          isAnonymous: z.boolean().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -306,6 +308,7 @@ export const appRouter = router({
           avatar: input.avatar,
           referralCodeUsed: input.referralCode,
           address: ctx.user.address ?? undefined,
+          isAnonymous: input.isAnonymous,
         });
         const token = await sdk.createSessionToken(ctx.user.openId, { name: input.username });
         const cookieOpts = getSessionCookieOptions(ctx.req);
@@ -318,6 +321,16 @@ export const appRouter = router({
           );
         }
         return { success: true, user: updated, token };
+      }),
+    toggleAnonymous: protectedProcedure
+      .input(
+        z.object({
+          isAnonymous: z.boolean(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const updated = await updateUserPrivacy(ctx.user.id, input.isAnonymous);
+        return { success: true, user: updated, isAnonymous: input.isAnonymous };
       }),
     claimWelcomeReward: protectedProcedure.mutation(async ({ ctx }) => {
       return await claimWelcomeReward(ctx.user.id);
@@ -835,14 +848,20 @@ export const appRouter = router({
           stakeNim,
           escrowError,
           snapshot: JSON.parse(match.stateJson),
-          players: players.map(current => ({
-            seat: current.seat,
-            userId: current.userId,
-            status: current.status,
-            lastSeenAt: current.lastSeenAt,
-            name: current.name,
-            address: current.address,
-          })),
+          players: players.map(current => {
+            const isSelf = current.userId === ctx.user.id;
+            const isAnon = Boolean(current.isAnonymous);
+            return {
+              seat: current.seat,
+              userId: isSelf ? current.userId : isAnon ? -1 : current.userId,
+              status: current.status,
+              lastSeenAt: current.lastSeenAt,
+              name: isSelf ? current.name : isAnon ? "Anonymous Duelist" : current.name,
+              address: isSelf ? current.address : isAnon ? null : current.address,
+              avatar: isSelf ? current.avatar : isAnon ? null : current.avatar,
+              isAnonymous: isAnon,
+            };
+          }),
           yourSeat: player ? player.seat : -1,
           isSpectator: !player,
           expiresAt: match.expiresAt,
