@@ -341,14 +341,14 @@ export default function PlayerProfile() {
                   </h2>
                   <button
                     onClick={() => setIsIdentityModalOpen(true)}
-                    className="px-2 py-0.5 rounded-full bg-[#ffd78d]/10 border border-[#ffd78d]/30 text-[#ffd78d] text-[10px] font-mono font-bold active:scale-95 transition-transform cursor-pointer"
+                    className="px-2.5 py-0.5 rounded-full bg-[#ffd78d]/10 border border-[#ffd78d]/30 text-[#ffd78d] text-[10px] font-mono font-bold active:scale-95 transition-transform cursor-pointer"
                   >
-                    LVL 48 · EDIT
+                    EDIT PROFILE
                   </button>
                 </div>
                 <p className="text-xs text-[#d4c5ad] flex items-center gap-1.5 mt-0.5 font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c]" />
-                  Gold Legion · Season 4 Active
+                  Season 1 Active Contender
                 </p>
 
                 {/* Address Tag / Pill */}
