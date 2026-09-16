@@ -371,167 +371,83 @@ export default function LudoDetail() {
           </div>
 
           {/* ========================================================================= */}
-          {/* MODE SELECTOR SECTION                                                     */}
+          {/* MODE SELECTOR: 3-WAY SEGMENTED ARCADE BUTTONS                             */}
           {/* ========================================================================= */}
           <div className="px-4 flex flex-col space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-base font-bold text-[#dde2f6]">
-                Select Mode
+              <span className="text-xs font-bold uppercase tracking-wider font-mono text-[#ffd78d]">
+                1. Select Mode
               </span>
-              <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-                Step 1 of 2
+              <span className="text-[10px] text-[#94a3b8] font-mono">
+                {currentMode === "match" ? "Ranked Match" : currentMode === "bot" ? "AI Practice" : "Private Duel"}
               </span>
             </div>
 
-            {/* Mode Option 1: Find a Match */}
-            <div
-              onClick={() => setCurrentMode("match")}
-              className={`cursor-pointer relative p-3.5 rounded-xl transition-all active:scale-[0.99] flex items-start gap-3.5 border ${
-                currentMode === "match"
-                  ? "bg-[#242a39] border-[#f3b72c]/60 shadow-[0_0_16px_rgba(243,183,44,0.15)] opacity-100"
-                  : "bg-[#151b29] border-[#242a39] opacity-75 hover:opacity-95"
-              }`}
-            >
-              <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+            <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-[#151b29] border border-[#242a39]">
+              <button
+                type="button"
+                onClick={() => setCurrentMode("match")}
+                className={`py-3 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
                   currentMode === "match"
-                    ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.35)]"
-                    : "bg-[#191f2e] text-[#ffd78d]"
+                    ? "bg-[#f3b72c] text-[#412d00] font-bold shadow-[0_0_14px_rgba(243,183,44,0.35)]"
+                    : "text-[#d4c5ad] hover:text-[#dde2f6] hover:bg-[#191f2e]"
                 }`}
               >
-                <Swords size={22} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#dde2f6] font-bold">
-                    Find a Match
-                  </span>
-                </div>
-                <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
-                  Instant 1v1 or 4-player competitive matchmaking against live network contenders.
-                </p>
-              </div>
-              <div className="shrink-0 self-center">
-                <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    currentMode === "match"
-                      ? "border-[#ffd78d] bg-[#ffd78d]"
-                      : "border-[#d4c5ad]/50 bg-transparent"
-                  }`}
-                >
-                  {currentMode === "match" && (
-                    <div className="w-2 h-2 rounded-full bg-[#412d00]" />
-                  )}
-                </div>
-              </div>
-            </div>
+                <Swords size={20} />
+                <span className="text-xs font-bold leading-tight">Ranked 1v1</span>
+                <span className={`text-[9px] font-mono ${currentMode === "match" ? "text-[#412d00]/80 font-bold" : "text-[#94a3b8]"}`}>
+                  Win Pot
+                </span>
+              </button>
 
-            {/* Mode Option 2: Play with Friend */}
-            <div
-              onClick={() => setCurrentMode("friend")}
-              className={`cursor-pointer relative p-3.5 rounded-xl transition-all active:scale-[0.99] flex items-start gap-3.5 border ${
-                currentMode === "friend"
-                  ? "bg-[#242a39] border-[#a5e7ff]/60 shadow-[0_0_16px_rgba(165,231,255,0.15)] opacity-100"
-                  : "bg-[#151b29] border-[#242a39] opacity-75 hover:opacity-95"
-              }`}
-            >
-              <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                  currentMode === "friend"
-                    ? "bg-[#00d2ff] text-[#003543] shadow-[0_0_12px_rgba(0,210,255,0.35)]"
-                    : "bg-[#191f2e] text-[#a5e7ff]"
-                }`}
-              >
-                <Users size={22} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#dde2f6] font-bold">
-                    Play with Friend
-                  </span>
-                  <span className="bg-[#2f3544] text-[#b6ebff] text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
-                    Private Code
-                  </span>
-                </div>
-                <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
-                  Create a wager lounge or join an existing peer-to-peer room via short invite link.
-                </p>
-              </div>
-              <div className="shrink-0 self-center">
-                <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    currentMode === "friend"
-                      ? "border-[#00d2ff] bg-[#00d2ff]"
-                      : "border-[#d4c5ad]/50 bg-transparent"
-                  }`}
-                >
-                  {currentMode === "friend" && (
-                    <div className="w-2 h-2 rounded-full bg-[#003543]" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Mode Option 3: Play Bot */}
-            <div
-              onClick={() => setCurrentMode("bot")}
-              className={`cursor-pointer relative p-3.5 rounded-xl transition-all active:scale-[0.99] flex items-start gap-3.5 border ${
-                currentMode === "bot"
-                  ? "bg-[#242a39] border-[#68f5b8]/60 shadow-[0_0_16px_rgba(104,245,184,0.15)] opacity-100"
-                  : "bg-[#151b29] border-[#242a39] opacity-75 hover:opacity-95"
-              }`}
-            >
-              <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+              <button
+                type="button"
+                onClick={() => setCurrentMode("bot")}
+                className={`py-3 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
                   currentMode === "bot"
-                    ? "bg-[#68f5b8] text-[#003824] shadow-[0_0_12px_rgba(104,245,184,0.35)]"
-                    : "bg-[#191f2e] text-[#68f5b8]"
+                    ? "bg-[#68f5b8] text-[#003824] font-bold shadow-[0_0_14px_rgba(104,245,184,0.35)]"
+                    : "text-[#d4c5ad] hover:text-[#dde2f6] hover:bg-[#191f2e]"
                 }`}
               >
-                <Bot size={22} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#dde2f6] font-bold">
-                    Arena AI Practice
-                  </span>
-                  <span className="bg-[#2f3544] text-[#6ffbbe] text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
-                    {isHouseBotWager ? "House Wager" : "Zero Risk"}
-                  </span>
-                </div>
-                <p className="text-xs text-[#d4c5ad] mt-0.5 leading-snug">
-                  Warm up pawn movement strategies and test blockades before staking actual NIM.
-                </p>
-              </div>
-              <div className="shrink-0 self-center">
-                <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    currentMode === "bot"
-                      ? "border-[#68f5b8] bg-[#68f5b8]"
-                      : "border-[#d4c5ad]/50 bg-transparent"
-                  }`}
-                >
-                  {currentMode === "bot" && (
-                    <div className="w-2 h-2 rounded-full bg-[#003824]" />
-                  )}
-                </div>
-              </div>
+                <Bot size={20} />
+                <span className="text-xs font-bold leading-tight">Solo Bot</span>
+                <span className={`text-[9px] font-mono ${currentMode === "bot" ? "text-[#003824]/80 font-bold" : "text-[#94a3b8]"}`}>
+                  {isHouseBotWager ? "Wagered" : "Practice"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentMode("friend")}
+                className={`py-3 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+                  currentMode === "friend"
+                    ? "bg-[#00d2ff] text-[#003543] font-bold shadow-[0_0_14px_rgba(0,210,255,0.35)]"
+                    : "text-[#d4c5ad] hover:text-[#dde2f6] hover:bg-[#191f2e]"
+                }`}
+              >
+                <Users size={20} />
+                <span className="text-xs font-bold leading-tight">Friend</span>
+                <span className={`text-[9px] font-mono ${currentMode === "friend" ? "text-[#003543]/80 font-bold" : "text-[#94a3b8]"}`}>
+                  Code Invite
+                </span>
+              </button>
             </div>
 
             {/* Optional House Match Toggle for Bot Mode */}
             {currentMode === "bot" && (
-              <div className="pt-1 flex items-center justify-between bg-[#151b29] border border-[#242a39] rounded-xl px-3 py-2 text-xs">
+              <div className="pt-1 flex items-center justify-between bg-[#151b29] border border-[#242a39] rounded-xl px-3 py-2 text-xs animate-in fade-in">
                 <div className="flex items-center gap-2">
                   <Sparkles size={14} className="text-[#ffd78d]" />
-                  <span className="text-[#dde2f6] font-semibold">Wager vs House Bot?</span>
+                  <span className="text-[#dde2f6] font-semibold">Wager NIM vs House AI?</span>
                 </div>
                 <button
                   onClick={() => setIsHouseBotWager(!isHouseBotWager)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-colors ${
+                  className={`px-3 py-1 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer ${
                     isHouseBotWager
                       ? "bg-[#f3b72c] text-[#412d00]"
                       : "bg-[#242a39] text-[#d4c5ad]"
                   }`}
+                  type="button"
                 >
                   {isHouseBotWager ? "Wager Enabled" : "Free Practice"}
                 </button>

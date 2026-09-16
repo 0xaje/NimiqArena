@@ -202,11 +202,11 @@ export default function Home() {
         {/* ========================================================================= */}
         {/* MAIN SCROLLABLE CONTENT AREA                                              */}
         {/* ========================================================================= */}
-        <main className="flex-1 flex flex-col w-full pt-20 pb-28 px-4">
+        <main className="flex-1 flex flex-col w-full pt-20 pb-28 px-4 space-y-5">
           
           {/* SECTION 1: CLEAN ARCADE HERO */}
-          <section className="mb-5 text-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#191f2e] border border-[#f3b72c]/30 text-[#ffd78d] text-[11px] font-mono font-bold uppercase tracking-wider mb-2">
+          <section className="text-center pt-1 pb-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#191f2e] border border-[#f3b72c]/30 text-[#ffd78d] text-[11px] font-mono font-bold uppercase tracking-wider mb-2.5">
               <Sparkles size={12} className="text-[#f3b72c]" />
               <span>Instant On-Chain Arena</span>
             </div>
@@ -218,161 +218,86 @@ export default function Home() {
             </p>
           </section>
 
-          {/* SECTION 2: THE 2 MAIN GAMES (FLAGSHIP CARDS) */}
-          <section className="mb-6 space-y-3">
+          {/* SECTION 2: THE 2 MAIN FLAGSHIP GAMES */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold uppercase tracking-wider font-mono text-[#ffd78d]">
+                Featured Games
+              </span>
+              <span className="text-[10px] text-[#94a3b8] font-mono">2 Games Active</span>
+            </div>
+
             {/* Connect 4 Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#f3b72c]/30 p-4 shadow-xl flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-14 h-14 rounded-xl bg-[#242a39] flex-shrink-0 flex items-center justify-center border border-[#f3b72c]/30 text-2xl shadow-[0_0_16px_rgba(243,183,44,0.2)]">
-                  🔴
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-[#dde2f6] truncate">
-                      Connect 4 Blitz
-                    </h3>
-                    <span className="px-1.5 py-0.5 rounded bg-[#f3b72c]/20 text-[#ffd78d] text-[9px] font-bold font-mono">
-                      1v1 DUEL
-                    </span>
+            <Link
+              href="/games/connect-four"
+              className="block group relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#f3b72c]/30 hover:border-[#f3b72c]/60 p-4 shadow-xl active:scale-[0.99] transition-all cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-14 h-14 rounded-xl bg-[#242a39] flex-shrink-0 flex items-center justify-center border border-[#f3b72c]/30 text-2xl shadow-[0_0_16px_rgba(243,183,44,0.2)] group-hover:scale-105 transition-transform">
+                    🔴
                   </div>
-                  <p className="text-xs text-[#94a3b8] mt-0.5">
-                    Fast 4-in-a-row tactical grid showdown
-                  </p>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-[#dde2f6] group-hover:text-white transition-colors truncate">
+                        Connect 4 Blitz
+                      </h3>
+                      <span className="px-1.5 py-0.5 rounded bg-[#f3b72c]/20 text-[#ffd78d] text-[9px] font-bold font-mono">
+                        1v1 DUEL
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#94a3b8] mt-0.5">
+                      Fast 4-in-a-row tactical grid showdown
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-10 px-4 flex-shrink-0 bg-[#f3b72c] group-hover:bg-[#ffdea4] text-[#412d00] rounded-xl text-xs font-black flex items-center gap-1.5 shadow-[0_4px_16px_rgba(243,183,44,0.3)] transition-colors">
+                  <span>PLAY</span>
+                  <Play size={13} fill="currentColor" />
                 </div>
               </div>
-
-              <Link
-                href="/games/connect-four"
-                className="h-11 px-5 flex-shrink-0 bg-[#f3b72c] hover:bg-[#ffdea4] text-[#412d00] rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition-transform shadow-[0_4px_16px_rgba(243,183,44,0.3)]"
-              >
-                <span>PLAY</span>
-                <Play size={14} fill="currentColor" />
-              </Link>
-            </div>
+            </Link>
 
             {/* Ludo Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#00d2ff]/30 p-4 shadow-xl flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-14 h-14 rounded-xl bg-[#242a39] flex-shrink-0 flex items-center justify-center border border-[#00d2ff]/30 text-2xl shadow-[0_0_16px_rgba(0,210,255,0.2)]">
-                  🎲
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-[#dde2f6] truncate">
-                      Ludo League
-                    </h3>
-                    <span className="px-1.5 py-0.5 rounded bg-[#00d2ff]/20 text-[#00d2ff] text-[9px] font-bold font-mono">
-                      2-4P RACE
-                    </span>
+            <Link
+              href="/games/ludo-league"
+              className="block group relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c2333] via-[#151b29] to-[#0d1321] border border-[#00d2ff]/30 hover:border-[#00d2ff]/60 p-4 shadow-xl active:scale-[0.99] transition-all cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-14 h-14 rounded-xl bg-[#242a39] flex-shrink-0 flex items-center justify-center border border-[#00d2ff]/30 text-2xl shadow-[0_0_16px_rgba(0,210,255,0.2)] group-hover:scale-105 transition-transform">
+                    🎲
                   </div>
-                  <p className="text-xs text-[#94a3b8] mt-0.5">
-                    Strategic token race &amp; capture board game
-                  </p>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-[#dde2f6] group-hover:text-white transition-colors truncate">
+                        Ludo League
+                      </h3>
+                      <span className="px-1.5 py-0.5 rounded bg-[#00d2ff]/20 text-[#00d2ff] text-[9px] font-bold font-mono">
+                        2-4P RACE
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#94a3b8] mt-0.5">
+                      Strategic token race &amp; capture board game
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-10 px-4 flex-shrink-0 bg-[#00d2ff] group-hover:bg-[#a5e7ff] text-[#003543] rounded-xl text-xs font-black flex items-center gap-1.5 shadow-[0_4px_16px_rgba(0,210,255,0.3)] transition-colors">
+                  <span>PLAY</span>
+                  <Play size={13} fill="currentColor" />
                 </div>
               </div>
-
-              <Link
-                href="/games/ludo-league"
-                className="h-11 px-5 flex-shrink-0 bg-[#00d2ff] hover:bg-[#a5e7ff] text-[#003543] rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition-transform shadow-[0_4px_16px_rgba(0,210,255,0.3)]"
-              >
-                <span>PLAY</span>
-                <Play size={14} fill="currentColor" />
-              </Link>
-            </div>
+            </Link>
           </section>
 
-          {/* SECTION 3: QUICK PLAY MATCHMAKER */}
-          <section className="mb-6">
-            <div className="p-4 rounded-2xl bg-[#151b29] border border-[#2f3544] shadow-xl">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-[#dde2f6]">Quick Play</span>
-                  <span className="text-xs text-[#94a3b8]">Select game & stake to enter matchmaking</span>
-                </div>
-                <Zap size={20} className="text-[#f3b72c]" />
-              </div>
-
-              {/* Game Selector Toggle */}
-              <div className="grid grid-cols-2 gap-2 mt-3 mb-2 p-1 rounded-xl bg-[#080e1c] border border-[#242a39]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuickPlayGame("ludo-league");
-                    setSheetGameTitle("Ludo Blitz");
-                  }}
-                  className={`h-9 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold font-mono transition-all active:scale-95 ${
-                    quickPlayGame === "ludo-league"
-                      ? "bg-[#f3b72c] text-[#412d00] shadow-[0_0_12px_rgba(243,183,44,0.4)]"
-                      : "text-[#d4c5ad] hover:text-[#dde2f6]"
-                  }`}
-                >
-                  <span className="text-sm">🎲</span>
-                  <span>Ludo Blitz</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuickPlayGame("connect-four");
-                    setSheetGameTitle("Connect 4 NIM");
-                  }}
-                  className={`h-9 rounded-lg flex items-center justify-center gap-1.5 text-xs font-bold font-mono transition-all active:scale-95 ${
-                    quickPlayGame === "connect-four"
-                      ? "bg-[#00d2ff] text-[#003543] shadow-[0_0_12px_rgba(0,210,255,0.4)]"
-                      : "text-[#d4c5ad] hover:text-[#dde2f6]"
-                  }`}
-                >
-                  <span className="text-sm">🔴</span>
-                  <span>Connect 4</span>
-                </button>
-              </div>
-
-              {/* Stake Chips Selector (Dollar Only) */}
-              <div className="grid grid-cols-4 gap-2 my-2.5">
-                {USD_STAKES.map((usd) => {
-                  const isSelected = selectedUsdStake === usd;
-                  return (
-                    <button
-                      key={usd}
-                      type="button"
-                      onClick={() => {
-                        setSelectedUsdStake(usd);
-                        setSelectedStake(calculateNimFromUsd(usd));
-                      }}
-                      className={`h-11 rounded-xl flex items-center justify-center font-mono transition-all active:scale-95 cursor-pointer ${
-                        isSelected
-                          ? "bg-[#f3b72c] text-[#412d00] font-bold shadow-[0_0_16px_rgba(243,183,44,0.35)]"
-                          : "bg-[#191f2e] text-[#d4c5ad] border border-[#2f3544] hover:border-[#4f4534]"
-                      }`}
-                    >
-                      <span className="text-sm font-black">${usd}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Primary Action CTA */}
-              <button
-                onClick={() => {
-                  const currentNim = calculateNimFromUsd(selectedUsdStake);
-                  openWagerConfirmation(
-                    quickPlayGame === "connect-four" ? "Connect 4 NIM" : "Ludo Blitz",
-                    currentNim
-                  );
-                }}
-                className="w-full h-12 rounded-xl bg-[#f3b72c] text-[#412d00] text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(243,183,44,0.3)] active:scale-98 transition-all cursor-pointer"
-              >
-                <Play size={16} fill="currentColor" />
-                <span>Enter Matchmaking</span>
-              </button>
-            </div>
-          </section>
-
-          {/* SECTION 4: LIVE NOW (Real Authoritative Directory) */}
-          <section className="mb-6" id="live-matches">
-            <div className="flex items-center justify-between mb-3">
+          {/* SECTION 3: LIVE ARENA RADAR */}
+          <section id="live-matches">
+            <div className="flex items-center justify-between mb-2.5 px-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">
-                  Live Now
+                <h2 className="text-xs font-bold uppercase tracking-wider font-mono text-[#dde2f6]">
+                  Live Battles
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-[#00d2ff]/15 text-[#00d2ff] text-[10px] font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] shadow-[0_0_8px_#00d2ff] animate-pulse" />
@@ -380,7 +305,7 @@ export default function Home() {
                 </span>
               </div>
               <Link href="/games/ludo-league" className="text-xs text-[#a5e7ff] hover:underline font-mono">
-                See all
+                View all
               </Link>
             </div>
 
@@ -389,22 +314,18 @@ export default function Home() {
                 {activeMatches.map((match: any) => (
                   <div
                     key={match.id}
-                    className="bg-[#191f2e] border border-[#2f3544] p-3 rounded-2xl flex items-center justify-between gap-3 shadow-md"
+                    className="bg-[#151b29] border border-[#2f3544] p-3 rounded-2xl flex items-center justify-between gap-3 shadow-md"
                   >
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[#dde2f6]">
-                          {match.gameSlug === "ludo-league" ? "Ludo Arena" : "Connect NIM"}
+                          {match.gameSlug === "ludo-league" ? "🎲 Ludo Arena" : "🔴 Connect 4"}
                         </span>
                         <span className="text-[10px] text-[#94a3b8] font-mono">
-                          · v{match.stateVersion || 1}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-[#94a3b8] truncate max-w-[140px]">
                           Table #{match.joinCode}
                         </span>
-                        <span className="w-1 h-1 rounded-full bg-[#4f4534]" />
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-[#ffd78d] font-mono font-bold">
                           {match.stakeNim ? `${match.stakeNim * 2} NIM POT` : "FREE PLAY"}
                         </span>
@@ -413,7 +334,7 @@ export default function Home() {
 
                     <Link
                       href={`/matches/${match.id}`}
-                      className="h-9 px-3 flex-shrink-0 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#a5e7ff] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+                      className="h-8 px-3 flex-shrink-0 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#a5e7ff] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
                     >
                       <Eye size={13} />
                       <span>Watch</span>
@@ -422,45 +343,49 @@ export default function Home() {
                 ))}
               </div>
             ) : (
-              <div className="bg-[#151b29] border border-[#2f3544] rounded-2xl p-5 flex flex-col items-center justify-center text-center">
-                <Swords size={28} className="text-[#94a3b8] mb-2 opacity-50" />
-                <span className="text-xs font-bold text-[#dde2f6]">
-                  No Active Public Tables
-                </span>
-                <span className="text-[11px] text-[#94a3b8] mt-1 max-w-[240px]">
-                  Be the gladiator to open a table and challenge rivals for the prize pot!
-                </span>
-                <button
-                  onClick={() => setIsLudoFlowOpen(true)}
-                  className="mt-3 h-8 px-4 bg-[#242a39] hover:bg-[#2f3544] text-[#ffd78d] text-xs font-bold rounded-lg border border-[#f3b72c]/30"
+              <div className="bg-[#151b29] border border-[#242a39] rounded-2xl p-4 flex items-center justify-between text-left">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#191f2e] flex items-center justify-center text-[#94a3b8]">
+                    <Swords size={18} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-[#dde2f6] block">
+                      Arena Ready
+                    </span>
+                    <span className="text-[11px] text-[#94a3b8] block">
+                      Create a room or match with players
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  href="/games/connect-four"
+                  className="h-8 px-3.5 bg-[#242a39] hover:bg-[#2f3544] text-[#ffd78d] text-xs font-bold rounded-xl border border-[#f3b72c]/30 flex items-center gap-1"
                 >
-                  Create Match Table
-                </button>
+                  <Plus size={13} />
+                  <span>Host</span>
+                </Link>
               </div>
             )}
           </section>
 
-          {/* SECTION 5: TOP ARENA CHAMPIONS (Real Authoritative Ranks) */}
-          <section className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex flex-col">
-                <h2 className="text-lg font-bold text-[#dde2f6] tracking-tight">
-                  Top Arena Champions
-                </h2>
-                <span className="text-xs text-[#94a3b8]">Global competitive leaderboards</span>
-              </div>
+          {/* SECTION 4: TOP ARENA CHAMPIONS */}
+          <section>
+            <div className="flex items-center justify-between mb-2.5 px-1">
+              <span className="text-xs font-bold uppercase tracking-wider font-mono text-[#dde2f6]">
+                Top Champions
+              </span>
               <Link
                 href="/leaderboard"
                 className="text-xs text-[#ffd78d] hover:underline flex items-center gap-0.5 font-mono"
               >
-                <span>Ranks</span>
-                <ChevronRight size={14} />
+                <span>Full Ranks</span>
+                <ChevronRight size={13} />
               </Link>
             </div>
 
-            <div className="bg-[#151b29] border border-[#2f3544] rounded-2xl p-2 flex flex-col gap-1 shadow-lg">
+            <div className="bg-[#151b29] border border-[#242a39] rounded-2xl p-2 flex flex-col gap-1 shadow-lg">
               {topChampions.length > 0 ? (
-                topChampions.map((player: any, idx: number) => (
+                topChampions.slice(0, 3).map((player: any, idx: number) => (
                   <div
                     key={player.id || idx}
                     className="flex items-center justify-between p-2.5 rounded-xl bg-[#191f2e]/60 hover:bg-[#191f2e] transition-colors"
@@ -478,7 +403,7 @@ export default function Home() {
                         0{idx + 1}
                       </div>
                       <div className="relative">
-                        <div className="w-9 h-9 rounded-full bg-[#2f3544] overflow-hidden flex items-center justify-center text-xs font-bold text-[#ffd78d]">
+                        <div className="w-8 h-8 rounded-full bg-[#242a39] overflow-hidden flex items-center justify-center text-xs font-bold text-[#ffd78d]">
                           {(player.name || player.username || "P").slice(0, 1).toUpperCase()}
                         </div>
                         {idx === 0 && (
@@ -510,52 +435,36 @@ export default function Home() {
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center">
-                  <Trophy size={24} className="text-[#ffd78d] mx-auto mb-1 opacity-60" />
+                <div className="p-3 text-center">
+                  <Trophy size={20} className="text-[#ffd78d] mx-auto mb-1 opacity-60" />
                   <span className="text-xs font-bold text-[#dde2f6] block">
-                    Season 02 Leaderboard Initializing
+                    Season 1 Active
                   </span>
-                  <span className="text-[11px] text-[#94a3b8] mt-0.5 block">
-                    Compete in ranked matches to establish your glory!
+                  <span className="text-[10px] text-[#94a3b8] mt-0.5 block">
+                    Play matches to enter the leaderboard
                   </span>
                 </div>
               )}
             </div>
           </section>
 
-          {/* QUICK ACCESS ACTION STRIP: WALLET & VAULT STATUS */}
-          <section className="mb-4">
-            <button
-              onClick={() => {
-                if (isConnected) {
-                  setIsWalletSheetOpen(true);
-                } else {
-                  setIsWalletModalOpen(true);
-                }
-              }}
-              className="w-full p-3.5 rounded-2xl bg-[#191f2e] border border-[#2f3544] flex items-center justify-between active:bg-[#242a39] transition-colors shadow-md"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#00d2ff]/10 flex items-center justify-center text-[#00d2ff]">
-                  <Wallet size={18} />
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="text-[10px] text-[#94a3b8] uppercase font-mono">
-                    {isConnected ? "Connected Nimiq Wallet" : "Connect Nimiq Wallet"}
-                  </span>
-                  <span className="text-xs text-[#dde2f6] font-mono font-semibold">
-                    {shortAddress}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[#ffd78d]">
-                <span className="text-xs font-mono font-bold">
-                  {balanceNim != null ? formatNim(balanceNim) : "0"} NIM
-                </span>
-                <ChevronRight size={16} />
-              </div>
-            </button>
+          {/* SECTION 5: ARCADE TRUST BADGES */}
+          <section className="grid grid-cols-3 gap-2 pt-1">
+            <div className="p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] text-center flex flex-col items-center gap-1">
+              <Zap size={16} className="text-[#f3b72c]" />
+              <span className="text-[10px] font-bold font-mono text-[#dde2f6]">Instant</span>
+              <span className="text-[9px] text-[#94a3b8] leading-tight">Fast Payouts</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] text-center flex flex-col items-center gap-1">
+              <ShieldCheck size={16} className="text-[#68f5b8]" />
+              <span className="text-[10px] font-bold font-mono text-[#dde2f6]">Escrow</span>
+              <span className="text-[9px] text-[#94a3b8] leading-tight">Non-Custodial</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] text-center flex flex-col items-center gap-1">
+              <Sparkles size={16} className="text-[#00d2ff]" />
+              <span className="text-[10px] font-bold font-mono text-[#dde2f6]">Fair Play</span>
+              <span className="text-[9px] text-[#94a3b8] leading-tight">VRF Verified</span>
+            </div>
           </section>
         </main>
 

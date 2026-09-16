@@ -856,27 +856,23 @@ export default function MatchRoom() {
               </div>
             )}
 
-            {/* Right Controls: Latency, Audio, VRF Audit */}
+            {/* Right Controls: Sound & Fair Play */}
             <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#191f2e] border border-[#242a39]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#46d89d] shadow-[0_0_6px_#46d89d] animate-pulse" />
-                <span className="text-[10px] text-[#d4c5ad] font-mono">18ms</span>
-              </div>
               <button
                 onClick={toggleSound}
                 aria-label="Toggle audio"
                 className="w-8 h-8 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#d4c5ad]"
                 title={isMuted ? "Unmute Sound" : "Mute Sound"}
               >
-                {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
               </button>
               <button
                 onClick={() => {
                   const next = soundEngine.toggleAmbientMusic();
                   setIsMusicOn(next);
-                  toast.info(next ? "Ambient Music Active 🎵" : "Ambient Music Muted 🔇");
+                  toast.info(next ? "Music On 🎵" : "Music Muted 🔇");
                 }}
-                aria-label="Toggle ambient music"
+                aria-label="Toggle music"
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-95 ${
                   isMusicOn
                     ? "bg-[#f3b72c]/20 text-[#f3b72c] border border-[#f3b72c]/40"
@@ -884,14 +880,7 @@ export default function MatchRoom() {
                 }`}
                 title={isMusicOn ? "Mute Music" : "Play Music"}
               >
-                <Music size={15} />
-              </button>
-              <button
-                onClick={() => setShowProvablyFair(true)}
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#191f2e] hover:bg-[#242a39] active:scale-95 transition-transform text-[#ffd78d]"
-                title="Cryptographic VRF Audit"
-              >
-                <ShieldCheck size={16} />
+                <Music size={14} />
               </button>
             </div>
           </header>
@@ -901,92 +890,52 @@ export default function MatchRoom() {
             <section className="mx-4 mt-2 p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-[#2f3544] overflow-hidden shadow-inner flex items-center justify-center">
-                    <Bot size={22} className="text-[#a5e7ff]" />
+                  <div className="w-9 h-9 rounded-full bg-[#2f3544] overflow-hidden shadow-inner flex items-center justify-center text-[#a5e7ff]">
+                    <Bot size={20} />
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#00d2ff] flex items-center justify-center shadow-[0_0_8px_#00d2ff]">
-                    <Zap size={10} className="text-[#003543] font-bold" />
-                  </span>
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-sm text-[#dde2f6] truncate leading-tight">
-                      {p2Name}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-[#2f3544] text-[10px] text-[#a5e7ff] font-mono">
-                      LVL 54
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[#d4c5ad]">
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-[#a5e7ff]">
-                      <span className="w-2 h-2 rounded-full bg-[#00d2ff] shadow-[0_0_6px_#00d2ff]" />
-                      Cyan Discs
-                    </span>
-                    <span className="text-[#4f4534]">•</span>
-                    <span className="text-[11px] font-mono text-[#d4c5ad]">
-                      {c4OppDiscsLeft} Discs Left
-                    </span>
-                  </div>
+                  <span className="font-bold text-xs text-[#dde2f6] truncate leading-tight">
+                    {p2Name}
+                  </span>
+                  <span className="text-[11px] font-mono text-[#a5e7ff] mt-0.5">
+                    {c4OppDiscsLeft} Discs Left
+                  </span>
                 </div>
               </div>
 
               {/* Opponent Status Pill */}
-              <div className="flex flex-col items-end shrink-0 pl-2">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2f3544]">
-                  <RotateCw
-                    size={12}
-                    className={`text-[#a5e7ff] ${!isYourTurn ? "animate-spin" : ""}`}
-                  />
-                  <span className="text-[11px] text-[#a5e7ff] font-mono font-medium">
-                    {!isYourTurn ? "Thinking…" : "Waiting…"}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono mt-0.5">
-                  Time: {secondsLeft}s
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#242a39]">
+                <span className={`w-2 h-2 rounded-full ${!isYourTurn ? "bg-[#00d2ff] animate-pulse shadow-[0_0_6px_#00d2ff]" : "bg-[#94a3b8]"}`} />
+                <span className="text-[11px] text-[#dde2f6] font-mono font-medium">
+                  {!isYourTurn ? "Thinking…" : "Waiting"}
                 </span>
               </div>
             </section>
           ) : (
-            <section className="mx-4 mt-2 px-3 py-2 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm">
+            <section className="mx-4 mt-2 px-3 py-2 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="relative flex-shrink-0">
                   <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#a5e7ff] border border-white/5">
                     <Bot size={18} />
                   </div>
-                  <span className="absolute -bottom-1 -right-1 px-1 rounded-full bg-[#a5e7ff] text-[#003543] font-mono text-[9px] font-bold leading-none">
-                    L.42
-                  </span>
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold text-[#dde2f6] truncate">
-                      {p2Name}
-                    </span>
-                    <Diamond size={13} className="text-[#a5e7ff] shrink-0" />
-                  </div>
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">
-                    Cyan Legion · Rank Diamond
+                  <span className="text-xs font-bold text-[#dde2f6] truncate">
+                    {p2Name}
+                  </span>
+                  <span className="text-[10px] text-[#94a3b8] font-mono">
+                    Yard: {oppYardCount}/4 Pawns
                   </span>
                 </div>
               </div>
 
-              {/* Opponent Pawn State Indicators */}
-              <div className="flex flex-col items-end shrink-0 pl-2">
-                <span className="text-[10px] text-[#a5e7ff] font-mono">
-                  IN YARD: {oppYardCount}
+              {/* Opponent Status */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#242a39]">
+                <span className={`w-2 h-2 rounded-full ${!isYourTurn ? "bg-[#00d2ff] animate-pulse shadow-[0_0_6px_#00d2ff]" : "bg-[#94a3b8]"}`} />
+                <span className="text-[11px] text-[#dde2f6] font-mono font-medium">
+                  {!isYourTurn ? "Moving…" : "Waiting"}
                 </span>
-                <div className="flex items-center gap-1 mt-0.5">
-                  {[0, 1, 2, 3].map((idx) => (
-                    <span
-                      key={idx}
-                      className={`w-2.5 h-2.5 rounded-full transition-all ${
-                        idx < oppYardCount
-                          ? "bg-[#00d2ff] shadow-[0_0_6px_#00d2ff]"
-                          : "bg-[#2f3544]"
-                      }`}
-                    />
-                  ))}
-                </div>
               </div>
             </section>
           )}
@@ -1262,84 +1211,51 @@ export default function MatchRoom() {
             <footer className="mt-2 mx-4 mb-2 p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-[#2f3544] flex items-center justify-center text-[#ffd78d] border border-white/5 shadow-inner">
-                    <User size={22} />
+                  <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#ffd78d] border border-white/5 shadow-inner">
+                    <User size={20} />
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#f3b72c] flex items-center justify-center shadow-[0_0_8px_#f3b72c]">
-                    <Sparkles size={10} className="text-[#412d00] font-bold" />
-                  </span>
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-sm text-[#ffd78d] leading-tight truncate">
-                      {isSpectator ? `${p1Name} (P1)` : `You (${p1Name})`}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-[#2f3544] text-[10px] text-[#ffd78d] font-mono">
-                      {isSpectator ? "Table Host" : "Gold Legion"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[#d4c5ad]">
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-[#ffd78d]">
-                      <span className="w-2 h-2 rounded-full bg-[#f3b72c] shadow-[0_0_6px_#f3b72c]" />
-                      {c4MyDiscsLeft} Discs in Mag
-                    </span>
-                    <span className="text-[#4f4534]">•</span>
-                    <span className="text-[11px] font-mono text-[#68f5b8]">
-                      {isSpectator ? "Spectating" : "Ready"}
-                    </span>
-                  </div>
+                  <span className="font-bold text-xs text-[#ffd78d] leading-tight truncate">
+                    {isSpectator ? p1Name : `You (${p1Name})`}
+                  </span>
+                  <span className="text-[11px] font-mono text-[#ffd78d] mt-0.5">
+                    {c4MyDiscsLeft} Discs in Mag
+                  </span>
                 </div>
               </div>
 
-              {/* Escrow Protection / Free Play Badge */}
-              <div className="flex flex-col items-end shrink-0 pl-2">
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2f3544]">
-                  <Lock size={12} className={isFreeGame ? "text-[#68f5b8]" : "text-[#68f5b8]"} />
-                  <span className="text-[11px] text-[#dde2f6] font-semibold font-mono">
-                    {isFreeGame ? "Free Practice" : `${gameplayStakeNim} NIM Escrow`}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono mt-0.5">
-                  {isFreeGame ? "Casual Mode" : "Protected Vault"}
+              {/* Status / Stake Badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#242a39]">
+                <Lock size={12} className={isFreeGame ? "text-[#68f5b8]" : "text-[#ffd78d]"} />
+                <span className="text-[11px] text-[#dde2f6] font-semibold font-mono">
+                  {isFreeGame ? "Free Mode" : `${gameplayStakeNim} NIM`}
                 </span>
               </div>
             </footer>
           ) : (
-            <footer className="mt-1 mx-3 mb-1 px-3 py-1.5 rounded-xl bg-[#191f2e] border border-[#242a39] flex items-center justify-between shadow-sm shrink-0">
-              <div className="flex items-center gap-2.5">
+            <footer className="mt-1 mx-3 mb-1 px-3 py-1.5 rounded-xl bg-[#151b29] border border-[#242a39] flex items-center justify-between shadow-sm shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div className="relative flex-shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#f3b72c] border border-white/5">
-                    <ShieldCheck size={18} />
+                  <div className="w-9 h-9 rounded-full bg-[#2f3544] flex items-center justify-center text-[#ffd78d] border border-white/5">
+                    <User size={18} />
                   </div>
-                  <span className="w-2 h-2 rounded-full bg-[#68f5b8] absolute -top-0.5 -right-0.5 shadow-[0_0_6px_#68f5b8]" />
                 </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold text-[#ffd78d]">
-                      {isSpectator ? p1Name : "You"}
-                    </span>
-                    <span className="text-[10px] text-[#d4c5ad] font-mono">
-                      {isSpectator ? `vs ${p2Name}` : `(${p1Name})`}
-                    </span>
-                  </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-[#ffd78d] truncate">
+                    {isSpectator ? p1Name : `You (${p1Name})`}
+                  </span>
                   <span className="text-[10px] text-[#4edea3] font-mono">
-                    {isSpectator
-                      ? `${p1Pieces.filter((p: any) => p.position >= 0 && p.position < 56).length}/4 vs ${p2Pieces.filter((p: any) => p.position >= 0 && p.position < 56).length}/4 Pawns`
-                      : `${playerInArenaCount}/4 Pawns in Arena`}
+                    {playerInArenaCount}/4 Pawns in Play
                   </span>
                 </div>
               </div>
 
-              {/* Stake Status Guard / Free Play Badge */}
-              <div className="flex flex-col items-end">
-                <div className="flex items-center gap-1">
-                  <Lock size={13} className={isFreeGame ? "text-[#68f5b8]" : "text-[#f3b72c]"} />
-                  <span className="text-xs text-[#dde2f6] font-bold font-mono">
-                    {isFreeGame ? "Free Game" : `${gameplayStakeNim} NIM`}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[#d4c5ad] font-mono">
-                  {isFreeGame ? "Practice Arena" : "Escrow Protected"}
+              {/* Stake Badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#242a39]">
+                <Lock size={12} className={isFreeGame ? "text-[#68f5b8]" : "text-[#ffd78d]"} />
+                <span className="text-[11px] text-[#dde2f6] font-semibold font-mono">
+                  {isFreeGame ? "Free Mode" : `${gameplayStakeNim} NIM`}
                 </span>
               </div>
             </footer>
