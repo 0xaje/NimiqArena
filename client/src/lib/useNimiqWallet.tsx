@@ -194,9 +194,17 @@ export function NimiqWalletProvider({ children }: { children: ReactNode }) {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Periodic balance polling every 15s
+    const pollInterval = setInterval(() => {
+      if (address) {
+        void refreshBalance(address);
+      }
+    }, 15000);
+
     return () => {
       window.removeEventListener("focus", handleSync);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearInterval(pollInterval);
     };
   }, [address, refreshBalance]);
 

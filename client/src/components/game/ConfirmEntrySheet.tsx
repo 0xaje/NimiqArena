@@ -52,12 +52,12 @@ export function ConfirmEntrySheet({
 
   const shortWallet = walletAddress
     ? `${walletAddress.slice(0, 4)} ···· ${walletAddress.slice(-4)}`
-    : "NQ07 ···· 32F1";
+    : "Not Connected";
 
   const balanceAfter =
     balanceNim != null
       ? Math.max(0, balanceNim - stakeNim).toFixed(2)
-      : "1,370.00";
+      : "0.00";
 
   const handleRequestDrip = async () => {
     if (!walletAddress) {

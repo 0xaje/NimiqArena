@@ -587,7 +587,7 @@ export default function Home() {
                     Active Address (Testnet)
                   </span>
                   <span className="text-xs text-[#dde2f6] font-mono mt-0.5 truncate">
-                    {address || "NQ07 ..."}
+                    {address || "Not Connected"}
                   </span>
                 </div>
                 <button

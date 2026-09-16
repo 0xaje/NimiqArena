@@ -46,7 +46,7 @@ export function InstantCashoutSheet({
   const [copied, setCopied] = useState(false);
   const [isSwitchingTarget, setIsSwitchingTarget] = useState(false);
   const [customTarget, setCustomTarget] = useState("");
-  const [targetAddress, setTargetAddress] = useState(connectedAddress || "NQ07 39F2 88KA 19BL 4920 32F1");
+  const [targetAddress, setTargetAddress] = useState(connectedAddress || "");
 
   useEffect(() => {
     if (connectedAddress) {
@@ -291,7 +291,7 @@ export function InstantCashoutSheet({
                       <ShieldCheck size={14} className="text-[#68f5b8]" />
                     </div>
                     <span className="text-[10px] text-[#d4c5ad] font-mono truncate">
-                      {targetAddress}
+                      {targetAddress || "No wallet connected"}
                     </span>
                   </div>
                 </div>

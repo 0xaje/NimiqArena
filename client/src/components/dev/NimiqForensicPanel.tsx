@@ -6,6 +6,7 @@ import {
 } from "@/lib/nimiq-diagnostics";
 import type { NimiqForensicReport } from "@shared/nimiq-diagnostics-types";
 import { useNimiqWallet } from "@/lib/useNimiqWallet";
+import { formatNim } from "@shared/game/pot-distribution";
 import { toast } from "sonner";
 import {
   Activity,
@@ -27,20 +28,14 @@ export function NimiqForensicPanel() {
   const [isRunning, setIsRunning] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
-  // Dev-only tool. It used to also auto-show for every player inside the
-  // real Nimiq Pay app (isInsideNimiqPay/window.nimiq) or with a plain
-  // "?dev=1" — that's the app's actual production distribution channel, so
-  // every real user got a fixed z-index:99999 diagnostics panel glued over
-  // their bottom nav. The only way in now is an explicit "?debug" or "?diag"
-  // query param, or NODE_ENV=development.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasDebugFlag = urlParams.has("debug") || urlParams.has("diag");
-
-    setIsVisible(hasDebugFlag || process.env.NODE_ENV === "development");
+    const isDismissed = sessionStorage.getItem("hide_nimiq_diag") === "true";
+    if (isDismissed) {
+      setIsVisible(false);
+    }
   }, []);
 
   const executeAudit = useCallback(async () => {
@@ -59,12 +54,18 @@ export function NimiqForensicPanel() {
     }
   }, [address, balanceNim, balanceStatus]);
 
-  // Initial audit run on mount
+  // Initial audit run on mount & periodic 15s refresh
   useEffect(() => {
     const timer = setTimeout(() => {
       void executeAudit();
     }, 1500);
-    return () => clearTimeout(timer);
+    const interval = setInterval(() => {
+      void executeAudit();
+    }, 15000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [executeAudit]);
 
   const handleCopyReport = () => {
@@ -89,51 +90,93 @@ export function NimiqForensicPanel() {
 
   if (!isVisible) return null;
 
+  const latestBlock = report?.blockNumber;
+
   return (
     <aside
       aria-label="Nimiq Forensic Diagnostics"
       style={{
         position: "fixed",
-        bottom: isExpanded ? "12px" : "16px",
+        bottom: isExpanded ? "12px" : "76px",
         right: "12px",
-        zIndex: 99999,
-        maxWidth: isExpanded ? "420px" : "180px",
+        zIndex: 9999,
+        maxWidth: isExpanded ? "420px" : "280px",
         width: isExpanded ? "calc(100vw - 24px)" : "auto",
         fontFamily: "var(--font-mono, monospace)",
-        fontSize: "12px",
+        fontSize: "11px",
       }}
     >
       {!isExpanded ? (
-        <button
-          onClick={() => {
-            setIsExpanded(true);
-            void executeAudit();
-          }}
+        <div
           style={{
-            background: "#0d1117",
-            border: "1px solid #e5a000",
-            color: "#e5a000",
-            padding: "6px 12px",
-            borderRadius: "9999px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.6)",
             display: "flex",
             alignItems: "center",
-            gap: "6px",
-            cursor: "pointer",
-            fontWeight: 700,
-            letterSpacing: "0.5px",
+            gap: "4px",
           }}
         >
-          <Activity size={14} className={isRunning ? "spin" : ""} />
-          <span>🔬 NIMIQ DIAG</span>
-          {report?.rpcStatus === "RPC_POSITIVE_BALANCE" ? (
-            <span style={{ color: "#2ecc71" }}>●</span>
-          ) : report?.rpcStatus === "RPC_ZERO_BALANCE" ? (
-            <span style={{ color: "#f1c40f" }}>●</span>
-          ) : (
-            <span style={{ color: "#e74c3c" }}>●</span>
-          )}
-        </button>
+          <button
+            onClick={() => {
+              setIsExpanded(true);
+              void executeAudit();
+            }}
+            style={{
+              background: "#0d1321",
+              border: "1px solid rgba(243, 183, 44, 0.5)",
+              color: "#ffd78d",
+              padding: "6px 10px",
+              borderRadius: "9999px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "10px",
+            }}
+            title="Nimiq PoS Testnet Albatross Live Status"
+          >
+            <span
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                backgroundColor: report?.rpcStatus === "RPC_POSITIVE_BALANCE" ? "#22c55e" : "#f3b72c",
+                boxShadow: "0 0 6px rgba(243, 183, 44, 0.8)",
+                display: "inline-block",
+              }}
+            />
+            <span>Testnet Albatross</span>
+            {latestBlock ? (
+              <span style={{ color: "#a5e7ff", opacity: 0.85 }}>#{latestBlock}</span>
+            ) : null}
+            <span style={{ color: "#68f5b8", borderLeft: "1px solid rgba(255,255,255,0.15)", paddingLeft: "6px" }}>
+              {balanceNim != null ? `${formatNim(balanceNim)} NIM` : "0 NIM"}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsVisible(false);
+              sessionStorage.setItem("hide_nimiq_diag", "true");
+            }}
+            style={{
+              background: "rgba(13, 19, 33, 0.8)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#94a3b8",
+              width: "20px",
+              height: "20px",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              fontSize: "10px",
+            }}
+            title="Dismiss status pill"
+          >
+            ×
+          </button>
+        </div>
       ) : (
         <div
           style={{

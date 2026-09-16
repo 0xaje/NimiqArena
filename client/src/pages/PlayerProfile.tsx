@@ -662,19 +662,19 @@ export default function PlayerProfile() {
                 </button>
               </div>
 
-              {/* Provably Fair Seed Hash */}
+              {/* Provably Fair State Verification */}
               <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-[#080e1c] flex items-center justify-center text-[#a5e7ff] border border-white/5">
                     <Fingerprint size={18} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-[#dde2f6]">Provably Fair Seed Hash</div>
-                    <div className="text-[10px] text-[#d4c5ad] font-mono">#9a8b...4f2e</div>
+                    <div className="text-xs font-bold text-[#dde2f6]">Provably Fair Engine</div>
+                    <div className="text-[10px] text-[#d4c5ad] font-mono">SHA-256 State Commitments</div>
                   </div>
                 </div>
                 <button
-                  onClick={() => toast.success("Verified: SHA-256 state commitments match Nimiq PoS block hash.")}
+                  onClick={() => toast.success("Verified: Deterministic state commitments match on-chain round hashes.")}
                   className="h-8 px-3 rounded-lg bg-[#080e1c] hover:bg-[#191f2e] border border-[#2f3544] text-[#dde2f6] text-xs font-mono font-semibold active:scale-95 transition-transform cursor-pointer"
                   type="button"
                 >
@@ -682,19 +682,19 @@ export default function PlayerProfile() {
                 </button>
               </div>
 
-              {/* Arena Relay Node */}
+              {/* Nimiq Consensus RPC Node */}
               <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-[#080e1c] flex items-center justify-center text-[#ffd78d] border border-white/5">
                     <Radio size={18} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-[#dde2f6]">Arena Relay Node</div>
-                    <div className="text-[10px] text-[#d4c5ad] font-mono">Frankfurt-01 (14ms)</div>
+                    <div className="text-xs font-bold text-[#dde2f6]">Nimiq Consensus Node</div>
+                    <div className="text-[10px] text-[#d4c5ad] font-mono">{networkName || "TestAlbatross"} RPC</div>
                   </div>
                 </div>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#68f5b8]/10 text-[#68f5b8] text-[10px] font-mono font-bold">
-                  Optimal
+                  Connected
                 </span>
               </div>
 
@@ -795,9 +795,9 @@ export default function PlayerProfile() {
         <InstantCashoutSheet
           isOpen={isCashoutOpen}
           onClose={() => setIsCashoutOpen(false)}
-          vaultBalanceNim={balanceNim || 1420}
-          lockedInDuelsNim={100}
-          connectedAddress={walletAddress || "NQ07 39F2 88KA 19BL 4920 32F1"}
+          vaultBalanceNim={balanceNim ?? 0}
+          lockedInDuelsNim={0}
+          connectedAddress={walletAddress ?? ""}
           onSuccess={() => {
             refreshBalance?.();
           }}

@@ -39,7 +39,6 @@ interface Gladiator {
   losses: number;
   winRate: string;
   streak: string;
-  rewardNim: string;
   isUser?: boolean;
 }
 
@@ -92,7 +91,6 @@ export default function Leaderboard() {
       losses: item.losses,
       winRate: `${item.winRate}%`,
       streak: `${item.currentStreak || 0}W`,
-      rewardNim: idx === 0 ? "10,000 NIM" : idx === 1 ? "5,000 NIM" : idx === 2 ? "2,500 NIM" : "+500 NIM",
       isUser: user?.id === item.userId,
     };
   });
@@ -152,7 +150,7 @@ export default function Leaderboard() {
         {/* ========================================================================= */}
         <main className="flex-1 flex flex-col w-full px-4 pt-3 pb-24 gap-3.5">
           
-          {/* SEASON 1 PRIZE POOL CARD */}
+          {/* SEASON 1 RANKED DUEL STANDINGS */}
           <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e2638] via-[#151b29] to-[#1e2638] border border-[#ffd78d]/30 p-4 shadow-xl">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-[#f3b72c]/10 blur-2xl pointer-events-none" />
             <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-[#38bdf8]/10 blur-2xl pointer-events-none" />
@@ -165,12 +163,12 @@ export default function Leaderboard() {
                   </div>
                   <div>
                     <span className="text-[10px] uppercase tracking-wider text-[#d4c5ad] font-mono font-bold">
-                      Season 1 Prize Pool
+                      Competitive Elo Ladder
                     </span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-black text-[#ffd78d] font-mono">25,000 NIM</span>
-                      <span className="text-[10px] text-[#94a3b8] font-mono">
-                        (~{formatUsd(nimToUsd(25000))})
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-lg font-black text-[#ffd78d] font-mono">Season 1 Genesis</span>
+                      <span className="text-[10px] text-[#68f5b8] font-mono font-bold">
+                        • {gladiators.length} Contenders
                       </span>
                     </div>
                   </div>
@@ -178,33 +176,33 @@ export default function Leaderboard() {
 
                 <button
                   onClick={() => setShowRulesModal(true)}
-                  className="px-2.5 py-1 rounded-lg bg-[#242a39] hover:bg-[#2f3544] border border-[#333948] text-[#d4c5ad] hover:text-[#ffd78d] text-[11px] font-mono font-bold flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1 rounded-lg bg-[#242a39] hover:bg-[#2f3544] border border-[#333948] text-[#d4c5ad] hover:text-[#ffd78d] text-[11px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer"
                   type="button"
                 >
-                  <span>Prizes</span>
+                  <span>Tier Rules</span>
                   <ChevronRight size={13} />
                 </button>
               </div>
 
-              {/* Instant 3-Tier Rewards Strip */}
+              {/* Instant 3-Tier Division Strip */}
               <div className="grid grid-cols-3 gap-2 bg-[#080e1c]/60 border border-[#242a39] rounded-xl p-2 text-center font-mono">
                 <div className="flex flex-col items-center">
                   <span className="text-[9px] text-[#ffd78d] font-bold flex items-center gap-0.5">
-                    <Crown size={10} /> 1st Place
+                    <Crown size={10} /> Master Tier
                   </span>
-                  <span className="text-xs font-black text-[#dde2f6] mt-0.5">10,000 NIM</span>
+                  <span className="text-xs font-black text-[#dde2f6] mt-0.5">2,200+ ELO</span>
                 </div>
                 <div className="flex flex-col items-center border-x border-[#242a39]">
-                  <span className="text-[9px] text-[#a5e7ff] font-bold flex items-center gap-0.5">
-                    <Medal size={10} /> 2nd Place
+                  <span className="text-[9px] text-[#38bdf8] font-bold flex items-center gap-0.5">
+                    <Medal size={10} /> Diamond Tier
                   </span>
-                  <span className="text-xs font-black text-[#dde2f6] mt-0.5">5,000 NIM</span>
+                  <span className="text-xs font-black text-[#dde2f6] mt-0.5">1,800+ ELO</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <span className="text-[9px] text-[#68f5b8] font-bold flex items-center gap-0.5">
-                    <Users size={10} /> Top 100
+                  <span className="text-[9px] text-[#f3b72c] font-bold flex items-center gap-0.5">
+                    <ShieldCheck size={10} /> Gold Tier
                   </span>
-                  <span className="text-xs font-black text-[#dde2f6] mt-0.5">10,000 NIM Pool</span>
+                  <span className="text-xs font-black text-[#dde2f6] mt-0.5">1,500+ ELO</span>
                 </div>
               </div>
             </div>
@@ -304,9 +302,9 @@ export default function Leaderboard() {
                 </Link>
               ) : (
                 <div className="flex flex-col items-end shrink-0 font-mono">
-                  <span className="text-[10px] text-[#94a3b8] uppercase">Est. Prize</span>
-                  <span className="text-xs font-bold text-[#ffd78d]">
-                    {userRankIndex >= 0 ? gladiators[userRankIndex].rewardNim : "—"}
+                  <span className="text-[10px] text-[#94a3b8] uppercase">Streak</span>
+                  <span className="text-xs font-bold text-[#68f5b8]">
+                    {userRankIndex >= 0 ? gladiators[userRankIndex].streak : "0W"}
                   </span>
                 </div>
               )}
@@ -369,7 +367,7 @@ export default function Leaderboard() {
                     <span className="text-[10px] text-[#38bdf8] font-mono font-semibold">{rank2.elo} ELO</span>
                     <span className="text-[9px] text-[#94a3b8] font-mono">{rank2.winRate} WR</span>
                     <div className="mt-1.5 w-full py-0.5 bg-[#242a39] rounded text-center">
-                      <span className="text-[9px] text-[#a5e7ff] font-mono font-bold">{rank2.rewardNim}</span>
+                      <span className="text-[9px] text-[#a5e7ff] font-mono font-bold">{rank2.tier}</span>
                     </div>
                   </div>
                 ) : <div />}
@@ -390,7 +388,7 @@ export default function Leaderboard() {
                     </div>
                     <span className="text-[9px] text-[#94a3b8] font-mono">{rank1.winRate} WR</span>
                     <div className="mt-1.5 w-full py-1 bg-[#f3b72c] rounded-md text-center shadow-md">
-                      <span className="text-[10px] text-[#412d00] font-mono font-bold">{rank1.rewardNim}</span>
+                      <span className="text-[10px] text-[#412d00] font-mono font-bold">{rank1.tier} Champion</span>
                     </div>
                   </div>
                 ) : <div />}
@@ -408,7 +406,7 @@ export default function Leaderboard() {
                     <span className="text-[10px] text-[#d4c5ad] font-mono font-semibold">{rank3.elo} ELO</span>
                     <span className="text-[9px] text-[#94a3b8] font-mono">{rank3.winRate} WR</span>
                     <div className="mt-1.5 w-full py-0.5 bg-[#242a39] rounded text-center">
-                      <span className="text-[9px] text-[#ffd78d] font-mono font-bold">{rank3.rewardNim}</span>
+                      <span className="text-[9px] text-[#ffd78d] font-mono font-bold">{rank3.tier}</span>
                     </div>
                   </div>
                 ) : <div />}
@@ -466,9 +464,9 @@ export default function Leaderboard() {
                           <span className="text-[11px] font-medium text-[#68f5b8]">{glad.winRate}</span>
                           <span className="text-[9px] text-[#94a3b8]">{glad.streak}</span>
                         </div>
-                        <div className="flex flex-col items-end w-14">
+                        <div className="flex flex-col items-end w-16">
                           <span className="text-xs font-bold text-[#dde2f6]">{glad.elo}</span>
-                          <span className="text-[9px] text-[#ffd78d] font-semibold">{glad.rewardNim}</span>
+                          <span className="text-[9px] text-[#00d2ff] font-semibold">{glad.tier}</span>
                         </div>
                       </div>
                     </div>
@@ -521,7 +519,7 @@ export default function Leaderboard() {
         </main>
 
         {/* ========================================================================= */}
-        {/* RULES & PRIZE DISTRIBUTION MODAL                                          */}
+        {/* ELO RATING & DIVISION TIERS MODAL                                         */}
         {/* ========================================================================= */}
         {showRulesModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#080e1c]/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -529,41 +527,45 @@ export default function Leaderboard() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Trophy size={18} className="text-[#ffd78d]" />
-                  <h3 className="text-sm font-bold text-[#dde2f6]">Season 1 Prizes &amp; Rules</h3>
+                  <h3 className="text-sm font-bold text-[#dde2f6]">Competitive Tier Divisions</h3>
                 </div>
                 <button
                   onClick={() => setShowRulesModal(false)}
-                  className="w-7 h-7 rounded-full bg-[#2f3544] flex items-center justify-center text-[#d4c5ad] hover:text-[#dde2f6] active:scale-90"
+                  className="w-7 h-7 rounded-full bg-[#2f3544] flex items-center justify-center text-[#d4c5ad] hover:text-[#dde2f6] active:scale-90 cursor-pointer"
                 >
                   <X size={15} />
                 </button>
               </div>
 
               <div className="space-y-2.5 text-xs text-[#d4c5ad] font-mono leading-relaxed">
-                <div className="p-2.5 rounded-xl bg-[#0d1321] border border-[#242a39] space-y-1">
+                <div className="p-2.5 rounded-xl bg-[#0d1321] border border-[#242a39] space-y-1.5">
                   <div className="flex justify-between text-[#ffd78d] font-bold">
-                    <span>🥇 1st Place</span>
-                    <span>10,000 NIM</span>
+                    <span>👑 Master Tier</span>
+                    <span>2,200+ ELO</span>
                   </div>
-                  <div className="flex justify-between text-[#a5e7ff] font-bold">
-                    <span>🥈 2nd Place</span>
-                    <span>5,000 NIM</span>
+                  <div className="flex justify-between text-[#38bdf8] font-bold">
+                    <span>💎 Diamond Tier</span>
+                    <span>1,800+ ELO</span>
                   </div>
-                  <div className="flex justify-between text-[#d4c5ad] font-bold">
-                    <span>🥉 3rd Place</span>
-                    <span>2,500 NIM</span>
+                  <div className="flex justify-between text-[#f3b72c] font-bold">
+                    <span>🛡️ Gold Tier</span>
+                    <span>1,500+ ELO</span>
                   </div>
-                  <div className="flex justify-between text-[#68f5b8]">
-                    <span>🎖️ Rank 4 – 100</span>
-                    <span>Shared 7,500 NIM</span>
+                  <div className="flex justify-between text-[#94a3b8] font-bold">
+                    <span>⚔️ Silver Tier</span>
+                    <span>1,200+ ELO</span>
+                  </div>
+                  <div className="flex justify-between text-[#d4c5ad]">
+                    <span>🥉 Bronze Division</span>
+                    <span>1,000+ ELO</span>
                   </div>
                 </div>
 
                 <p>
-                  • <strong className="text-[#dde2f6]">Fair Elo System:</strong> Official competitive rating calculated authoritatively on every verified match.
+                  • <strong className="text-[#dde2f6]">Dynamic K-Factor:</strong> Every match calculates official rating adjustments based on the relative Elo gap between opponents.
                 </p>
                 <p>
-                  • <strong className="text-[#dde2f6]">Automatic Payout:</strong> Payouts disburse directly to your connected Nimiq wallet when the season concludes.
+                  • <strong className="text-[#dde2f6]">Server-Authoritative:</strong> Ratings are committed directly to database records on match completion to guarantee fair play.
                 </p>
               </div>
 

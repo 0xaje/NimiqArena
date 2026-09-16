@@ -605,7 +605,7 @@ export default function MatchesHub() {
                     Active Address (Testnet)
                   </span>
                   <span className="text-xs text-[#dde2f6] font-mono mt-0.5 truncate">
-                    {walletAddress || "NQ07 ..."}
+                    {walletAddress || "Not Connected"}
                   </span>
                 </div>
                 <button

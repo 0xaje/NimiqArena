@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { formatNim } from "@shared/game/pot-distribution";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
 import { useNimiqPrice } from "@/lib/nimiq-price";
+import { useNimiqWallet } from "@/lib/useNimiqWallet";
 
 export interface CashoutReceiptData {
   amountNim: number;
@@ -41,31 +42,36 @@ interface CashoutReceiptModalProps {
   data?: CashoutReceiptData;
 }
 
-const DEFAULT_RECEIPT_DATA: CashoutReceiptData = {
-  amountNim: 500,
-  txHash: "9a8f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
-  blockHeight: 341892,
-  timestamp: "2026-09-12T19:35:42Z",
-  senderAddress: "NQ31 AREN APL4 TFRM H0TW ALTE SCRW N1MQ",
-  recipientAddress: "NQ07 39F2 88KA 19BL 4920 32F1 8888",
-  recipientName: "NQ07 ···· 32F1",
-  networkFeeNim: 0.001,
-  remainingVaultNim: 920,
-  inPlayNim: 100,
-};
-
 export function CashoutReceiptModal({
   isOpen = true,
   onClose,
-  data = DEFAULT_RECEIPT_DATA,
+  data,
 }: CashoutReceiptModalProps) {
   const [, setLocation] = useLocation();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { nimToUsd, formatUsd, priceUsd } = useNimiqPrice();
+  const { address: walletAddress, balanceNim } = useNimiqWallet();
 
   if (!isOpen) return null;
 
-  const receipt = { ...DEFAULT_RECEIPT_DATA, ...data };
+  const shortAddress = walletAddress
+    ? `${walletAddress.slice(0, 4)} ···· ${walletAddress.slice(-4)}`
+    : "Connected Wallet";
+
+  const defaultData: CashoutReceiptData = {
+    amountNim: 500,
+    txHash: "9a8f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
+    blockHeight: 341892,
+    timestamp: new Date().toISOString(),
+    senderAddress: "NQ31 AREN APL4 TFRM H0TW ALTE SCRW N1MQ",
+    recipientAddress: walletAddress || "NQ00 0000 0000 0000 0000 0000 0000 0000",
+    recipientName: shortAddress,
+    networkFeeNim: 0.001,
+    remainingVaultNim: balanceNim ?? 0,
+    inPlayNim: 0,
+  };
+
+  const receipt = { ...defaultData, ...data };
   const usdAmount = formatUsd(nimToUsd(receipt.amountNim));
   const remainingUsd = formatUsd(nimToUsd(receipt.remainingVaultNim ?? 0));
 

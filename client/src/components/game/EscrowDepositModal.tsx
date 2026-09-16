@@ -192,12 +192,12 @@ export function EscrowDepositModal({
 
   const shortWallet = activeWallet
     ? `${activeWallet.slice(0, 4)} ···· ${activeWallet.slice(-4)}`
-    : "NQ07 ···· 32F1";
+    : "Not Connected";
 
   const balanceAfter =
     userBalance != null
       ? Math.max(0, userBalance - displayStakeNim).toFixed(2)
-      : "1,370.00";
+      : "0.00";
 
   const handleStartDeposit = async () => {
     if (isAlreadyVerified) {

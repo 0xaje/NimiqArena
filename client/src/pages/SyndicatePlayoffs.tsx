@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MobileBottomNav } from "@/components/navigation/MobileBottomNav";
+import { useNimiqPrice } from "@/lib/nimiq-price";
 
 export default function SyndicatePlayoffs() {
   const [, setLocation] = useLocation();
+  const { nimToUsd, formatUsd } = useNimiqPrice();
   const [activeStage, setActiveStage] = useState<"qf" | "semi" | "finals">("qf");
 
   return (
@@ -80,7 +82,7 @@ export default function SyndicatePlayoffs() {
                 </div>
                 <div className="text-2xl font-black text-[#ffd78d] flex items-baseline gap-1 mt-0.5 font-mono">
                   50,000 <span className="text-xs font-bold text-[#dde2f6]">NIM</span>
-                  <span className="text-xs text-[#d4c5ad] font-normal font-sans">(~$10,000 USD)</span>
+                  <span className="text-xs text-[#d4c5ad] font-normal font-sans">(~{formatUsd(nimToUsd(50000))})</span>
                 </div>
               </div>
 
