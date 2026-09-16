@@ -208,13 +208,13 @@ export default function Home() {
           <section className="text-center pt-1 pb-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#191f2e] border border-[#f3b72c]/30 text-[#ffd78d] text-[11px] font-mono font-bold uppercase tracking-wider mb-2.5">
               <Sparkles size={12} className="text-[#f3b72c]" />
-              <span>Instant On-Chain Arena</span>
+              <span>ARCADE DUELS</span>
             </div>
             <h1 className="text-3xl font-black text-[#ffffff] tracking-tight">
-              STAKE · PLAY · WIN
+              PLAY · WIN · EARN
             </h1>
             <p className="text-xs text-[#94a3b8] mt-1 max-w-xs mx-auto">
-              Real-time 1v1 board game duels with instant non-custodial payouts.
+              Fast 1v1 board game duels with instant prize payouts.
             </p>
           </section>
 

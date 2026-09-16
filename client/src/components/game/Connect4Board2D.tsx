@@ -118,17 +118,16 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
         {/* Ambient Holographic Glow Backdrop */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#00d2ff]/10 via-transparent to-[#f3b72c]/10 pointer-events-none" />
 
-        {/* Aesthetic Arena Header Plate */}
+        {/* Arena Header */}
         <div className="relative z-10 flex items-center justify-between pb-2 mb-1 px-1">
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#f3b72c] shadow-[0_0_6px_#f3b72c]" />
-            <span className="text-[10px] text-[#ffd78d] font-bold uppercase tracking-wider font-mono">
-              Tactical Matrix 7×6
+            <span className="w-2 h-2 rounded-full bg-[#f3b72c] shadow-[0_0_6px_#f3b72c]" />
+            <span className="text-[11px] text-[#ffd78d] font-bold uppercase tracking-wider font-mono">
+              Connect 4 Blitz
             </span>
           </div>
-          <span className="text-[10px] text-[#d4c5ad] flex items-center gap-1 font-mono">
-            <ShieldCheck size={13} className="text-[#68f5b8]" />
-            State: Deterministic
+          <span className="text-[10px] text-[#00d2ff] font-mono font-bold">
+            7×6 Matrix
           </span>
         </div>
 
@@ -276,18 +275,7 @@ export const Connect4Board2D = React.memo(function Connect4Board2D({
           </div>
         </div>
 
-        {/* Micro Board Artwork Reference Preview Pill */}
-        <div className="relative mt-2 pt-1 flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#68f5b8]" />
-            <span className="text-[10px] text-[#d4c5ad] font-mono">
-              Arena Engine v4.2 • Ranked Match
-            </span>
-          </div>
-          <span className="text-[10px] text-[#f3b72c] font-mono font-bold flex items-center gap-1">
-            <Flame size={12} className="text-[#f3b72c]" /> Active Duel
-          </span>
-        </div>
+        {/* End Board Frame */}
       </section>
 
       {/* DYNAMIC ACTION & TURN HUD (Thumb Zone) */}

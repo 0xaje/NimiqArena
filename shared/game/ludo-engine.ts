@@ -472,11 +472,8 @@ export function applyCommand(
     }
   }
 
-  // Capturing an opponent piece sends ONLY one opponent piece to yard (-1)
-  // The capturing pawn successfully eliminates the piece and scores directly to center home goal (LUDO_HOME_ENTRY)
-  if (capturedPiece) {
-    nextPiece.position = LUDO_HOME_ENTRY;
-  }
+  // Capturing an opponent piece sends ONLY one opponent piece to yard (-1).
+  // The capturing pawn remains on the landing square on the track and continues its movement/turn.
   const effectiveTo = nextPiece.position;
 
   // Splice used die / dice from next.remainingDice

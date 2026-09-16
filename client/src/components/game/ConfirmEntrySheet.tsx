@@ -214,8 +214,8 @@ export function ConfirmEntrySheet({
                 </>
               ) : (
                 <>
-                  <Lock size={16} />
-                  <span>Lock {formatNim(stakeNim)} NIM &amp; Start Match</span>
+                  <Zap size={16} />
+                  <span>Start Match ({formatNim(stakeNim)} NIM)</span>
                   <ArrowRight size={16} />
                 </>
               )}
