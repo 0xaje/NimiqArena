@@ -2,9 +2,10 @@
 
 # NIMIQ ARENA
 
-### Fast, Server-Authoritative Competitive Gaming on Nimiq Proof-of-Stake
+### Fast, Server-Authoritative Competitive Gaming on Nimiq Proof-of-Stake & Nimiq Hub
 
 [![Nimiq Ecosystem](https://img.shields.io/badge/Network-Nimiq_PoS_Albatross-EC9918?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0VDOTkxOCI+PHBhdGggZD0iTTEyIDJMMiAxOWgxOSAxMiAyem0wIDRMNC41IDE3aDE1TDEyIDZ6Ii8+PC9zdmc+)](https://nimiq.com)
+[![Nimiq Hub](https://img.shields.io/badge/Wallet-Nimiq_Hub_%26_Pay_SDK-F5A623?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0VDOTkxOCI+PHBhdGggZD0iTTEyIDJMMiAxOWgxOSAxMiAyem0wIDRMNC41IDE3aDE1TDEyIDZ6Ii8+PC9zdmc+)](https://hub.nimiq.com)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript_5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![React](https://img.shields.io/badge/Frontend-React_19_|_Vite_7-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![tRPC](https://img.shields.io/badge/API-tRPC_v11_|_Express-2596BE?style=for-the-badge&logo=trpc&logoColor=white)](https://trpc.io)
@@ -14,7 +15,7 @@
 
 <br />
 
-**Nimiq Arena** is a competitive gaming web application and Progressive Web App (PWA) built natively for the **Nimiq Proof-of-Stake (Albatross)** ecosystem. It provides real-time, turn-based board and strategy duels (**Ludo League** & **Connect 4 Blitz**) with instant NIM micro-stakes, non-custodial smart escrow settlement, optimistic concurrency control, and verifiable step-by-step match replays.
+**Nimiq Arena** is a competitive Web3 gaming platform and Progressive Web App (PWA) built natively on **Nimiq Hub** (`@nimiq/hub-api`), **Nimiq Pay Mobile SDK** (`@nimiq/mini-app-sdk`), and the **Nimiq Proof-of-Stake (Albatross)** consensus engine. It provides real-time, turn-based board and strategy duels (**Ludo League** & **Connect 4 Blitz**) with zero browser-extension requirements, instant NIM micro-stakes, non-custodial smart escrow settlement, optimistic concurrency control, and verifiable step-by-step match replays.
 
 [Live Application](https://nimiqarena.onrender.com) &bull; [GitHub Repository](https://github.com/0xaje/NimiqArena) &bull; [Settlement Architecture](docs/SETTLEMENT_ARCHITECTURE_DECISION.md)
 
@@ -54,6 +55,7 @@ Nimiq Arena brings the speed and simplicity of traditional mobile arcade games t
 ```
 
 ### Core Value Proposition
+- **Seedless, Zero-Extension Onboarding via Nimiq Hub**: Players do not need to install browser extensions (like MetaMask) or manage raw private keys. The app connects directly to **Nimiq Hub** (`@nimiq/hub-api`) for instant, secure iframe/popup wallet interactions, and auto-detects **Nimiq Pay Mobile** (`@nimiq/mini-app-sdk`).
 - **Zero Gas During Turns**: Players do not sign blockchain transactions for individual dice rolls or token drops. Game state transitions run on a low-latency server-authoritative engine.
 - **Micro-Stakes with Sub-Second Finality**: Utilizing Nimiq Albatross 1-second block times and sub-cent fees, stakes as low as 1,000 NIM (~$0.40) settle instantly upon victory.
 - **Progressive Web App (PWA)**: Installable directly to iOS Safari and Android Chrome home screens in standalone full-screen mode with responsive dynamic viewport scaling (`100dvh`).
@@ -182,12 +184,17 @@ CREATE TABLE matchEvents (
 
 ## Nimiq Blockchain & Escrow Integration
 
-Nimiq Arena operates directly with the Nimiq PoS JSON-RPC specification:
+Nimiq Arena operates directly with the Nimiq PoS JSON-RPC specification and client SDKs:
 
-### 1. Luna Integer Precision Math
+### 1. Nimiq Hub & Nimiq Pay Dual-Mode Wallet Integration ([`client/src/lib/nimiq-wallet.ts`](client/src/lib/nimiq-wallet.ts))
+Nimiq Arena provides a dual-mode Web3 wallet experience that automatically adapts to the player's device environment:
+- **Nimiq Hub Web API (`@nimiq/hub-api`)**: In standard desktop and mobile browsers, the application communicates with the official Nimiq Hub (`hub.nimiq-testnet.com` / `hub.nimiq.com`). Players authenticate with `hubApi.chooseAddress({ minBalance: 0 })` and sign match stakes using `hubApi.checkout(...)` without installing any third-party browser extensions.
+- **Nimiq Pay Mobile SDK (`@nimiq/mini-app-sdk`)**: When launched inside the official Nimiq Pay mobile wallet container, the app auto-detects `isRunningInNimiqPay()`, seamlessly binding the mobile native provider for instant biometric stake confirmations.
+
+### 2. Luna Integer Precision Math
 In Nimiq, $1 \text{ NIM} = 100,000 \text{ Luna}$. All internal payment intents, balances, fee cuts, and payout amounts are calculated strictly using integer Luna math to prevent floating-point rounding errors.
 
-### 2. Pot Distribution Formula ([`shared/game/pot-distribution.ts`](shared/game/pot-distribution.ts))
+### 3. Pot Distribution Formula ([`shared/game/pot-distribution.ts`](shared/game/pot-distribution.ts))
 Total Gross Match Purse is distributed upon match finalization:
 $$\text{Gross Pot} = \text{Player 1 Stake} + \text{Player 2 Stake}$$
 
@@ -199,7 +206,7 @@ $$\begin{aligned}
 \text{Community Reserve} &= 2\% \times \text{Gross Pot}
 \end{aligned}$$
 
-### 3. Anti-Replay & Transaction Verification ([`server/nimiq-verifier.ts`](server/nimiq-verifier.ts))
+### 4. Anti-Replay & Transaction Verification ([`server/nimiq-verifier.ts`](server/nimiq-verifier.ts))
 To prevent transaction recycling and double-spend attacks:
 1. Payer submits payment with `paymentIntentId` attached to transaction `recipientData`.
 2. Verifier checks:
@@ -210,7 +217,7 @@ To prevent transaction recycling and double-spend attacks:
    - Network ID matches target chain ($5$ for Testnet, $42$ for Mainnet).
    - Execution result is `true` with required block confirmations.
 
-### 4. Payout Worker & Circuit Breakers ([`server/payout-worker.ts`](server/payout-worker.ts))
+### 5. Payout Worker & Circuit Breakers ([`server/payout-worker.ts`](server/payout-worker.ts))
 - **Option B (Automated Payout)**: Signed using `@nimiq/core` TransactionBuilder and broadcast to RPC.
 - **Option A (Ledger Fallback)**: If hot wallet is disabled or key is absent, net prize is credited to player ledger.
 - **Safety Breakers**:
