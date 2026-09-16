@@ -2,26 +2,21 @@
 
 # NIMIQ ARENA
 
-### The Premier Non-Custodial Competitive Gaming Protocol on Nimiq Proof-of-Stake
+### Fast, Server-Authoritative Competitive Gaming on Nimiq Proof-of-Stake
 
-[![Nimiq Ecosystem](https://img.shields.io/badge/Platform-Nimiq_Hub_&_Ecosystem_Native-EC9918?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0VDOTkxOCI+PHBhdGggZD0iTTEyIDJMMiAxOWgxOSAxMiAyem0wIDRMNC41IDE3aDE1TDEyIDZ6Ii8+PC9zdmc+)](https://nimiq.com)
-[![Consensus](https://img.shields.io/badge/Consensus-Albatross_PoS_(1s_Finality)-00F0FF?style=for-the-badge)](https://nimiq.com/developers)
-[![TypeScript](https://img.shields.io/badge/Language-TypeScript_5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![React](https://img.shields.io/badge/Frontend-React_19_|_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![Nimiq Ecosystem](https://img.shields.io/badge/Network-Nimiq_PoS_Albatross-EC9918?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0VDOTkxOCI+PHBhdGggZD0iTTEyIDJMMiAxOWgxOSAxMiAyem0wIDRMNC41IDE3aDE1TDEyIDZ6Ii8+PC9zdmc+)](https://nimiq.com)
+[![TypeScript](https://img.shields.io/badge/Language-TypeScript_5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/Frontend-React_19_|_Vite_7-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![tRPC](https://img.shields.io/badge/API-tRPC_v11_|_Express-2596BE?style=for-the-badge&logo=trpc&logoColor=white)](https://trpc.io)
-[![MariaDB](https://img.shields.io/badge/Storage-MariaDB_11_ACID-003545?style=for-the-badge&logo=mariadb&logoColor=white)](https://mariadb.org)
-[![Tests](https://img.shields.io/badge/Automated_Tests-223_Passed_|_39_Suites-10B981?style=for-the-badge)](https://github.com/0xaje/NimiqArena)
+[![MariaDB](https://img.shields.io/badge/Database-MariaDB_11_ACID-003545?style=for-the-badge&logo=mariadb&logoColor=white)](https://mariadb.org)
+[![Tests](https://img.shields.io/badge/Automated_Tests-255_Passed_|_42_Suites-10B981?style=for-the-badge)](https://github.com/0xaje/NimiqArena)
 [![License](https://img.shields.io/badge/License-MIT-gray?style=for-the-badge)](LICENSE)
 
 <br />
 
-<p align="center">
-  <strong>Native Nimiq WebApp</strong> &bull;
-  <strong>Sub-Second Settlement</strong> &bull;
-  <strong>Deterministic Game Engine</strong> &bull;
-  <strong>100% Transparent Pot Math</strong> &bull;
-  <strong>Community Governed Roadmap</strong>
-</p>
+**Nimiq Arena** is a competitive gaming web application and Progressive Web App (PWA) built natively for the **Nimiq Proof-of-Stake (Albatross)** ecosystem. It provides real-time, turn-based board and strategy duels (**Ludo League** & **Connect 4 Blitz**) with instant NIM micro-stakes, non-custodial smart escrow settlement, optimistic concurrency control, and verifiable step-by-step match replays.
+
+[Live Application](https://nimiqarena.onrender.com) &bull; [GitHub Repository](https://github.com/0xaje/NimiqArena) &bull; [Settlement Architecture](docs/SETTLEMENT_ARCHITECTURE_DECISION.md)
 
 </div>
 
@@ -29,327 +24,350 @@
 
 ## Table of Contents
 
-- [Executive Summary](#executive-summary)
-- [Nimiq First: Built for the Nimiq Ecosystem](#nimiq-first-built-for-the-nimiq-ecosystem)
-- [The Problem: Why Legacy Web3 Gaming Failed](#the-problem-why-legacy-web3-gaming-failed)
-- [The Nimiq Arena Solution & Architecture](#the-nimiq-arena-solution--architecture)
-- [Industry Benchmark Matrix](#industry-benchmark-matrix)
-- [Economic Model: 90 / 5 / 3 / 2 Pot Distribution](#economic-model-90--5--3--2-pot-distribution)
-- [Referral System & Builder Fee Sharing](#referral-system--builder-fee-sharing)
-- [Step-by-Step User Walkthrough & Guide](#step-by-step-user-walkthrough--guide)
-- [Game Catalog: Genesis Games & Community Pipeline](#game-catalog-genesis-games--community-pipeline)
-- [Security, Anti-Cheat & Provable Fairness](#security-anti-cheat--provable-fairness)
-- [Technical Architecture & State Streaming](#technical-architecture--state-streaming)
-- [Local Setup & Developer Quickstart](#local-setup--developer-quickstart)
-- [Automated Verification & Test Suite](#automated-verification--test-suite)
-- [License](#license)
+1. [Product Overview](#product-overview)
+2. [Why Nimiq Arena?](#why-nimiq-arena)
+3. [Verified Feature Matrix](#verified-feature-matrix)
+4. [User Flow & Lifecycle](#user-flow--lifecycle)
+5. [Game Engines & Rules](#game-engines--rules)
+6. [Match Replay & State History](#match-replay--state-history)
+7. [Nimiq Blockchain & Escrow Integration](#nimiq-blockchain--escrow-integration)
+8. [Security & Game Integrity](#security--game-integrity)
+9. [Realtime Architecture](#realtime-architecture)
+10. [System Architecture Diagram](#system-architecture-diagram)
+11. [Tech Stack](#tech-stack)
+12. [Repository Structure](#repository-structure)
+13. [Getting Started & Local Development](#getting-started--local-development)
+14. [Environment Variables](#environment-variables)
+15. [Automated Testing & Verification](#automated-testing--verification)
+16. [Current Status & Limitations](#current-status--limitations)
+17. [Judge Quickstart & Demo Guide](#judge-quickstart--demo-guide)
+18. [License](#license)
 
 ---
 
-## Executive Summary
+## Product Overview
 
-Nimiq Arena is a peer-to-peer competitive gaming platform engineered natively for the Nimiq Proof-of-Stake (Albatross) blockchain. It merges browser-first micro-payments with authoritative, real-time multiplayer board and strategy games.
+Nimiq Arena brings the speed and simplicity of traditional mobile arcade games to Web3 micro-transactions. Players can join ranked 1v1 matches, practice against autonomous AI bots, or challenge friends using 6-character room codes.
 
-By capitalizing on Nimiq's 1-second block times and low-friction micropayment architecture, Nimiq Arena solves the core usability failures that plagued previous Web3 gaming projects: eliminating gas fee volatility, eliminating wallet signature popups during turn-by-turn play, and eliminating custodial counterparty risk.
+```
+[ Choose Game ] ➔ [ Choose Mode & Stake ] ➔ [ Play Real-Time Match ] ➔ [ Instant Payout & Rating ] ➔ [ Step Replay ]
+```
 
-Players can enter wagered head-to-head matches, compete in multi-round tournament cups, train against authoritative algorithmic AI bots, or spectate high-stakes tables live through low-overhead Server-Sent Events (SSE).
+### Core Value Proposition
+- **Zero Gas During Turns**: Players do not sign blockchain transactions for individual dice rolls or token drops. Game state transitions run on a low-latency server-authoritative engine.
+- **Micro-Stakes with Sub-Second Finality**: Utilizing Nimiq Albatross 1-second block times and sub-cent fees, stakes as low as 1,000 NIM (~$0.40) settle instantly upon victory.
+- **Progressive Web App (PWA)**: Installable directly to iOS Safari and Android Chrome home screens in standalone full-screen mode with responsive dynamic viewport scaling (`100dvh`).
 
 ---
 
-## Nimiq First: Built for the Nimiq Ecosystem
+## Why Nimiq Arena?
 
-Nimiq Arena is built directly upon Nimiq's core principles: **ease of use, browser-native cryptography, and ultra-fast micro-transactions**.
+Turn-based Web3 games often suffer from two major architectural flaws:
+1. **On-Chain Turn Latency**: Requiring a wallet popup and a 5–15 second block confirmation for every single move makes casual multiplayer unplayable.
+2. **Opaque Custodial Servers**: Centralized platforms hold player deposits indefinitely without verifiable match history or open settlement logic.
 
-```
-+------------------------------------------------------------------------------------+
-|                             NIMIQ ECOSYSTEM AT CORE                                |
-|                                                                                    |
-|  +---------------------------+  +----------------------+  +---------------------+  |
-|  | Nimiq Web Application     |  | Nimiq Hub SDK        |  | Nimiq Albatross PoS |  |
-|  | Browser-First Experience  |  | Zero-Extension Login |  | 1-Second Finality   |  |
-|  +---------------------------+  +----------------------+  +---------------------+  |
-|                                                                                    |
-|  +---------------------------+  +----------------------+  +---------------------+  |
-|  | Non-Custodial Escrow      |  | Luna Precision Math  |  | Telegram Gateway    |  |
-|  | Provably Fair Settlement  |  | 1 NIM = 100,000 Luna |  | Ecosystem Outreach  |  |
-|  +---------------------------+  +----------------------+  +---------------------+  |
-+------------------------------------------------------------------------------------+
-```
-
-### Why Nimiq is the Ideal Layer-1 for Gaming
-
-1. **Browser-Native Cryptography**:
-   Unlike Ethereum or Solana dApps that force users to install browser extensions (such as MetaMask or Phantom), Nimiq was designed from day one to operate directly inside the web browser. Keys can be managed in-session or connected with a single tap via the official Nimiq Hub.
-2. **Albatross Proof-of-Stake Finality**:
-   With 1-second block confirmation times, match funding and escrow distribution occur almost instantaneously, matching the responsiveness of high-end Web2 game servers.
-3. **Micro-Transaction Viability**:
-   Standard transaction fees on Nimiq are negligible fractions of a cent, allowing micro-stakes as low as 10 NIM or 50 NIM without fee erosion.
-4. **Telegram Distribution as an Extension, Not a Replacement**:
-   While Nimiq Arena features full integration with the Telegram Mini App SDK (enabling 1-click room code sharing and native haptics), the core application is a fully standalone Nimiq Web App designed to be hosted directly within the Nimiq ecosystem and directory.
+### The Arena Approach
+Nimiq Arena combines **server-authoritative game state machines** with **on-chain entry verification and automated settlement workers**:
+- **Entry**: Payer sends stake directly on-chain to the treasury address with the match intent ID embedded in the transaction's `recipientData`.
+- **Gameplay**: Turns execute in under 5ms using optimistic versioning (`expectedVersion`).
+- **Settlement**: Upon victory, the backend payout worker dispatches net winnings directly to the winner's Nimiq address via an automated transaction with strict idempotency and circuit breakers.
 
 ---
 
-## The Problem: Why Legacy Web3 Gaming Failed
+## Verified Feature Matrix
 
-Decentralized gaming platforms have suffered from three systemic issues that drove away 95% of players:
-
-1. **The Block Latency Trap**:
-   Turn-based matches built directly on Ethereum, Polygon, or generic rollups require 3 to 15 seconds per state commitment. Forcing a player to wait for a blockchain block confirmation just to roll a die or drop a checker destroys the gameplay experience.
-2. **Gas Depletion on Game Decisions**:
-   Submitting every game action as an on-chain transaction forces players to pay gas fees for tactical decisions. In games like Ludo (often spanning 40+ turns), gas costs rapidly dwarf the actual wager.
-3. **Opaque Custodial Platforms**:
-   Web2 wagering sites and pseudo-Web3 casinos operate custodial balances behind proprietary databases. Players have no visibility into escrow solvency, rake calculations, or RNG fairness.
-
----
-
-## The Nimiq Arena Solution & Architecture
-
-Nimiq Arena solves these challenges through an **authoritative hybrid wagering architecture**:
-
-- **On-Chain Boundaries, In-Memory Velocity**:
-  On-chain consensus is engaged precisely where it belongs: at the financial boundaries of a match (Escrow Deposit and Prize Distribution).
-- **Sub-50ms State Execution**:
-  During the active match, player moves execute in an authoritative server loop running deterministic rule engines, broadcast to clients via Server-Sent Events (SSE).
-- **Provably Fair RNG**:
-  Every random event (such as a Ludo dice roll) is generated using a cryptographically committed SHA-256 hash before the roll occurs, allowing clients to independently audit fairness after the match.
-
-```
-+-----------------------------------------------------------------------------------+
-|                                 CLIENT TIER                                       |
-|  +---------------------------+  +----------------------+  +--------------------+  |
-|  | Nimiq Web App (React 19)  |  | Nimiq Hub SDK        |  | Telegram Mini App  |  |
-|  +---------------------------+  +----------------------+  +--------------------+  |
-+----------------------------------------|------------------------------------------+
-                                         |
-                       tRPC (RPC) + Server-Sent Events (SSE)
-                                         |
-+----------------------------------------v------------------------------------------+
-|                            AUTHORITATIVE ENGINE TIER                              |
-|  +---------------------------+  +----------------------+  +--------------------+  |
-|  | Game Engine Modules       |  | Anti-Cheat & Turn    |  | Rating Engine      |  |
-|  | (Ludo / Connect NIM)      |  | Watchdog (30s)       |  | (Elo System)       |  |
-|  +---------------------------+  +----------------------+  +--------------------+  |
-+----------------------------------------|------------------------------------------+
-                                         |
-                       BigInt Luna Allocations / Atomic ACID
-                                         |
-+----------------------------------------v------------------------------------------+
-|                       SETTLEMENT & CONSENSUS LAYER (NIMIQ)                        |
-|  +---------------------------+  +----------------------+  +--------------------+  |
-|  | Nimiq PoS JSON-RPC Node   |  | Non-Custodial Escrow |  | MariaDB State Log  |  |
-|  | (1-Second Finality)       |  | Settlement (90/5/3/2)|  | (Idempotent Nonce) |  |
-|  +---------------------------+  +----------------------+  +--------------------+  |
-+-----------------------------------------------------------------------------------+
-```
+| Feature | Status | Implementation Details |
+| :--- | :---: | :--- |
+| **Ludo League (1v1)** | ✅ Implemented | Full 52-cell track + home straight, 6-to-exit, multi-dice splitting, deterministic captures. |
+| **Connect 4 Blitz (1v1)** | ✅ Implemented | 7×6 matrix, gravity simulation, 4-in-a-row victory detection, laser highlight. |
+| **Ranked 1v1 Matchmaking** | ✅ Implemented | Wagered matchmaking queue with stake matching and challenge codes. |
+| **Solo AI Bot Mode** | ✅ Implemented | Minimax Connect 4 bot + Heuristic Ludo bot (Practice & Wagered vs House). |
+| **Private Friend Matches** | ✅ Implemented | 6-character alphanumeric join codes (`joinCode`) with instant link sharing. |
+| **NIM Staking (1k–100k + Custom)** | ✅ Implemented | Preset chips (`1k`, `10k`, `50k`, `100k`) and custom numeric input in integer Luna. |
+| **On-Chain Payment Verifier** | ✅ Implemented | Direct JSON-RPC node validation with automated fallback, amount, and intent checks. |
+| **Automated Payout Worker** | ✅ Implemented | Option B hot-wallet payout via `@nimiq/core` with per-match cap & daily limit breakers. |
+| **Server-Sent Events (SSE)** | ✅ Implemented | Real-time state broadcasting (`/api/matches/:id/events`) with 15s keep-alive pings. |
+| **Step-by-Step Match Replay** | ✅ Implemented | Database-stored `matchEvents` sequencer reconstructing authoritative board states. |
+| **Elo Rating Engine** | ✅ Implemented | Dynamic K-factor rating ladder across 5 tiers (Bronze, Silver, Gold, Diamond, Master). |
+| **Top 3 Olympic Podium** | ✅ Implemented | Real data-driven seasonal leaderboard with win-rate calculations. |
+| **Referral Fee Sharing (2%)** | ✅ Implemented | Unique referral codes distributing 2% of match pots to referrers upon victory. |
+| **PWA Standalone Mode** | ✅ Implemented | Web App Manifest (`manifest.json`) + dual-axis viewport scaling (`min(96vw, 48dvh)`). |
+| **4-Player Ludo Mode** | ⏳ Planned | Catalog entry present; 2-player 1v1 currently active. |
+| **Tournament Bracket Cups** | ⏳ Planned | Showroom concept page; live matches currently run in 1v1 duel format. |
 
 ---
 
-## Industry Benchmark Matrix
+## User Flow & Lifecycle
 
-| Dimension | Legacy Web3 (EVM / Rollups) | Traditional Web2 Wagering | Nimiq Arena |
-| :--- | :--- | :--- | :--- |
-| **Transaction Finality** | 5 to 60 seconds per confirmation | Centralized Database (Opaque) | **1 second (Nimiq Albatross PoS)** |
-| **Gas Cost Per Turn** | $0.05 to $2.50 per action | Free (Hidden in high rake) | **$0.00 (Zero gas during play)** |
-| **Wallet Onboarding** | Seed phrase / Extension required | Email, Password, KYC verification | **Instant Guest / Nimiq Hub 1-Click** |
-| **Randomness Verification**| Costly or slow oracles | Black-box server PRNG | **SHA-256 Seed Commit-Reveal** |
-| **Pot Math Transparency** | Often undocumented or variable | 10% to 20% platform rake | **100% Mathematically Proven Split** |
-| **Multiplayer Sync** | Polling or third-party relayers | Custom WebSockets | **SSE Lightweight Event Pipeline** |
-| **Mobile Integration** | In-app mobile browser only | Native App Stores | **Nimiq WebApp PWA + Telegram SDK** |
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Player 1
+    actor Player 2
+    participant Arena as Nimiq Arena Server
+    participant DB as MariaDB
+    participant RPC as Nimiq PoS RPC Node
 
----
+    Player 1->>Arena: Create Match (Game, Stake: 1,000 NIM)
+    Arena->>DB: Insert Match & Payment Intent (Intent ID, Nonce)
+    Player 1->>RPC: Broadcast Entry TX (1,000 NIM + Intent ID in recipientData)
+    Player 1->>Arena: Claim Payment (Tx Hash)
+    Arena->>RPC: Verify Tx (Recipient, Amount, Data, Confirmations)
+    RPC-->>Arena: Verification OK (executionResult: true)
+    Arena->>DB: Mark Player 1 Paid & Ready
 
-## Economic Model: 90 / 5 / 3 / 2 Pot Distribution
+    Player 2->>Arena: Join Table by Code & Fund Stake
+    Arena->>RPC: Verify Player 2 Tx
+    Arena->>DB: Mark Player 2 Paid & Transition Match to "in_progress"
 
-Every competitive match operates under a strictly enforced, four-way pot distribution model:
+    loop Turn-by-Turn Play (Zero Gas)
+        Player 1->>Arena: Send Command (roll / move, expectedVersion)
+        Arena->>Arena: Apply State Machine & Validate Move
+        Arena->>DB: Save Match State & Sequenced Event
+        Arena-->>Player 1: SSE Broadcast New State
+        Arena-->>Player 2: SSE Broadcast New State
+    end
 
-```
-TOTAL MATCH ESCROW POT (100%)
-|
-+---> 90%  WINNER PRIZE          (Dispatched directly to victorious player)
-+--->  5%  BUILDER / REFERRAL    (Dispatched to Referrer, or Platform Maintenance)
-+--->  3%  NIMIQ ECOSYSTEM       (Deposited to Community Development Reserve)
-+--->  2%  CHARITY VAULT         (Dedicated on-chain philanthropic fund)
-```
-
-### Luna-Precision Math (No Rounding Drift)
-
-In financial systems, floating-point math causes rounding discrepancies. Nimiq Arena executes all monetary math using integer arithmetic denominated in **Luna** (`1 NIM = 100,000 Luna`):
-
-```typescript
-export const LUNA_PER_NIM = BigInt(100_000);
-
-export function calculatePotDistribution(totalPotNim: number): PotDistribution {
-  const potLuna = BigInt(Math.round(totalPotNim * 100_000));
-  
-  const winnerLuna = (potLuna * BigInt(90)) / BigInt(100);
-  const builderLuna = (potLuna * BigInt(5)) / BigInt(100);
-  const ecosystemLuna = (potLuna * BigInt(3)) / BigInt(100);
-  // Remainder is mathematically allocated to Charity to ensure sum === potLuna exactly
-  const charityLuna = potLuna - winnerLuna - builderLuna - ecosystemLuna;
-
-  return { ... };
-}
-```
-
-### Example Stake Calculations
-
-| Total Pot (NIM) | Winner (90%) | Builder / Referral (5%) | Ecosystem (3%) | Charity (2%) |
-| :--- | :--- | :--- | :--- | :--- |
-| **20 NIM** (2x 10) | 18.0 NIM | 1.0 NIM | 0.6 NIM | 0.4 NIM |
-| **100 NIM** (2x 50) | 90.0 NIM | 5.0 NIM | 3.0 NIM | 2.0 NIM |
-| **200 NIM** (2x 100)| 180.0 NIM | 10.0 NIM | 6.0 NIM | 4.0 NIM |
-| **1,000 NIM** (2x 500)| 900.0 NIM | 50.0 NIM | 30.0 NIM | 20.0 NIM |
-
----
-
-## Referral System & Builder Fee Sharing
-
-A key design innovation of Nimiq Arena is its **Builder-Share Referral Architecture**.
-
-Instead of retaining the 5% Builder Fee as pure platform profit, Nimiq Arena shares this allocation directly with the community:
-
-```
-BUILDER FEE ALLOCATION (5% of Total Pot)
-|
-+---> IF PLAYER WAS REFERRED:
-|     100% of Builder Fee (5% of pot in NIM) is paid directly to the Referrer
-|     + 500 Arena Points awarded upon registration
-|
-+---> IF PLAYER HAS NO REFERRER:
-      Retained by the platform builder address for infrastructure & hosting
-```
-
-### How Referrals Work in Practice
-
-1. **Unique Referral Links**:
-   Every registered player receives a dedicated referral code and link (e.g. `https://arena.nimiq.com/?ref=player-code`).
-2. **Automated Binding**:
-   When a new player joins via a referral link, their account is permanently linked to the referrer in the database.
-3. **Lifetime Passive Earnings**:
-   Whenever that referred user wins any competitive wagered match in Ludo League, Connect NIM, or future arena games, the full 5% Builder Fee is automatically dispatched to the referrer's balance.
-4. **Referral Hub Dashboard**:
-   Players can track their total referred users, matches won by their referee network, and lifetime NIM earned through the interactive Earn NIM dashboard.
-
----
-
-## Step-by-Step User Walkthrough & Guide
-
-### Step 1: Onboarding & Identity Claim
-- Visit Nimiq Arena in any modern web browser or open via the Telegram Mini App.
-- New players are automatically provisioned with a secure guest profile or can connect their Nimiq wallet with one click.
-- Claim your Welcome Gift of **1,000 Arena Points** immediately from the profile banner to establish your ranking baseline.
-
-### Step 2: Choose Game & Match Mode
-- Navigate to the Game Directory and choose your arena:
-  - **Ludo League**: Turn-based tactical dice rolling and token capture.
-  - **Connect NIM**: Fast-paced 4-in-a-row disc alignment.
-- Select your mode:
-  - **Practice**: Zero stake, instant start to hone tactics without risk.
-  - **Play with Friend**: Generate an 8-character invite code and share a direct link over Telegram, WhatsApp, or Twitter.
-  - **Wager Match**: Select a stake (10 NIM, 50 NIM, 100 NIM, or 250 NIM) to enter the matchmaking queue.
-
-### Step 3: Non-Custodial Escrow Deposit
-- In wagered matches, the system generates a secure payment intent bound to your match ID.
-- Confirm the transaction via your Nimiq Wallet or Hub.
-- Within 1 second, Nimiq Albatross confirms the transaction on-chain, both players are locked into the table, and the match countdown begins.
-
-### Step 4: Live Tactical Gameplay
-- **Real-Time Board Sync**: Watch your opponent's moves stream live at sub-50ms latency.
-- **Turn Watchdog**: Each player has 30 seconds per turn. If a player exceeds their time limit, the authoritative engine passes the turn or declares a forfeit to protect the counterparty.
-- **In-Game Reactions**: Send quick emotes and tactical game chat through the interactive Emote Wheel during live action.
-
-### Step 5: Provably Fair Verification
-- Click the Shield icon at any point during or after the match to open the Provably Fair modal.
-- View the active engine version, match fingerprint, and pre-committed SHA-256 seeds to independently verify dice rolls and move legality.
-
-### Step 6: Victory Settlement & Payout
-- Upon checkmate or final home run, the authoritative engine computes the final score.
-- The 90% prize pot is credited to the winner, the 5% builder fee is credited to the referrer, and the ecosystem/charity pools are updated.
-- Results appear instantly on the global Leaderboard, updating player Elo ratings, and seasonal tournament standings.
-
----
-
-## Game Catalog: Genesis Games & Community Pipeline
-
-### Genesis Games (Active Now)
-
-1. **Ludo League**:
-   - 2-player authoritative board engine.
-   - Dual-dice mechanic with independent movement selection.
-   - Complete capture collisions, safe havens, and double-6 bonus rolls.
-   - Heuristic AI bot fallback for solo practice.
-
-2. **Connect NIM**:
-   - 7x6 vertical gravity grid.
-   - Instant drop-column physics and bitboard win detection.
-   - Rapid 15-second turn timers for ultra-fast tactical gameplay.
-
-### Arena Governance & Community Game Pipeline
-
-Nimiq Arena is built as an extensible gaming framework, not a static two-game portal. We are actively expanding the arena catalog and introducing **community-governed game additions**:
-
-```
-EXPANSION ROADMAP & COMMUNITY PIPELINE
-|
-+---> PHASE 1: GENESIS LAUNCH (CURRENT)
-|     Ludo League + Connect NIM fully active with wager escrow.
-|
-+---> PHASE 2: COMMUNITY GOVERNANCE & VOTING (NEXT)
-|     Nimiq Arena players and NIM holders vote on the next title:
-|     - Candidate A: Tactical Speed Chess (Blitz 3m + 2s)
-|     - Candidate B: Cryptic Checkers (Authoritative jump rules)
-|     - Candidate C: Naval Battleship (Grid coordinate strategy)
-|
-+---> PHASE 3: OPEN BUILDER SDK
-      External game developers can plug in custom HTML5 engines
-      using the standardized IGameEngine interface and earn
-      the 5% Builder Fee on every wagered match played!
+    Arena->>Arena: Victory Condition Detected
+    Arena->>DB: Mark Match "finished" & Record Rating Changes
+    Arena->>RPC: Dispatch Winner Payout (90% Pot via Hot Wallet)
+    Arena-->>Player 1: SSE Broadcast Victory & Settlement
+    Arena-->>Player 2: SSE Broadcast Victory & Settlement
 ```
 
 ---
 
-## Security, Anti-Cheat & Provable Fairness
+## Game Engines & Rules
 
-1. **Zero Client Authority**:
-   Clients cannot mutate board state, change scores, or simulate dice rolls. Every action is validated against server-side board rules.
-2. **Idempotent Action Nonces**:
-   All game commands include monotonic nonces. Duplicate packets caused by network lag or re-transmissions are safely deduplicated without state corruption.
-3. **Turn Watchdogs & Forfeit Protection**:
-   Automated background sweepers monitor match heartbeats. Abandoned matches automatically time out, refunding or awarding wins authoritatively.
-4. **Financial Outflow Circuit Breakers**:
-   Automated payout systems feature strict hourly caps and anomaly detection to prevent unauthorized draining in edge cases.
+Both game engines are implemented as pure, deterministic state machines with no external network side effects during state evaluation:
 
----
+### 1. Ludo League ([`shared/game/ludo-engine.ts`](shared/game/ludo-engine.ts))
+- **Grid Layout**: Standard 15×15 grid with a 52-cell perimeter track, 4 home straight lanes, and a central Home Goal (`position: 56`).
+- **Yard Exit**: Strict rule requiring a **6** on at least one die to bring a pawn out of the base onto the starting square (`position: 0`).
+- **Multi-Dice Splitting**: In 2-dice modes, players rolling split dice (e.g. $[5, 3] = 8$) can allocate dice across different active pawns.
+- **Captures & Stacking**: 
+  - Landing on an opponent pawn on a track tile captures the opponent, sending them back to base (`-1`).
+  - The capturing pawn remains on the landing square and continues its turn if remaining dice are available.
+  - If multiple opponent pawns are stacked on a single tile, **only ONE** piece is captured per turn.
+- **Victory**: Occurs when all required pawns (4 for single-set, 8 for double-set) reach the central goal (`position: 56`).
 
-## Technical Architecture & State Streaming
-
-### Authoritative Game Loop & SSE Pipeline
-
-```
-[ Client A ] ----( tRPC Action: dropColumn )----> [ Express / tRPC Server ]
-                                                          |
-                                            +-------------v-------------+
-                                            |  Validate Turn Ownership  |
-                                            |  Validate Legal Column    |
-                                            |  Apply State Mutation     |
-                                            +-------------+-------------+
-                                                          |
-[ Client A ] <---( SSE: match-event: move )---------------+
-[ Client B ] <---( SSE: match-event: move )---------------+
-[ Spectators]<---( SSE: match-event: move )---------------+
-```
-
-- **Server-Sent Events (SSE)** provide lightweight, unidirectional streaming over standard HTTP/2, avoiding WebSocket firewall drops and battery drain on mobile devices.
-- **Reconnect Resilience**: Clients reconnecting after signal loss automatically catch up using state version numbers, receiving any missed events seamlessly.
+### 2. Connect 4 Blitz ([`shared/game/connect4-engine.ts`](shared/game/connect4-engine.ts))
+- **Grid Layout**: 7 columns $\times$ 6 rows tactical matrix.
+- **Gravity Mechanics**: Dropping a token into a column automatically places it in the lowest unoccupied row ($0$ to $5$).
+- **Victory Condition**: Evaluates horizontal, vertical, and diagonal vectors for 4 consecutive tokens belonging to the same player.
+- **Bot Engine ([`shared/game/connect4-bot.ts`](shared/game/connect4-bot.ts))**: Depth-limited Minimax algorithm with alpha-beta pruning and immediate threat neutralization.
 
 ---
 
-## Local Setup & Developer Quickstart
+## Match Replay & State History
+
+Every authoritative match transition emits an immutable `matchEvent` stored in MariaDB:
+```sql
+CREATE TABLE matchEvents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  matchId VARCHAR(32) NOT NULL,
+  seq INT NOT NULL,
+  eventType VARCHAR(64) NOT NULL,
+  eventJson JSON NOT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### How Replay Works
+1. When viewing a completed match at `/replay?matchId=<id>`, the client fetches the match snapshot and the ordered sequence of events.
+2. The replay viewer re-runs the deterministic state machine step-by-step from $Seq = 0$ to $Seq = N$.
+3. Players can step forward, step backward, jump to specific turns, and inspect exact dice values, moves, and timestamps.
+
+---
+
+## Nimiq Blockchain & Escrow Integration
+
+Nimiq Arena operates directly with the Nimiq PoS JSON-RPC specification:
+
+### 1. Luna Integer Precision Math
+In Nimiq, $1 \text{ NIM} = 100,000 \text{ Luna}$. All internal payment intents, balances, fee cuts, and payout amounts are calculated strictly using integer Luna math to prevent floating-point rounding errors.
+
+### 2. Pot Distribution Formula ([`shared/game/pot-distribution.ts`](shared/game/pot-distribution.ts))
+Total Gross Match Purse is distributed upon match finalization:
+$$\text{Gross Pot} = \text{Player 1 Stake} + \text{Player 2 Stake}$$
+
+$$\begin{aligned}
+\text{Winner Payout} &= 90\% \times \text{Gross Pot} \\
+\text{Arena Builder} &= 5\% \times \text{Gross Pot} \\
+\text{Referral Award} &= 2\% \times \text{Gross Pot} \quad \text{(retained by Platform if unreferred)} \\
+\text{Charity Allocation} &= 1\% \times \text{Gross Pot} \\
+\text{Community Reserve} &= 2\% \times \text{Gross Pot}
+\end{aligned}$$
+
+### 3. Anti-Replay & Transaction Verification ([`server/nimiq-verifier.ts`](server/nimiq-verifier.ts))
+To prevent transaction recycling and double-spend attacks:
+1. Payer submits payment with `paymentIntentId` attached to transaction `recipientData`.
+2. Verifier checks:
+   - Transaction hash matches standard 64-character hex format.
+   - Recipient address matches configured treasury address (`normalizeNimiqAddress`).
+   - Transferred value $\ge \text{expectedValueLuna}$.
+   - Embedded recipient data matches `expectedData` (intent ID).
+   - Network ID matches target chain ($5$ for Testnet, $42$ for Mainnet).
+   - Execution result is `true` with required block confirmations.
+
+### 4. Payout Worker & Circuit Breakers ([`server/payout-worker.ts`](server/payout-worker.ts))
+- **Option B (Automated Payout)**: Signed using `@nimiq/core` TransactionBuilder and broadcast to RPC.
+- **Option A (Ledger Fallback)**: If hot wallet is disabled or key is absent, net prize is credited to player ledger.
+- **Safety Breakers**:
+  - `MAX_PAYOUT_PER_MATCH_NIM`: Rejects single match payouts exceeding configured limit.
+  - `DAILY_PAYOUT_LIMIT_NIM`: Rolling 24-hour ceiling preventing abnormal aggregate disbursements.
+
+---
+
+## Security & Game Integrity
+
+1. **Optimistic Versioning & Concurrency**:
+   Every state update increments `stateVersion`. Game commands require `expectedVersion === stateVersion`, rejecting duplicate or out-of-order requests.
+2. **IDOR Prevention**:
+   Every match read and command execution is guarded by `requireMatchParticipant(matchId, userId)`, preventing unauthorized state tampering.
+3. **Token-Bucket Rate Limiting**:
+   - `auth.guestLogin`: Max 10 requests / min.
+   - `payment`: Max 20 requests / min.
+4. **Autonomous Heartbeat Daemon**:
+   A background daemon monitors matches every 15 seconds. If a disconnected player exceeds the grace period (`ABANDONMENT_GRACE_MS = 60000`), the match automatically awards a forfeit victory to the active player.
+
+---
+
+## Realtime Architecture
+
+Real-time state synchronization is delivered via Server-Sent Events (SSE) at `GET /api/matches/:id/events`:
+
+```
++------------------+          HTTP /tRPC           +-----------------------+
+|   React Client   | ────────────────────────────> | Express + tRPC Server |
+|                  | <════════════════════════════ |                       |
++------------------+    Server-Sent Events (SSE)   +-----------------------+
+                             (State, Emotes, Chat)             │
+                                                               ▼
+                                                       +-----------------------+
+                                                       |     MariaDB Pool      |
+                                                       +-----------------------+
+```
+
+- **Transport**: Standard HTTP/1.1 and HTTP/2 SSE streaming with `Cache-Control: no-cache, no-transform`.
+- **In-App WebView Token Fallback**: Supports `?token=...` query authentication for environments where third-party session cookies are restricted (e.g. mobile wallet WebViews).
+- **Keep-Alive**: Automatic 15-second heartbeat packets prevent mobile carrier proxy disconnects.
+
+---
+
+## System Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph ClientLayer ["Client Layer (PWA / Browser)"]
+        UI["React 19 + TailwindCSS 4 UI"]
+        WalletHook["useNimiqWallet Hook"]
+        SSEClient["SSE Stream Listener"]
+        Audio["Web Audio Engine"]
+    end
+
+    subgraph ServerLayer ["Server Layer (Node.js + Express)"]
+        Router["tRPC v11 Router & Middleware"]
+        RateLimiter["Token-Bucket Rate Limiter"]
+        MatchStream["Match Event Streamer (SSE)"]
+        Heartbeat["Match Heartbeat Daemon"]
+        PayoutWorker["Payout Worker & Circuit Breakers"]
+    end
+
+    subgraph Engines ["Core Game & Verification Engines"]
+        LudoEng["Deterministic Ludo Engine"]
+        C4Eng["Deterministic Connect 4 Engine"]
+        BotAI["Minimax & Heuristic AI"]
+        Verifier["Nimiq PoS RPC Verifier"]
+    end
+
+    subgraph StorageLayer ["Storage & Blockchain"]
+        DB[(MariaDB 11 ACID)]
+        NimiqRPC["Nimiq PoS JSON-RPC Node"]
+    end
+
+    UI -->|tRPC Mutations & Queries| Router
+    UI -->|Connects to EventSource| MatchStream
+    WalletHook -->|Signs / Submits Tx| NimiqRPC
+
+    Router --> RateLimiter
+    Router --> LudoEng
+    Router --> C4Eng
+    Router --> BotAI
+    Router --> Verifier
+
+    MatchStream --> DB
+    Heartbeat --> DB
+    PayoutWorker --> DB
+    PayoutWorker -->|Broadcasts Payout Tx| NimiqRPC
+    Verifier -->|Validates Intent & Confirmations| NimiqRPC
+
+    LudoEng --> DB
+    C4Eng --> DB
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend Framework** | React 19 (`react`, `react-dom`) | Component rendering and client state management. |
+| **Build Tool** | Vite 7.1 (`vite`, `@vitejs/plugin-react`) | Rapid HMR and optimized production bundling. |
+| **Styling** | TailwindCSS 4 (`tailwindcss`, `@tailwindcss/vite`) | Utility-first CSS with CSS variables and dynamic viewport units. |
+| **Routing** | Wouter 3.3 (`wouter`) | Lightweight client-side router with patch support. |
+| **API Layer** | tRPC v11 (`@trpc/server`, `@trpc/client`, `@trpc/react-query`) | End-to-end type-safe RPC with Zod schema validation. |
+| **Server Runtime** | Node.js + Express 4.21 (`express`) | HTTP server, static file host, and SSE event streaming. |
+| **Database & ORM** | MariaDB 11 + Drizzle ORM (`drizzle-orm`, `mysql2`) | Relational persistence, connection pooling, and migrations. |
+| **Blockchain Client** | `@nimiq/core` & `@nimiq/hub-api` | Transaction building, signing, and Nimiq Hub wallet connection. |
+| **Realtime** | Server-Sent Events (SSE) | Unidirectional event stream for board state, emotes, and chat. |
+| **Testing** | Vitest 2.1 (`vitest`) | Unit, integration, chaos, and end-to-end test suites. |
+
+---
+
+## Repository Structure
+
+```
+NimiqArena/
+├── client/                      # React frontend application
+│   ├── public/                  # Static assets & PWA manifest.json
+│   ├── src/
+│   │   ├── components/          # Reusable UI, Game Boards, and Modals
+│   │   │   ├── game/            # LudoBoard2D, Connect4Board2D, Dice, Modals
+│   │   │   └── navigation/      # MobileBottomNav, TopNav
+│   │   ├── pages/               # Route pages (Home, LudoDetail, MatchRoom, Replay, etc.)
+│   │   ├── lib/                 # Client utilities, tRPC client, wallet hooks
+│   │   └── index.css            # Global CSS, theme variables, and responsive layout
+│   └── index.html               # Entry HTML with PWA & mobile viewport meta tags
+├── server/                      # Node.js + Express backend
+│   ├── _core/                   # Server initialization, tRPC context, rate limiter, cookies
+│   ├── db.ts                    # Database queries, match state mutations, game dispatchers
+│   ├── routers.ts               # tRPC procedures (auth, match, payment, leaderboard, game)
+│   ├── match-stream.ts          # Realtime Server-Sent Events (SSE) streaming engine
+│   ├── nimiq-verifier.ts        # Authoritative Nimiq PoS JSON-RPC transaction verifier
+│   ├── payout-worker.ts         # Automated hot-wallet payout dispatcher with circuit breakers
+│   ├── rating-engine.ts         # Elo rating calculation algorithms
+│   └── *.test.ts                # Integration and unit test suites
+├── shared/                      # Isomorphic shared code (Client + Server)
+│   ├── const.ts                 # Timing constants, error messages, cookie names
+│   ├── schema.ts                # Shared TypeScript types
+│   ├── nimiq-network.ts         # Network configuration (Testnet vs Mainnet RPCs)
+│   └── game/                    # Deterministic game engines (ludo-engine, connect4-engine, bots)
+├── drizzle/                     # Database schemas and migrations
+│   └── schema.ts                # Drizzle table definitions
+├── docs/                        # Technical documentation, ADRs, and QA checklists
+├── package.json                 # Project dependencies and script definitions
+└── vite.config.ts               # Vite build configuration
+```
+
+---
+
+## Getting Started & Local Development
 
 ### Prerequisites
-- Node.js 20 or higher
-- pnpm package manager (`npm install -g pnpm`)
-- Docker (for local MariaDB container)
+- **Node.js**: `v20.x` or `v22.x`
+- **Package Manager**: `pnpm` (recommended) or `npm`
+- **Database**: Docker (for local MariaDB container) or a running MySQL/MariaDB instance
 
 ### 1. Clone the Repository
 ```bash
@@ -357,68 +375,126 @@ git clone https://github.com/0xaje/NimiqArena.git
 cd NimiqArena
 ```
 
-### 2. Configure Environment Variables
-Create a `.env` file in the root directory:
-```env
-PORT=3000
-NODE_ENV=development
-DATABASE_URL=mysql://root:test@127.0.0.1:3307/nimiq_test
-NIMIQ_RPC_URL=https://rpc.testnet.nimiq.watch
-NIMIQ_NETWORK=testnet
-SESSION_SECRET=your-secure-session-secret-key-at-least-32-chars
-BUILDER_ADDRESS=NQ0700000000000000000000000000000000
-COMMUNITY_ADDRESS=NQ0700000000000000000000000000000000
-CHARITY_ADDRESS=NQ0700000000000000000000000000000000
+### 2. Install Dependencies
+```bash
+npm install
+# or
+pnpm install
 ```
 
-### 3. Start MariaDB Container
+### 3. Spin Up Local Database
 ```bash
-docker run -d \
-  --name nimiq-arena-db \
+# Start local MariaDB Docker container on port 3307
+docker run -d --name nimiq-arena-db \
+  -e MYSQL_ROOT_PASSWORD=password \
+  -e MYSQL_DATABASE=nimiq_arena \
   -p 3307:3306 \
-  -e MARIADB_ROOT_PASSWORD=test \
-  -e MARIADB_DATABASE=nimiq_test \
   mariadb:11
 ```
 
-### 4. Install Dependencies & Push Schema
-```bash
-pnpm install
-pnpm run db:push
+### 4. Configure Environment Variables
+Create a `.env` file in the root directory:
+```env
+PORT=5000
+NODE_ENV=development
+DATABASE_URL=mysql://root:password@127.0.0.1:3307/nimiq_arena
+SESSION_SECRET=dev-session-secret-change-in-production-min32chars
+NIMIQ_NETWORK=testnet
+NIMIQ_RPC_URL=https://rpc.testnet.nimiqwatch.com
+NIMIQ_PAYMENT_RECIPIENT_ADDRESS=NQ0700000000000000000000000000000000
+ENABLE_AUTOMATED_PAYOUTS=false
 ```
 
-### 5. Launch Development Server
+### 5. Run Database Migrations
 ```bash
-pnpm run dev
+npm run db:push
 ```
-Open `http://localhost:3000` in your browser.
+
+### 6. Start the Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:5000](http://localhost:5000) in your browser.
 
 ---
 
-## Automated Verification & Test Suite
+## Environment Variables
 
-Nimiq Arena maintains an extensive automated test suite covering game physics, network chaos, database concurrency, and on-chain RPC verifiers:
+| Variable | Required | Default | Description |
+| :--- | :---: | :--- | :--- |
+| `PORT` | Optional | `3000` | HTTP port for the Express application server. |
+| `NODE_ENV` | Required | `development` | Environment mode (`development` or `production`). |
+| `DATABASE_URL` | Required | — | MySQL/MariaDB connection URI (`mysql://user:pass@host:port/db`). |
+| `SESSION_SECRET` | Required | — | Secret string for session signing (minimum 32 chars). |
+| `NIMIQ_NETWORK` | Optional | `testnet` | Target network (`testnet` = Chain ID 5, `mainnet` = Chain ID 42). |
+| `NIMIQ_RPC_URL` | Optional | `https://rpc.testnet.nimiqwatch.com` | Nimiq JSON-RPC endpoint. |
+| `NIMIQ_PAYMENT_RECIPIENT_ADDRESS` | Required for Staking | — | Treasury IBAN address (`NQ...`) receiving match stakes. |
+| `ENABLE_AUTOMATED_PAYOUTS` | Optional | `false` | Enables Option B automated on-chain payouts via hot wallet. |
+| `NIMIQ_PAYOUT_PRIVATE_KEY` | Optional | — | Hex private key for automated payout signing (if enabled). |
+| `MAX_PAYOUT_PER_MATCH_NIM` | Optional | `0` | Hard cap per match payout in NIM (`0` = unconstrained). |
+| `DAILY_PAYOUT_LIMIT_NIM` | Optional | `0` | Daily disbursement ceiling in NIM (`0` = unconstrained). |
 
+---
+
+## Automated Testing & Verification
+
+The repository contains a test suite covering game logic, payment verification, database persistence, multiplayer lifecycle, and rate limiting.
+
+### Running Tests
 ```bash
-# Execute Vitest test suite
-pnpm test
+# Run full automated test suite (42 test files, 255 tests)
+npm run test
 
-# Verify TypeScript type safety
-pnpm tsc --noEmit
+# Run TypeScript type safety check (0 errors)
+npm run check
 
-# Compile production bundle
-pnpm run build
+# Build production client and server bundles
+npm run build
 ```
 
-### Test Suite Summary
-- **39 Test Suites Passing**
-- **223 Automated Tests Passing**
-- **100% Physics Validation**: Ludo movement heuristics, home stretch entries, and Connect NIM bitboards.
-- **Concurrency & Chaos**: Simulated race conditions, mid-game disconnects, and double-spend attempts.
-- **Live RPC Verification**: Real integration tests against Nimiq Albatross testnet nodes.
+### Test Coverage Highlights
+- **Game Engines**: 16 unit tests for Ludo multi-dice, captures, and yard exits; 7 unit tests for Connect 4 victory matrices.
+- **Blockchain Verification**: 10 integration tests querying live Nimiq PoS Testnet JSON-RPC endpoints, verifying confirmations, recipient matching, and anti-replay rejection.
+- **Settlement & Circuit Breakers**: 5 tests verifying integer Luna distributions, payout capping, and idempotency guarantees.
+- **E2E Multiplayer**: Full 2-client lifecycle tests verifying HTTP + SSE transport over live database transactions.
+
+---
+
+## Current Status & Limitations
+
+### Working & Verified
+- Complete 2-player Ludo and Connect 4 state machines.
+- Real-time multiplayer synchronization via Server-Sent Events (SSE).
+- Nimiq PoS Testnet payment verification with automated RPC failover.
+- Autonomous match heartbeat daemon with disconnect timeouts.
+- Step-by-step match replay engine and Elo rating ladders.
+- Full PWA support with standalone mobile installation.
+
+### Known Limitations
+- **Single Server Instance SSE**: The current SSE broadcaster uses Node.js `EventEmitter`. For horizontal scaling across multiple load-balanced nodes, Redis Pub/Sub should be attached.
+- **Testnet Default**: The live deployment currently defaults to Nimiq Testnet Albatross (Chain ID: 5). Mainnet deployment requires setting `NIMIQ_NETWORK=mainnet` and configuring a funded mainnet treasury.
+
+---
+
+## Judge Quickstart & Demo Guide
+
+To test Nimiq Arena in 2 minutes:
+
+1. **Open the Web App**: Visit [https://nimiqarena.onrender.com](https://nimiqarena.onrender.com).
+2. **Instant Guest Login**: Click **"Get Started"** or select a game; a guest session is minted automatically.
+3. **Try Solo AI Bot Mode**:
+   - Navigate to **Connect 4 Blitz** $\rightarrow$ select **"Solo Bot"** $\rightarrow$ click **"Start Match"**.
+   - Drop tokens against the Minimax AI in real time.
+4. **Try Ludo League (1v1)**:
+   - Navigate to **Ludo League** $\rightarrow$ select **"Solo Bot"** or **"Friend Invite"**.
+   - Roll dice, advance pawns, capture opponent pieces, and watch real-time turn synchronization.
+5. **Inspect Match Replay**:
+   - Complete a match $\rightarrow$ click **"Tx & Replay"** $\rightarrow$ step through every recorded turn.
+6. **Get Free Test NIM**:
+   - Open **Player Profile** $\rightarrow$ tap **"Get Free Test NIM"** to request 50 Testnet NIM from the faucet.
 
 ---
 
 ## License
 
-This project is open-source software licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
