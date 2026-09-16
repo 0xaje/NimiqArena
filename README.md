@@ -102,37 +102,37 @@ Nimiq Arena combines **server-authoritative game state machines** with **on-chai
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Player 1
-    actor Player 2
+    actor P1 as Player 1
+    actor P2 as Player 2
     participant Arena as Nimiq Arena Server
     participant DB as MariaDB
     participant RPC as Nimiq PoS RPC Node
 
-    Player 1->>Arena: Create Match (Game, Stake: 1,000 NIM)
+    P1->>Arena: Create Match (Game, Stake: 1,000 NIM)
     Arena->>DB: Insert Match & Payment Intent (Intent ID, Nonce)
-    Player 1->>RPC: Broadcast Entry TX (1,000 NIM + Intent ID in recipientData)
-    Player 1->>Arena: Claim Payment (Tx Hash)
+    P1->>RPC: Broadcast Entry TX (1,000 NIM + Intent ID in recipientData)
+    P1->>Arena: Claim Payment (Tx Hash)
     Arena->>RPC: Verify Tx (Recipient, Amount, Data, Confirmations)
     RPC-->>Arena: Verification OK (executionResult: true)
     Arena->>DB: Mark Player 1 Paid & Ready
 
-    Player 2->>Arena: Join Table by Code & Fund Stake
+    P2->>Arena: Join Table by Code & Fund Stake
     Arena->>RPC: Verify Player 2 Tx
-    Arena->>DB: Mark Player 2 Paid & Transition Match to "in_progress"
+    Arena->>DB: Mark Player 2 Paid & Transition Match to in_progress
 
     loop Turn-by-Turn Play (Zero Gas)
-        Player 1->>Arena: Send Command (roll / move, expectedVersion)
+        P1->>Arena: Send Command (roll / move, expectedVersion)
         Arena->>Arena: Apply State Machine & Validate Move
         Arena->>DB: Save Match State & Sequenced Event
-        Arena-->>Player 1: SSE Broadcast New State
-        Arena-->>Player 2: SSE Broadcast New State
+        Arena-->>P1: SSE Broadcast New State
+        Arena-->>P2: SSE Broadcast New State
     end
 
     Arena->>Arena: Victory Condition Detected
-    Arena->>DB: Mark Match "finished" & Record Rating Changes
+    Arena->>DB: Mark Match finished & Record Rating Changes
     Arena->>RPC: Dispatch Winner Payout (90% Pot via Hot Wallet)
-    Arena-->>Player 1: SSE Broadcast Victory & Settlement
-    Arena-->>Player 2: SSE Broadcast Victory & Settlement
+    Arena-->>P1: SSE Broadcast Victory & Settlement
+    Arena-->>P2: SSE Broadcast Victory & Settlement
 ```
 
 ---
@@ -258,7 +258,7 @@ Real-time state synchronization is delivered via Server-Sent Events (SSE) at `GE
 ## System Architecture Diagram
 
 ```mermaid
-graph TD
+flowchart TD
     subgraph ClientLayer ["Client Layer (PWA / Browser)"]
         UI["React 19 + TailwindCSS 4 UI"]
         WalletHook["useNimiqWallet Hook"]
@@ -282,7 +282,7 @@ graph TD
     end
 
     subgraph StorageLayer ["Storage & Blockchain"]
-        DB[(MariaDB 11 ACID)]
+        DB[("MariaDB 11 ACID")]
         NimiqRPC["Nimiq PoS JSON-RPC Node"]
     end
 
