@@ -95,6 +95,8 @@ Nimiq Arena combines **server-authoritative game state machines** with **on-chai
 | **Top 3 Olympic Podium** | ✅ Implemented | Real data-driven seasonal leaderboard with win-rate calculations. |
 | **Referral Fee Sharing (2%)** | ✅ Implemented | Unique referral codes distributing 2% of match pots to referrers upon victory. |
 | **PWA Standalone Mode** | ✅ Implemented | Web App Manifest (`manifest.json`) + dual-axis viewport scaling (`min(96vw, 48dvh)`). |
+| **Nexus Tactics (Hex Chess)** | 🧪 In Labs / Dev | Futuristic hexagonal tactical chess showroom card & subscription notifications. |
+| **Dominoes Clash (Draw & Block)** | 🧪 In Labs / Dev | 1v1 Draw & Block dominoes showroom card & subscription notifications. |
 | **4-Player Ludo Mode** | ⏳ Planned | Catalog entry present; 2-player 1v1 currently active. |
 | **Tournament Bracket Cups** | ⏳ Planned | Showroom concept page; live matches currently run in 1v1 duel format. |
 
@@ -501,11 +503,11 @@ Phase 1: Core Duel Engine ➔ Phase 2: Multiplayer & Spectating ➔ Phase 3: Tou
 
 ### Phase 2: Multiplayer Expansion & Scalability (⏳ In Progress)
 - [ ] **4-Player Ludo Mode**: Dynamic 4-quadrant board geometry (Red, Green, Yellow, Blue) with 4-way turn scheduling and 4-way pot split.
-- [ ] **Catalog Expansion (3–4 New Games in Pipeline)**:
-  - ♟️ **Chess Arena**: Rapid blitz chess with standard algebraic notation and depth-limited AI bot.
+- [ ] **Catalog Expansion (New Games in Pipeline)**:
+  - ♟️ **Nexus Tactics (Hex Chess)**: Futuristic hexagonal tactical chess with EMP-Knights, custom ability pieces, and King capture (*in showroom labs*).
+  - 🎲 **Dominoes Clash**: 1v1 Draw & Block dominoes duels with instant micro-stake pot settlement (*in showroom labs*).
   - 🔴 **Checkers / Draughts**: Classic 8×8 board jumping and multi-capture mechanics.
   - 🚢 **Battleship (Sea Battle)**: 10×10 hidden tactical fleet warfare with commit-reveal turns.
-  - ⭕ **Tic-Tac-Toe Blitz / Gomoku**: 30-second lightning wagering duels.
 - [ ] **Redis Pub/Sub SSE Adapter**: Decoupled message bus enabling horizontal scaling of match state broadcast across distributed node clusters.
 - [ ] **Live Match Spectator Mode**: Read-only SSE channel allowing community members to watch high-stakes duels in real time with live chat and emoji reactions.
 - [ ] **Challenge Deep Links & QR Codes**: One-tap native camera join flow for mobile players in Nimiq Pay.
