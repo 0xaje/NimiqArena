@@ -501,6 +501,11 @@ Phase 1: Core Duel Engine ➔ Phase 2: Multiplayer & Spectating ➔ Phase 3: Tou
 
 ### Phase 2: Multiplayer Expansion & Scalability (⏳ In Progress)
 - [ ] **4-Player Ludo Mode**: Dynamic 4-quadrant board geometry (Red, Green, Yellow, Blue) with 4-way turn scheduling and 4-way pot split.
+- [ ] **Catalog Expansion (3–4 New Games in Pipeline)**:
+  - ♟️ **Chess Arena**: Rapid blitz chess with standard algebraic notation and depth-limited AI bot.
+  - 🔴 **Checkers / Draughts**: Classic 8×8 board jumping and multi-capture mechanics.
+  - 🚢 **Battleship (Sea Battle)**: 10×10 hidden tactical fleet warfare with commit-reveal turns.
+  - ⭕ **Tic-Tac-Toe Blitz / Gomoku**: 30-second lightning wagering duels.
 - [ ] **Redis Pub/Sub SSE Adapter**: Decoupled message bus enabling horizontal scaling of match state broadcast across distributed node clusters.
 - [ ] **Live Match Spectator Mode**: Read-only SSE channel allowing community members to watch high-stakes duels in real time with live chat and emoji reactions.
 - [ ] **Challenge Deep Links & QR Codes**: One-tap native camera join flow for mobile players in Nimiq Pay.
@@ -511,9 +516,15 @@ Phase 1: Core Duel Engine ➔ Phase 2: Multiplayer & Spectating ➔ Phase 3: Tou
 - [ ] **Nimiq Mainnet Deployment**: Transition from Testnet Albatross to Mainnet with funded treasury cold/hot wallet hierarchy.
 - [ ] **On-Chain Achievement Badges**: Verifiable proof-of-victory credentials for seasonal tournament winners.
 
+> [!TIP]
+> ### 🎮 Suggest a Game or Contribute an Engine
+> Have a favourite board or arcade game you want to see on Nimiq Arena? We welcome community suggestions and contributions!
+> - **Suggest a Game**: [Open a Feature Request on GitHub](https://github.com/0xaje/NimiqArena/issues/new?title=%5BGame+Request%5D) with your game idea and rules.
+> - **Build an Engine**: Our modular `DeterministicGameEngine` interface in TypeScript allows developers to implement new games with zero friction.
+
 ---
 
-To test Nimiq Arena in 2 minutes:
+## Judge Quickstart & Demo Guide
 
 1. **Open the Web App**: Visit [https://nimiqarena.onrender.com](https://nimiqarena.onrender.com).
 2. **Instant Guest Login**: Click **"Get Started"** or select a game; a guest session is minted automatically.
