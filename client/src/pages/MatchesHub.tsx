@@ -80,9 +80,9 @@ export default function MatchesHub() {
         authQuery.refetch(),
         syncNimiqPayAccount(),
       ]);
-      toast.success("Match ledger synchronized with Nimiq chain");
+      toast.success("Matches updated");
     } catch {
-      toast.error("Sync failed, retrying...");
+      toast.error("Update failed, retrying...");
     } finally {
       setTimeout(() => setIsSyncing(false), 600);
     }
@@ -122,23 +122,6 @@ export default function MatchesHub() {
       toast.success("Address copied to clipboard");
       setTimeout(() => setCopiedAddress(false), 2000);
     }
-  };
-
-  // Export Proof
-  const handleExportProof = () => {
-    const proofData = {
-      timestamp: new Date().toISOString(),
-      network: networkName,
-      address: walletAddress || "NQ_ANONYMOUS",
-      matchesPlayed: stats?.matchesPlayed ?? 0,
-      wins: stats?.wins ?? 0,
-      rating: stats?.rating ?? 1000,
-      recentSettlements: history.slice(0, 5),
-    };
-    navigator.clipboard.writeText(JSON.stringify(proofData, null, 2));
-    toast.success("Cryptographic match proof copied to clipboard!", {
-      description: "SHA-256 verifiable against Nimiq PoS ledger.",
-    });
   };
 
   // Calculated stats
@@ -192,13 +175,13 @@ export default function MatchesHub() {
         {/* ========================================================================= */}
         <main className="flex-1 flex flex-col w-full px-4 pt-3 pb-24 gap-4">
           
-          {/* Header Title & Strategic Overview */}
+          {/* Header Title & Overview */}
           <section className="flex flex-col gap-1.5 pt-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#00d2ff] animate-ping" />
                 <span className="text-[10px] uppercase tracking-widest text-[#a5e7ff] font-mono font-bold">
-                  Combat Ledger & Live Feeds
+                  Live Games & History
                 </span>
               </div>
               
@@ -214,7 +197,7 @@ export default function MatchesHub() {
                   className={`text-[#d4c5ad] ${isSyncing ? "animate-spin text-[#f3b72c]" : ""}`}
                 />
                 <span className="text-[10px] font-mono text-[#d4c5ad]">
-                  {isSyncing ? "Syncing…" : "Sync"}
+                  {isSyncing ? "Refreshing…" : "Refresh"}
                 </span>
               </button>
             </div>
@@ -223,7 +206,7 @@ export default function MatchesHub() {
               Matches Hub
             </h1>
             <p className="text-xs text-[#d4c5ad] max-w-sm leading-relaxed">
-              Track active duels, open wager challenges, and settled match payouts locked on Nimiq chain.
+              Track active games, join open tables, and review your match history.
             </p>
 
             {/* Quick Match Stat Strip */}
@@ -231,7 +214,7 @@ export default function MatchesHub() {
               {/* Active Battles */}
               <div className="flex flex-col p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] shadow-sm relative overflow-hidden">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">Active Battles</span>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Active Games</span>
                   <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#68f5b8] opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[#68f5b8]" />
@@ -242,7 +225,7 @@ export default function MatchesHub() {
                     {liveCount}
                   </span>
                   <span className="text-[10px] text-[#68f5b8] font-mono font-medium">
-                    In Arena
+                    In Play
                   </span>
                 </div>
                 <div className="absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-[#68f5b8]/5 pointer-events-none" />
@@ -268,7 +251,7 @@ export default function MatchesHub() {
               {/* Season Winrate */}
               <div className="flex flex-col p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] shadow-sm">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">Season Winrate</span>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Win Rate</span>
                   <span className="text-[10px] text-[#a5e7ff] font-mono font-bold">S1</span>
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -281,10 +264,10 @@ export default function MatchesHub() {
                 </div>
               </div>
 
-              {/* Total Recorded */}
+              {/* Total Played */}
               <div className="flex flex-col p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] shadow-sm">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-[#d4c5ad] font-mono">Total Recorded</span>
+                  <span className="text-[10px] text-[#d4c5ad] font-mono">Total Played</span>
                   <TrendingUp size={13} className="text-[#68f5b8]" />
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -300,7 +283,7 @@ export default function MatchesHub() {
           </section>
 
           {/* ========================================================================= */}
-          {/* SEGMENTED TACTICAL TABS                                                   */}
+          {/* SEGMENTED TABS                                                            */}
           {/* ========================================================================= */}
           <section className="flex items-center gap-1 p-1 bg-[#080e1c] border border-[#242a39] rounded-full shadow-inner">
             <button
@@ -327,7 +310,7 @@ export default function MatchesHub() {
               }`}
               type="button"
             >
-              <span>Private Tables</span>
+              <span>Friend Invites</span>
             </button>
 
             <button
@@ -339,7 +322,7 @@ export default function MatchesHub() {
               }`}
               type="button"
             >
-              <span>Settled</span>
+              <span>Past Matches</span>
               <span className="text-[10px] font-mono text-[#68f5b8]">
                 ({history.length})
               </span>
@@ -354,10 +337,10 @@ export default function MatchesHub() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Swords size={16} className="text-[#ffd78d]" />
-                  <h2 className="text-sm font-bold text-[#dde2f6]">Active Duels</h2>
+                  <h2 className="text-sm font-bold text-[#dde2f6]">Live Duels</h2>
                 </div>
                 <span className="text-[10px] text-[#a5e7ff] font-mono tracking-wider uppercase">
-                  Live Tables
+                  Active Radar
                 </span>
               </div>
 
@@ -366,22 +349,22 @@ export default function MatchesHub() {
                   <div className="w-12 h-12 rounded-full bg-[#f3b72c]/10 border border-[#f3b72c]/20 flex items-center justify-center text-[#ffd78d]">
                     <Swords size={24} />
                   </div>
-                  <h3 className="text-base font-bold text-[#dde2f6]">No Active Duels In Progress</h3>
+                  <h3 className="text-base font-bold text-[#dde2f6]">No Active Games In Progress</h3>
                   <p className="text-xs text-[#d4c5ad] max-w-xs leading-relaxed">
-                    You do not currently have any active battles. Create a wagered table or join an open room to start competing.
+                    You do not currently have any active games. Start a match or join an open table to begin playing.
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <Link
                       href="/games/connect-four"
                       className="h-9 px-4 rounded-xl bg-[#f3b72c] hover:bg-[#e5a620] text-[#412d00] text-xs font-bold font-mono flex items-center gap-1.5 active:scale-95 transition-transform"
                     >
-                      Play Nim Connect
+                      Play Connect 4
                     </Link>
                     <Link
                       href="/games/ludo-league"
                       className="h-9 px-4 rounded-xl bg-[#242a39] hover:bg-[#2f3544] text-[#dde2f6] text-xs font-bold font-mono flex items-center gap-1.5 active:scale-95 transition-transform"
                     >
-                      Play Ludo League
+                      Play Ludo
                     </Link>
                   </div>
                 </div>
@@ -405,10 +388,10 @@ export default function MatchesHub() {
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
                                 <h3 className="text-sm font-bold text-[#dde2f6]">
-                                  {isConnect4 ? "Nim Connect 7×6" : "Ludo League Arena"}
+                                  {isConnect4 ? "Connect 4 Blitz" : "Ludo League Arena"}
                                 </h3>
                                 <span className="px-2 py-0.5 rounded-full bg-[#68f5b8]/10 text-[#68f5b8] text-[9px] font-mono font-bold">
-                                  {m.status === "in_progress" ? "In Battle" : "Waiting for Player 2"}
+                                  {m.status === "in_progress" ? "In Play" : "Waiting for Opponent"}
                                 </span>
                               </div>
                               <span className="text-[11px] text-[#d4c5ad] font-mono mt-0.5">
@@ -441,7 +424,7 @@ export default function MatchesHub() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Coins size={16} className="text-[#ffd78d]" />
-                  <h2 className="text-sm font-bold text-[#dde2f6]">Private Tables & Challenges</h2>
+                  <h2 className="text-sm font-bold text-[#dde2f6]">Friend Table Invites</h2>
                 </div>
                 <Link href="/join" className="text-[10px] text-[#a5e7ff] font-mono hover:underline">
                   Enter Code →
@@ -456,7 +439,7 @@ export default function MatchesHub() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs font-bold text-[#dde2f6]">Have a 6-digit invite code?</span>
-                      <span className="text-[11px] text-[#d4c5ad]">Join an existing private table created by a friend</span>
+                      <span className="text-[11px] text-[#d4c5ad]">Join a private table hosted by a friend</span>
                     </div>
                   </div>
                   <Link
@@ -471,23 +454,18 @@ export default function MatchesHub() {
           )}
 
           {/* ========================================================================= */}
-          {/* SECTION 3: RECENT MATCH HISTORY & SETTLEMENT LEDGER                       */}
+          {/* SECTION 3: RECENT MATCH HISTORY                                           */}
           {/* ========================================================================= */}
           {activeTab === "settled" && (
             <section className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Trophy size={16} className="text-[#68f5b8]" />
-                  <h2 className="text-sm font-bold text-[#dde2f6]">Settled Matches</h2>
+                  <h2 className="text-sm font-bold text-[#dde2f6]">Match History</h2>
                 </div>
-                <button
-                  onClick={handleExportProof}
-                  className="text-[11px] font-mono text-[#a5e7ff] hover:underline flex items-center gap-0.5 cursor-pointer"
-                  type="button"
-                >
-                  <span>Export Proof</span>
-                  <ExternalLink size={12} />
-                </button>
+                <span className="text-[11px] font-mono text-[#94a3b8]">
+                  {history.length} Recorded
+                </span>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -496,9 +474,9 @@ export default function MatchesHub() {
                     <div className="w-10 h-10 rounded-full bg-[#68f5b8]/10 border border-[#68f5b8]/20 flex items-center justify-center text-[#68f5b8]">
                       <Trophy size={20} />
                     </div>
-                    <h4 className="text-sm font-bold text-[#dde2f6]">No Settled Matches Yet</h4>
+                    <h4 className="text-sm font-bold text-[#dde2f6]">No Matches Recorded Yet</h4>
                     <p className="text-xs text-[#d4c5ad] max-w-xs leading-relaxed">
-                      Once your matches finish and are settled on-chain, cryptographic proofs and payouts will appear here.
+                      Your completed matches, win streaks, and earned rewards will show up here.
                     </p>
                   </div>
                 ) : (
@@ -522,7 +500,7 @@ export default function MatchesHub() {
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs font-bold text-[#dde2f6] truncate">
-                                {record.gameSlug === "connect-four" ? "Nim Connect" : "Ludo League"}
+                                {record.gameSlug === "connect-four" ? "Connect 4" : "Ludo League"}
                               </span>
                               <span
                                 className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
@@ -540,7 +518,7 @@ export default function MatchesHub() {
                               <span>{record.finishedAt ? new Date(record.finishedAt).toLocaleDateString() : "Recent"}</span>
                             </div>
                             <span className="text-[10px] text-[#68f5b8] font-mono flex items-center gap-0.5 mt-0.5">
-                              <CheckCircle2 size={11} /> Settled On-Chain
+                              <CheckCircle2 size={11} /> Complete
                             </span>
                           </div>
                         </div>
@@ -548,7 +526,7 @@ export default function MatchesHub() {
                           <span className={`text-xs font-bold ${isWin ? "text-[#68f5b8]" : "text-[#d4c5ad]"}`}>
                             {isWin ? "+" : "-"}{record.stakeNim ?? 0} NIM
                           </span>
-                          <span className="text-[9px] text-[#d4c5ad]">Albatross PoS</span>
+                          <span className="text-[9px] text-[#68f5b8]">Verified</span>
                         </div>
                       </div>
                     );

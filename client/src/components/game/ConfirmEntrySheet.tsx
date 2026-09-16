@@ -120,7 +120,7 @@ export function ConfirmEntrySheet({
             <div className="flex items-center gap-1.5 mt-0.5">
               <ShieldCheck size={15} className="text-[#a5e7ff]" />
               <span className="text-[10px] text-[#d4c5ad] uppercase tracking-wider font-mono">
-                Nimiq Pay Instant Escrow
+                Instant Match Pot
               </span>
             </div>
           </div>

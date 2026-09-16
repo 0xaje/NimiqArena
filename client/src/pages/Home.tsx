@@ -457,13 +457,13 @@ export default function Home() {
             </div>
             <div className="p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] text-center flex flex-col items-center gap-1">
               <ShieldCheck size={16} className="text-[#68f5b8]" />
-              <span className="text-[10px] font-bold font-mono text-[#dde2f6]">Escrow</span>
-              <span className="text-[9px] text-[#94a3b8] leading-tight">Non-Custodial</span>
+              <span className="text-[10px] font-bold font-mono text-[#dde2f6]">Safe Pots</span>
+              <span className="text-[9px] text-[#94a3b8] leading-tight">Secure Play</span>
             </div>
             <div className="p-2.5 rounded-xl bg-[#151b29] border border-[#242a39] text-center flex flex-col items-center gap-1">
               <Sparkles size={16} className="text-[#00d2ff]" />
               <span className="text-[10px] font-bold font-mono text-[#dde2f6]">Fair Play</span>
-              <span className="text-[9px] text-[#94a3b8] leading-tight">VRF Verified</span>
+              <span className="text-[9px] text-[#94a3b8] leading-tight">100% Random</span>
             </div>
           </section>
         </main>
@@ -492,10 +492,10 @@ export default function Home() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-col">
                   <span className="text-[10px] text-[#ffd78d] uppercase font-mono font-bold tracking-wider">
-                    Stake & Match
+                    Match Entry
                   </span>
                   <h3 className="text-base font-bold text-[#dde2f6]">
-                    Confirm Entry: {sheetGameTitle}
+                    {sheetGameTitle}
                   </h3>
                 </div>
                 <button
@@ -507,15 +507,15 @@ export default function Home() {
               </div>
 
               {/* Stake Summary Card */}
-              <div className="bg-[#080e1c] p-3.5 rounded-xl mb-3 flex flex-col gap-2 border border-[#2f3544]">
+              <div className="bg-[#080e1c] p-3.5 rounded-xl mb-4 flex flex-col gap-2 border border-[#2f3544]">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-[#94a3b8]">Your Stake</span>
+                  <span className="text-[#94a3b8]">Your Entry</span>
                   <span className="text-[#ffd78d] font-mono font-bold">
-                    {sheetStake} NIM
+                    {formatNim(sheetStake)} NIM
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-[#94a3b8]">Available Balance</span>
+                  <span className="text-[#94a3b8]">Balance</span>
                   <span className="text-[#dde2f6] font-mono">
                     {balanceNim != null ? formatNim(balanceNim) : "0"} NIM
                   </span>
@@ -524,23 +524,15 @@ export default function Home() {
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-[#94a3b8]">Total Match Pot</span>
                   <span className="text-[#a5e7ff] font-mono font-bold">
-                    {sheetStake * 2} NIM
+                    {formatNim(sheetStake * 2)} NIM
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-[#68f5b8] font-semibold">1st Place Payout (90%)</span>
+                  <span className="text-[#68f5b8] font-semibold">Winner Takes (90%)</span>
                   <span className="text-[#68f5b8] font-mono font-bold">
-                    {(sheetStake * 2 * 0.9).toFixed(1)} NIM
+                    +{formatNim(sheetStake * 2 * 0.9)} NIM
                   </span>
                 </div>
-              </div>
-
-              {/* Pot Distribution Breakdown */}
-              <div className="p-2.5 rounded-xl bg-[#191f2e] mb-4 flex items-center justify-between text-[11px] text-[#94a3b8] border border-[#2f3544]">
-                <span>Allocation:</span>
-                <span className="text-[#dde2f6] font-mono font-semibold">
-                  90% Winner · 5–7% Builder · 2% Referrer · 1% Charity
-                </span>
               </div>
 
               {/* Action Buttons */}
@@ -549,8 +541,8 @@ export default function Home() {
                   onClick={confirmWagerAndLaunch}
                   className="w-full h-12 bg-[#f3b72c] hover:bg-[#ffc107] text-[#412d00] rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-[0_4px_20px_-2px_rgba(243,183,44,0.4)] active:scale-98 transition-all"
                 >
-                  <Wallet size={16} />
-                  <span>Deposit Escrow & Start Battle</span>
+                  <Play size={16} className="fill-current" />
+                  <span>Start Match</span>
                 </button>
                 <button
                   onClick={() => setIsWagerSheetOpen(false)}

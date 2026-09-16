@@ -465,7 +465,7 @@ export default function LudoDetail() {
                   2. Choose Match Stake
                 </span>
                 <p className="text-[11px] text-[#94a3b8]">
-                  Non-custodial smart escrow
+                  Instant prize pot
                 </p>
               </div>
               <div className="flex items-center gap-1.5 bg-[#151b29] border border-[#242a39] px-2.5 py-1 rounded-full text-right">

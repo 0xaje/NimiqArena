@@ -431,15 +431,15 @@ export default function PlayerProfile() {
                 </span>
                 <span className="text-sm text-[#ffd78d] font-bold font-mono">NIM</span>
               </div>
-              <p className="text-xs text-[#d4c5ad] font-mono mt-0.5">
-                ≈ {formatUsd(nimToUsd(balanceNim))} USD {priceUsd > 0 ? `(CoinGecko: $${priceUsd.toFixed(6)}/NIM)` : ""}
+              <p className="text-xs text-[#94a3b8] font-mono mt-0.5">
+                ≈ {formatUsd(nimToUsd(balanceNim))} USD
               </p>
             </div>
 
             {/* Vault Metrics Row */}
             <div className="grid grid-cols-2 gap-2 mt-3">
               <div className="bg-[#080e1c] border border-[#242a39] p-2.5 rounded-lg">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Escrow In-Play</span>
+                <span className="text-[10px] text-[#94a3b8] font-mono uppercase">In Active Match</span>
                 <div className="text-xs text-[#a5e7ff] font-mono font-bold mt-0.5 flex items-center gap-1">
                   <Clock size={12} />
                   0.00 NIM
@@ -447,7 +447,7 @@ export default function PlayerProfile() {
               </div>
 
               <div className="bg-[#080e1c] border border-[#242a39] p-2.5 rounded-lg">
-                <span className="text-[10px] text-[#d4c5ad] font-mono">Available Cashout</span>
+                <span className="text-[10px] text-[#94a3b8] font-mono uppercase">Available Balance</span>
                 <div className="text-xs text-[#68f5b8] font-mono font-bold mt-0.5 flex items-center gap-1">
                   <ShieldCheck size={12} />
                   {formatNim(balanceNim)} NIM
@@ -473,7 +473,7 @@ export default function PlayerProfile() {
                 type="button"
               >
                 <Sparkles size={14} className="text-[#ffd78d]" />
-                {isDripping ? "Requesting…" : "Faucet Drip"}
+                {isDripping ? "Claiming…" : "Get Free Test NIM"}
               </button>
             </div>
           </section>
