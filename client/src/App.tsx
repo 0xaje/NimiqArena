@@ -34,17 +34,9 @@ function Router() {
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/syndicates" component={SyndicateRanks} />
       <Route path="/guilds" component={SyndicateRanks} />
-      {/*
-        /playoffs, /explorer, /watch, /tx/:hash, /cashout-receipt, /victory
-        and their aliases used to route to fully hardcoded pages — a
-        tournament bracket, a blockchain explorer, and a payout receipt
-        that made zero backend calls between them. Each rendered fabricated
-        data (a fake tx hash, a made-up validator quorum, an invented match
-        result) as if it were real, reachable by anyone with the URL. Pulled
-        rather than left half-built; they fall through to the catch-all
-        below like any other route that doesn't exist yet. The page
-        components are still in client/src/pages if someone wires them to
-        real data later.
+      {/* 
+        All unmapped routes (e.g. legacy /playoffs, /explorer, /watch) fall through 
+        truthfully to NotFound (404) rather than rendering fabricated or hardcoded data.
       */}
       <Route path="/profile" component={PlayerProfile} />
       <Route path="/earn" component={Earn} />
