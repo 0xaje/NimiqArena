@@ -256,7 +256,7 @@ export const paymentIntents = mysqlTable(
     id: varchar("id", { length: 32 }).primaryKey(),
     userId: int("userId").notNull(),
     recipient: varchar("recipient", { length: 64 }).notNull(),
-    valueLuna: int("valueLuna", { unsigned: true }).notNull(),
+    valueLuna: bigint("valueLuna", { mode: "number", unsigned: true }).notNull(),
     status: mysqlEnum("status", [
       "created",
       "confirmation_pending",
@@ -323,7 +323,7 @@ export const paymentVerifications = mysqlTable(
     status: varchar("status", { length: 32 }).notNull(),
     sender: varchar("sender", { length: 64 }),
     recipient: varchar("recipient", { length: 64 }),
-    valueLuna: int("valueLuna", { unsigned: true }),
+    valueLuna: bigint("valueLuna", { mode: "number", unsigned: true }),
     blockNumber: int("blockNumber", { unsigned: true }),
     confirmations: int("confirmations", { unsigned: true }),
     networkId: int("networkId"),

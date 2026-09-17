@@ -240,7 +240,7 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
       \`id\` varchar(32) NOT NULL,
       \`userId\` int NOT NULL,
       \`recipient\` varchar(64) NOT NULL,
-      \`valueLuna\` int unsigned NOT NULL,
+      \`valueLuna\` bigint unsigned NOT NULL,
       \`status\` enum('created','confirmation_pending','submitted','verifying','verified','rejected','failed','expired','invalid','underpaid','wrong_recipient','duplicate','verification_failed') NOT NULL DEFAULT 'created',
       \`clientNonce\` varchar(64) NOT NULL,
       \`transactionHash\` varchar(128),
@@ -264,7 +264,7 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
       \`status\` varchar(32) NOT NULL,
       \`sender\` varchar(64),
       \`recipient\` varchar(64),
-      \`valueLuna\` int unsigned,
+      \`valueLuna\` bigint unsigned,
       \`blockNumber\` int unsigned,
       \`confirmations\` int unsigned,
       \`networkId\` int,
@@ -412,6 +412,31 @@ async function synchronizeSchemaMigrations(db: ReturnType<typeof drizzle>) {
         sql`ALTER TABLE \`payment_intents\` ADD CONSTRAINT \`payment_intents_verified_tx_hash_idx\` UNIQUE (\`verifiedTransactionHash\`)`
       );
       console.log("[DatabaseMigration] payment_intents_verified_tx_hash_idx created successfully.");
+    }
+
+    // 3. Ensure valueLuna is bigint unsigned to prevent 32-bit overflow for stakes >= 43k NIM (5 billion+ Luna)
+    const [intentsLunaCol]: any = await db.execute(
+      sql`SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_intents' AND COLUMN_NAME = 'valueLuna'`
+    );
+    const intentsLunaRows = Array.isArray(intentsLunaCol) ? intentsLunaCol : (intentsLunaCol as any)?.rows || [];
+    if (intentsLunaRows.length > 0 && intentsLunaRows[0].DATA_TYPE?.toLowerCase() !== 'bigint') {
+      console.log("[DatabaseMigration] Upgrading payment_intents.valueLuna to bigint unsigned...");
+      await db.execute(
+        sql`ALTER TABLE \`payment_intents\` MODIFY COLUMN \`valueLuna\` bigint unsigned NOT NULL`
+      );
+      console.log("[DatabaseMigration] payment_intents.valueLuna upgraded to bigint unsigned successfully.");
+    }
+
+    const [verLunaCol]: any = await db.execute(
+      sql`SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_verifications' AND COLUMN_NAME = 'valueLuna'`
+    );
+    const verLunaRows = Array.isArray(verLunaCol) ? verLunaCol : (verLunaCol as any)?.rows || [];
+    if (verLunaRows.length > 0 && verLunaRows[0].DATA_TYPE?.toLowerCase() !== 'bigint') {
+      console.log("[DatabaseMigration] Upgrading payment_verifications.valueLuna to bigint unsigned...");
+      await db.execute(
+        sql`ALTER TABLE \`payment_verifications\` MODIFY COLUMN \`valueLuna\` bigint unsigned NULL`
+      );
+      console.log("[DatabaseMigration] payment_verifications.valueLuna upgraded to bigint unsigned successfully.");
     }
   } catch (err: any) {
     console.error("[DatabaseMigration] Schema synchronization error:", err?.cause || err);
