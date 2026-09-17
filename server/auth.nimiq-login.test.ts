@@ -32,6 +32,7 @@ function userRow(openId: string, address: string | null = null, loginMethod = "n
     evmAddress: null,
     avatar: null,
     welcomeClaimed: false,
+    isAnonymous: false,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,
@@ -103,16 +104,9 @@ describe("Nimiq Wallet Web3 Authentication", () => {
   it("upgrades an existing guest session to a persistent Nimiq account", async () => {
     dbMocks.getUserByNimiqAddress.mockResolvedValueOnce(undefined);
     const guestUser = {
+      ...userRow("guest-old-session-12345", null, "guest"),
       id: 303,
-      openId: "guest-old-session-12345",
       name: "Experienced Guest",
-      email: null,
-      role: "user" as const,
-      loginMethod: "guest",
-      address: null,
-      createdAt: now,
-      updatedAt: now,
-      lastSignedIn: now,
     };
 
     const caller = appRouter.createCaller(createContext(guestUser));

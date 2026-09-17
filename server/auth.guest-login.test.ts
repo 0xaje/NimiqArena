@@ -31,6 +31,7 @@ function userRow(openId: string, loginMethod: string | null = "guest") {
     evmAddress: null,
     avatar: null,
     welcomeClaimed: false,
+    isAnonymous: false,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,

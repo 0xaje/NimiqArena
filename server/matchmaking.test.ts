@@ -52,6 +52,7 @@ function createContext(userId = 8801): TrpcContext {
       evmAddress: null,
       avatar: null,
       welcomeClaimed: false,
+      isAnonymous: false,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: now,

@@ -33,6 +33,7 @@ function guestUser(id: number) {
     evmAddress: null,
     avatar: null,
     welcomeClaimed: false,
+    isAnonymous: false,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,

@@ -31,6 +31,7 @@ function createAuthContext(): {
     evmAddress: null,
     avatar: null,
     welcomeClaimed: false,
+    isAnonymous: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),
