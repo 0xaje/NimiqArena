@@ -10,14 +10,25 @@
 [![React](https://img.shields.io/badge/Frontend-React_19_|_Vite_7-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![tRPC](https://img.shields.io/badge/API-tRPC_v11_|_Express-2596BE?style=for-the-badge&logo=trpc&logoColor=white)](https://trpc.io)
 [![MariaDB](https://img.shields.io/badge/Database-MariaDB_11_ACID-003545?style=for-the-badge&logo=mariadb&logoColor=white)](https://mariadb.org)
-[![Tests](https://img.shields.io/badge/Automated_Tests-255_Passed_|_42_Suites-10B981?style=for-the-badge)](https://github.com/0xaje/NimiqArena)
+[![Tests](https://img.shields.io/badge/Automated_Tests-259_Passed_|_42_Suites-10B981?style=for-the-badge)](https://github.com/0xaje/NimiqArena)
 [![License](https://img.shields.io/badge/License-MIT-gray?style=for-the-badge)](LICENSE)
 
 <br />
 
 **Nimiq Arena** is a competitive Web3 gaming platform and Progressive Web App (PWA) built natively on **Nimiq Hub** (`@nimiq/hub-api`), **Nimiq Pay Mobile SDK** (`@nimiq/mini-app-sdk`), and the **Nimiq Proof-of-Stake (Albatross)** consensus engine. It provides real-time, turn-based board and strategy duels (**Ludo League** & **Connect 4 Blitz**) with zero browser-extension requirements, instant NIM micro-stakes, non-custodial smart escrow settlement, optimistic concurrency control, and verifiable step-by-step match replays.
 
-[Live Application](https://nimiq-arena.onrender.com) &bull; [GitHub Repository](https://github.com/0xaje/NimiqArena) &bull; [Settlement Architecture](docs/SETTLEMENT_ARCHITECTURE_DECISION.md)
+<br />
+
+[![Watch on YouTube](https://img.shields.io/badge/▶_Watch_Demo_Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/peqDkKHCVoA)
+[![Launch Web App](https://img.shields.io/badge/🎮_Launch_Live_App-nimiq--arena.onrender.com-EC9918?style=for-the-badge)](https://nimiq-arena.onrender.com)
+[![GitHub Repository](https://img.shields.io/badge/💻_GitHub_Repo-0xaje/NimiqArena-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/0xaje/NimiqArena)
+
+<br /><br />
+
+### 📺 Hackathon Video Walkthrough & Gameplay Demo
+[![Nimiq Arena - Hackathon Video Demo](https://img.youtube.com/vi/peqDkKHCVoA/maxresdefault.jpg)](https://youtu.be/peqDkKHCVoA)
+
+*[Click to watch the full Nimiq Arena walkthrough and gameplay demonstration on YouTube](https://youtu.be/peqDkKHCVoA)*
 
 </div>
 
@@ -527,6 +538,8 @@ Phase 1: Core Duel Engine ➔ Phase 2: Multiplayer & Spectating ➔ Phase 3: Tou
 ---
 
 ## Judge Quickstart & Demo Guide
+
+> 📺 **Video Walkthrough**: Watch our comprehensive [Hackathon Demo Video on YouTube](https://youtu.be/peqDkKHCVoA) (`https://youtu.be/peqDkKHCVoA`) demonstrating wallet connection, AI bot matches, 1v1 duels, and on-chain escrow settlement.
 
 1. **Open the Web App**: Visit [https://nimiq-arena.onrender.com](https://nimiq-arena.onrender.com).
 2. **Instant Guest Login**: Click **"Get Started"** or select a game; a guest session is minted automatically.
