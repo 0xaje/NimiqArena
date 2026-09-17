@@ -17,7 +17,7 @@
 
 **Nimiq Arena** is a competitive Web3 gaming platform and Progressive Web App (PWA) built natively on **Nimiq Hub** (`@nimiq/hub-api`), **Nimiq Pay Mobile SDK** (`@nimiq/mini-app-sdk`), and the **Nimiq Proof-of-Stake (Albatross)** consensus engine. It provides real-time, turn-based board and strategy duels (**Ludo League** & **Connect 4 Blitz**) with zero browser-extension requirements, instant NIM micro-stakes, non-custodial smart escrow settlement, optimistic concurrency control, and verifiable step-by-step match replays.
 
-[Live Application](https://nimiqarena.onrender.com) &bull; [GitHub Repository](https://github.com/0xaje/NimiqArena) &bull; [Settlement Architecture](docs/SETTLEMENT_ARCHITECTURE_DECISION.md)
+[Live Application](https://nimiq-arena.onrender.com) &bull; [GitHub Repository](https://github.com/0xaje/NimiqArena) &bull; [Settlement Architecture](docs/SETTLEMENT_ARCHITECTURE_DECISION.md)
 
 </div>
 
@@ -528,7 +528,7 @@ Phase 1: Core Duel Engine ➔ Phase 2: Multiplayer & Spectating ➔ Phase 3: Tou
 
 ## Judge Quickstart & Demo Guide
 
-1. **Open the Web App**: Visit [https://nimiqarena.onrender.com](https://nimiqarena.onrender.com).
+1. **Open the Web App**: Visit [https://nimiq-arena.onrender.com](https://nimiq-arena.onrender.com).
 2. **Instant Guest Login**: Click **"Get Started"** or select a game; a guest session is minted automatically.
 3. **Try Solo AI Bot Mode**:
    - Navigate to **Connect 4 Blitz** $\rightarrow$ select **"Solo Bot"** $\rightarrow$ click **"Start Match"**.
