@@ -115,11 +115,11 @@ describe("ludo engine", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.snapshot.players[1].pieces[0].position).toBe(-1);
-      // Capturing pawn advances from 4 to 5 (stays on track)
-      expect(result.snapshot.players[0].pieces[0].position).toBe(5);
+      // Capturing pawn successfully scores directly into center home goal (56)
+      expect(result.snapshot.players[0].pieces[0].position).toBe(56);
       expect(result.event).toMatchObject({
         type: "moved",
-        to: 5,
+        to: 56,
         capturedPiece: { playerId: 1, pieceIndex: 0 },
       });
       expect(result.snapshot.winner).toBe(null);
@@ -144,8 +144,8 @@ describe("ludo engine", () => {
       ];
       expect(p1Positions).toContain(-1);
       expect(p1Positions).toContain(31);
-      // Capturing pawn stays on the landing tile (progress 5)
-      expect(result.snapshot.players[0].pieces[0].position).toBe(5);
+      // Capturing pawn scores directly to center home goal (56)
+      expect(result.snapshot.players[0].pieces[0].position).toBe(56);
     }
   });
 
@@ -177,8 +177,8 @@ describe("ludo engine", () => {
     if (result.ok) {
       // Player 0's piece was captured on its start square and sent back to base!
       expect(result.snapshot.players[0].pieces[0].position).toBe(-1);
-      // Player 1's capturing piece stays on progress 26 (landing tile)
-      expect(result.snapshot.players[1].pieces[0].position).toBe(26);
+      // Player 1's capturing piece scores directly to center home goal (56)
+      expect(result.snapshot.players[1].pieces[0].position).toBe(56);
     }
   });
 
@@ -554,8 +554,8 @@ describe("ludo engine", () => {
       expect(moveRes.ok).toBe(true);
       if (!moveRes.ok) return;
 
-      // Capturing piece stays on landing square on track (progress 5)
-      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(5);
+      // Capturing piece scores directly to center home goal (56)
+      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(56);
       // Exactly ONE opponent piece was sent back to yard (-1), the other remains on track 31
       const p1Positions = moveRes.snapshot.players[1].pieces.map(p => p.position);
       const capturedCount = p1Positions.filter(pos => pos === -1).length;
@@ -606,8 +606,8 @@ describe("ludo engine", () => {
       if (!moveRes1.ok) return;
       // Opponent knocked back to base -1
       expect(moveRes1.snapshot.players[1].pieces[0].position).toBe(-1);
-      // Capturing Piece 0 stays on progress 5 on track
-      expect(moveRes1.snapshot.players[0].pieces[0].position).toBe(5);
+      // Capturing Piece 0 scores directly to center home goal (56)
+      expect(moveRes1.snapshot.players[0].pieces[0].position).toBe(56);
       // Remaining die 3 is available for Piece 1
       expect(moveRes1.snapshot.remainingDice).toEqual([3]);
 
