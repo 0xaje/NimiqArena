@@ -49,6 +49,7 @@ import {
 import { InstantCashoutSheet } from "@/components/wallet/InstantCashoutSheet";
 import { ReferralCard } from "@/components/referral/ReferralCard";
 import { useNimiqPrice } from "@/lib/nimiq-price";
+import { NimiqForensicPanel } from "@/components/dev/NimiqForensicPanel";
 
 export default function PlayerProfile() {
   const utils = trpc.useUtils();
@@ -682,21 +683,8 @@ export default function PlayerProfile() {
                 </button>
               </div>
 
-              {/* Nimiq Consensus RPC Node */}
-              <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-[#080e1c] flex items-center justify-center text-[#ffd78d] border border-white/5">
-                    <Radio size={18} />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-[#dde2f6]">Nimiq Consensus Node</div>
-                    <div className="text-[10px] text-[#d4c5ad] font-mono">{networkName || "TestAlbatross"} RPC</div>
-                  </div>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#68f5b8]/10 text-[#68f5b8] text-[10px] font-mono font-bold">
-                  Connected
-                </span>
-              </div>
+              {/* Nimiq Testnet Albatross Consensus & Diagnostics Node */}
+              <NimiqForensicPanel inline={true} />
 
               {/* Stealth / Anonymous Mode Toggle */}
               <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl flex items-center justify-between">

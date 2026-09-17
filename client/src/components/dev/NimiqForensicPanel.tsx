@@ -20,9 +20,14 @@ import {
   Terminal,
   Shield,
   Layers,
+  Radio,
 } from "lucide-react";
 
-export function NimiqForensicPanel() {
+export interface NimiqForensicPanelProps {
+  inline?: boolean;
+}
+
+export function NimiqForensicPanel({ inline = false }: NimiqForensicPanelProps = {}) {
   const { address, balanceNim, balanceStatus, syncNimiqPayAccount, setAddress } = useNimiqWallet();
   const [report, setReport] = useState<NimiqForensicReport | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -31,12 +36,12 @@ export function NimiqForensicPanel() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || inline) return;
     const isDismissed = sessionStorage.getItem("hide_nimiq_diag") === "true";
     if (isDismissed) {
       setIsVisible(false);
     }
-  }, []);
+  }, [inline]);
 
   const executeAudit = useCallback(async () => {
     setIsRunning(true);
@@ -88,9 +93,437 @@ export function NimiqForensicPanel() {
     }
   };
 
-  if (!isVisible) return null;
+  if (!inline && !isVisible) return null;
 
   const latestBlock = report?.blockNumber;
+
+  // Inline mode rendered inside PlayerProfile
+  if (inline) {
+    if (!isExpanded) {
+      return (
+        <div className="bg-[#242a39] border border-[#2f3544] p-3 rounded-xl flex items-center justify-between transition-colors hover:border-[#3d4559]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-[#080e1c] flex items-center justify-center text-[#ffd78d] border border-white/5 relative">
+              <Radio size={18} />
+              <span
+                className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: report?.rpcStatus === "RPC_POSITIVE_BALANCE" ? "#22c55e" : "#f3b72c",
+                  boxShadow: "0 0 6px rgba(243, 183, 44, 0.8)",
+                }}
+              />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-[#dde2f6] flex items-center gap-2">
+                <span>Testnet Albatross PoS</span>
+                {latestBlock ? (
+                  <span className="text-[10px] text-[#a5e7ff] font-mono opacity-85">#{latestBlock}</span>
+                ) : null}
+              </div>
+              <div className="text-[10px] text-[#d4c5ad] font-mono flex items-center gap-1.5">
+                <span>TestAlbatross RPC</span>
+                <span>·</span>
+                <span className="text-[#68f5b8]">
+                  {balanceNim != null ? `${formatNim(balanceNim)} NIM` : "0 NIM"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setIsExpanded(true);
+              void executeAudit();
+            }}
+            className="h-8 px-3 rounded-lg bg-[#080e1c] hover:bg-[#191f2e] border border-[#2f3544] text-[#ffd78d] text-xs font-mono font-semibold active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
+            type="button"
+          >
+            <Activity size={13} className={isRunning ? "animate-spin" : ""} />
+            <span>Diagnostics</span>
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-[#242a39] border border-[#f3b72c]/40 rounded-xl overflow-hidden font-mono text-[11px] shadow-lg flex flex-col">
+        {/* Header */}
+        <div
+          style={{
+            padding: "10px 14px",
+            background: "rgba(229, 160, 0, 0.1)",
+            borderBottom: "1px solid rgba(229, 160, 0, 0.25)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Terminal size={15} style={{ color: "#e5a000" }} />
+            <strong style={{ color: "#f8fafc", fontSize: "12px", letterSpacing: "1px" }}>
+              TESTNET ALBATROSS DIAGNOSTICS
+            </strong>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <button
+              onClick={handleCopyReport}
+              title="Copy formatted evidence report to clipboard"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#f8fafc",
+                borderRadius: "4px",
+                padding: "3px 6px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                fontSize: "10px",
+              }}
+            >
+              <Copy size={11} /> Copy
+            </button>
+            <button
+              onClick={() => setIsExpanded(false)}
+              title="Collapse diagnostics"
+              style={{
+                background: "none",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: "2px",
+              }}
+            >
+              <ChevronUp size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Diagnostic Details */}
+        {renderDetailsContent()}
+      </div>
+    );
+  }
+
+  function renderDetailsContent() {
+    return (
+      <>
+        {/* Body */}
+        <div style={{ padding: "12px 14px", overflowY: "auto", maxHeight: inline ? "450px" : "calc(85vh - 90px)" }}>
+          {/* Build & SDK Meta */}
+          <div
+            style={{
+              background: "rgba(0,0,0,0.3)",
+              padding: "8px 10px",
+              borderRadius: "6px",
+              marginBottom: "10px",
+              fontSize: "11px",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#94a3b8" }}>Arena Build:</span>
+              <strong style={{ color: "#38bdf8" }}>{report?.buildCommit}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+              <span style={{ color: "#94a3b8" }}>SDK Version:</span>
+              <span style={{ color: "#f8fafc" }}>@{report?.sdkVersion}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+              <span style={{ color: "#94a3b8" }}>Host Webview:</span>
+              <span style={{ color: report?.windowNimiqPresent ? "#2ecc71" : "#e74c3c" }}>
+                {report?.windowNimiqPresent ? "window.nimiq INJECTED" : "NO window.nimiq"}
+              </span>
+            </div>
+          </div>
+
+          {/* Pipeline Rows */}
+          <div style={{ display: "grid", gap: "8px", fontSize: "11px" }}>
+            {/* Provider */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "#94a3b8" }}>Provider:</span>
+              <span
+                style={{
+                  fontWeight: 700,
+                  color:
+                    report?.providerStatus === "CONNECTED"
+                      ? "#2ecc71"
+                      : report?.providerStatus === "TIMED_OUT"
+                      ? "#f59e0b"
+                      : "#e74c3c",
+                }}
+              >
+                {report?.providerStatus}
+              </span>
+            </div>
+
+            {/* Connected Address */}
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#94a3b8" }}>Connected Address:</span>
+                <span style={{ color: "#94a3b8" }}>Len: {report?.connectedAddressLength || 0}</span>
+              </div>
+              <div
+                style={{
+                  color: report?.connectedAddress ? "#e5a000" : "#e74c3c",
+                  wordBreak: "break-all",
+                  fontWeight: 600,
+                  marginTop: "2px",
+                  background: "rgba(0,0,0,0.25)",
+                  padding: "4px 6px",
+                  borderRadius: "4px",
+                }}
+              >
+                {report?.connectedAddress || "NONE (listAccounts returned empty or failed)"}
+              </div>
+
+              {/* Discovered Accounts List (if multi-account wallet) */}
+              {report?.discoveredAccounts && report.discoveredAccounts.length > 0 && (
+                <div style={{ marginTop: "6px", display: "grid", gap: "4px" }}>
+                  <span style={{ color: "#38bdf8", fontSize: "10px", fontWeight: 700 }}>
+                    Nimiq Pay Accounts ({report.discoveredAccounts.length}):
+                  </span>
+                  {report.discoveredAccounts.map((acc, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: acc.isActive ? "rgba(229,160,0,0.12)" : "rgba(0,0,0,0.3)",
+                        border: `1px solid ${acc.isActive ? "#e5a000" : "rgba(255,255,255,0.08)"}`,
+                        borderRadius: "4px",
+                        padding: "4px 6px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "10px",
+                      }}
+                    >
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontWeight: 600, color: acc.isActive ? "#e5a000" : "#f8fafc" }}>
+                          Account #{idx + 1}: {acc.address.slice(0, 7)}…{acc.address.slice(-5)}
+                        </span>
+                        <span style={{ color: (acc.balanceNim ?? 0) > 0 ? "#2ecc71" : "#94a3b8", fontWeight: 700 }}>
+                          {acc.balanceNim !== null ? `${acc.balanceNim.toFixed(2)} NIM` : "Checking…"}
+                        </span>
+                      </div>
+                      {acc.isActive ? (
+                        <span style={{ color: "#2ecc71", fontSize: "9px", fontWeight: 700 }}>● Active</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddress(acc.address);
+                            localStorage.setItem("nimiq_arena_wallet_address", acc.address);
+                            localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
+                            toast.success(`Switched to Account #${idx + 1}`);
+                            void executeAudit();
+                          }}
+                          style={{
+                            background: "rgba(56, 189, 248, 0.2)",
+                            border: "1px solid #38bdf8",
+                            color: "#38bdf8",
+                            borderRadius: "3px",
+                            padding: "2px 6px",
+                            fontSize: "9px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Switch
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Network & Consensus */}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#94a3b8" }}>Network:</span>
+              <strong style={{ color: "#f8fafc" }}>{report?.networkConfigured} (5)</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#94a3b8" }}>Consensus:</span>
+              <span style={{ color: report?.consensusEstablished ? "#2ecc71" : "#e74c3c" }}>
+                {report?.consensusEstablished ? "ESTABLISHED" : "NOT SYNCED"} (Block #{report?.blockNumber ?? "N/A"})
+              </span>
+            </div>
+
+            {/* RPC Status */}
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#94a3b8" }}>TestAlbatross RPC:</span>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    color:
+                      report?.rpcStatus === "RPC_POSITIVE_BALANCE"
+                        ? "#2ecc71"
+                        : report?.rpcStatus === "RPC_ZERO_BALANCE"
+                        ? "#f1c40f"
+                        : "#e74c3c",
+                  }}
+                >
+                  {report?.rpcStatus}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", marginTop: "2px" }}>
+                <span>Host: {report?.rpcHost}</span>
+                <span>{report?.rpcLatencyMs ? `${report.rpcLatencyMs} ms` : "timeout"}</span>
+              </div>
+              {report?.rpcError && (
+                <div style={{ color: "#f87171", marginTop: "2px" }}>Error: {report.rpcError}</div>
+              )}
+            </div>
+
+            {/* Balances Comparison */}
+            <div
+              style={{
+                background: "rgba(229, 160, 0, 0.06)",
+                border: "1px solid rgba(229, 160, 0, 0.2)",
+                padding: "8px 10px",
+                borderRadius: "6px",
+                marginTop: "4px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#94a3b8" }}>RPC Raw Balance:</span>
+                <strong style={{ color: "#f8fafc" }}>
+                  {report?.rpcRawBalanceLuna !== null ? `${report?.rpcRawBalanceLuna} Luna` : "N/A"}
+                </strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                <span style={{ color: "#94a3b8" }}>RPC Converted:</span>
+                <strong style={{ color: "#2ecc71", fontSize: "13px" }}>
+                  {report?.rpcConvertedBalanceNim !== null ? `${report?.rpcConvertedBalanceNim} NIM` : "N/A"}
+                </strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                <span style={{ color: "#94a3b8" }}>Frontend State:</span>
+                <strong style={{ color: "#38bdf8", fontSize: "13px" }}>
+                  {report?.frontendStateBalanceNim !== null ? `${report?.frontendStateBalanceNim} NIM` : "0 NIM"}
+                </strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                <span style={{ color: "#94a3b8" }}>Balance UI Component:</span>
+                <span
+                  style={{
+                    color: report?.balanceComponentState === "RENDERED" ? "#2ecc71" : "#e74c3c",
+                    fontWeight: 700,
+                  }}
+                >
+                  {report?.balanceComponentState}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Audit Trail Toggle */}
+          <div style={{ marginTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "8px" }}>
+            <button
+              onClick={() => setShowLogs(!showLogs)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                fontSize: "11px",
+                padding: 0,
+                width: "100%",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>Boundary Audit Trail ({report?.auditLogs?.length || 0})</span>
+              {showLogs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showLogs && (
+              <div
+                style={{
+                  maxHeight: "130px",
+                  overflowY: "auto",
+                  background: "#050810",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: "4px",
+                  padding: "6px",
+                  marginTop: "6px",
+                  fontSize: "10px",
+                  color: "#cbd5e1",
+                  display: "grid",
+                  gap: "4px",
+                }}
+              >
+                {report?.auditLogs?.map((log, i) => (
+                  <div key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: "2px" }}>
+                    <span style={{ color: "#e5a000" }}>[{log.step}]</span> {log.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div
+          style={{
+            padding: "8px 14px",
+            background: "rgba(0,0,0,0.4)",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            display: "flex",
+            gap: "8px",
+          }}
+        >
+          <button
+            onClick={executeAudit}
+            disabled={isRunning}
+            style={{
+              flex: 1,
+              background: "rgba(229, 160, 0, 0.15)",
+              border: "1px solid #e5a000",
+              color: "#e5a000",
+              padding: "6px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "4px",
+              fontSize: "11px",
+            }}
+          >
+            <RotateCw size={12} className={isRunning ? "spin" : ""} />
+            Re-Audit
+          </button>
+          <button
+            onClick={handleManualSync}
+            disabled={isRunning}
+            style={{
+              flex: 1,
+              background: "rgba(56, 189, 248, 0.15)",
+              border: "1px solid #38bdf8",
+              color: "#38bdf8",
+              padding: "6px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "4px",
+              fontSize: "11px",
+            }}
+          >
+            <Shield size={12} />
+            Sync Pay
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <aside
@@ -242,319 +675,7 @@ export function NimiqForensicPanel() {
             </div>
           </div>
 
-          {/* Body */}
-          <div style={{ padding: "12px 14px", overflowY: "auto", flex: 1 }}>
-            {/* Build & SDK Meta */}
-            <div
-              style={{
-                background: "rgba(0,0,0,0.3)",
-                padding: "8px 10px",
-                borderRadius: "6px",
-                marginBottom: "10px",
-                fontSize: "11px",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#94a3b8" }}>Arena Build:</span>
-                <strong style={{ color: "#38bdf8" }}>{report?.buildCommit}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-                <span style={{ color: "#94a3b8" }}>SDK Version:</span>
-                <span style={{ color: "#f8fafc" }}>@{report?.sdkVersion}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-                <span style={{ color: "#94a3b8" }}>Host Webview:</span>
-                <span style={{ color: report?.windowNimiqPresent ? "#2ecc71" : "#e74c3c" }}>
-                  {report?.windowNimiqPresent ? "window.nimiq INJECTED" : "NO window.nimiq"}
-                </span>
-              </div>
-            </div>
-
-            {/* Pipeline Rows */}
-            <div style={{ display: "grid", gap: "8px", fontSize: "11px" }}>
-              {/* Provider */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ color: "#94a3b8" }}>Provider:</span>
-                <span
-                  style={{
-                    fontWeight: 700,
-                    color:
-                      report?.providerStatus === "CONNECTED"
-                        ? "#2ecc71"
-                        : report?.providerStatus === "TIMED_OUT"
-                        ? "#f59e0b"
-                        : "#e74c3c",
-                  }}
-                >
-                  {report?.providerStatus}
-                </span>
-              </div>
-
-              {/* Connected Address */}
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#94a3b8" }}>Connected Address:</span>
-                  <span style={{ color: "#94a3b8" }}>Len: {report?.connectedAddressLength || 0}</span>
-                </div>
-                <div
-                  style={{
-                    color: report?.connectedAddress ? "#e5a000" : "#e74c3c",
-                    wordBreak: "break-all",
-                    fontWeight: 600,
-                    marginTop: "2px",
-                    background: "rgba(0,0,0,0.25)",
-                    padding: "4px 6px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {report?.connectedAddress || "NONE (listAccounts returned empty or failed)"}
-                </div>
-
-                {/* Discovered Accounts List (if multi-account wallet) */}
-                {report?.discoveredAccounts && report.discoveredAccounts.length > 0 && (
-                  <div style={{ marginTop: "6px", display: "grid", gap: "4px" }}>
-                    <span style={{ color: "#38bdf8", fontSize: "10px", fontWeight: 700 }}>
-                      Nimiq Pay Accounts ({report.discoveredAccounts.length}):
-                    </span>
-                    {report.discoveredAccounts.map((acc, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: acc.isActive ? "rgba(229,160,0,0.12)" : "rgba(0,0,0,0.3)",
-                          border: `1px solid ${acc.isActive ? "#e5a000" : "rgba(255,255,255,0.08)"}`,
-                          borderRadius: "4px",
-                          padding: "4px 6px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          fontSize: "10px",
-                        }}
-                      >
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontWeight: 600, color: acc.isActive ? "#e5a000" : "#f8fafc" }}>
-                            Account #{idx + 1}: {acc.address.slice(0, 7)}…{acc.address.slice(-5)}
-                          </span>
-                          <span style={{ color: (acc.balanceNim ?? 0) > 0 ? "#2ecc71" : "#94a3b8", fontWeight: 700 }}>
-                            {acc.balanceNim !== null ? `${acc.balanceNim.toFixed(2)} NIM` : "Checking…"}
-                          </span>
-                        </div>
-                        {acc.isActive ? (
-                          <span style={{ color: "#2ecc71", fontSize: "9px", fontWeight: 700 }}>● Active</span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddress(acc.address);
-                              localStorage.setItem("nimiq_arena_wallet_address", acc.address);
-                              localStorage.setItem("nimiq_arena_wallet_mode", "mini-app");
-                              toast.success(`Switched to Account #${idx + 1}`);
-                              void executeAudit();
-                            }}
-                            style={{
-                              background: "rgba(56, 189, 248, 0.2)",
-                              border: "1px solid #38bdf8",
-                              color: "#38bdf8",
-                              borderRadius: "3px",
-                              padding: "2px 6px",
-                              fontSize: "9px",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Switch
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Network & Consensus */}
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#94a3b8" }}>Network:</span>
-                <strong style={{ color: "#f8fafc" }}>{report?.networkConfigured} (5)</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#94a3b8" }}>Consensus:</span>
-                <span style={{ color: report?.consensusEstablished ? "#2ecc71" : "#e74c3c" }}>
-                  {report?.consensusEstablished ? "ESTABLISHED" : "NOT SYNCED"} (Block #{report?.blockNumber ?? "N/A"})
-                </span>
-              </div>
-
-              {/* RPC Status */}
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#94a3b8" }}>TestAlbatross RPC:</span>
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color:
-                        report?.rpcStatus === "RPC_POSITIVE_BALANCE"
-                          ? "#2ecc71"
-                          : report?.rpcStatus === "RPC_ZERO_BALANCE"
-                          ? "#f1c40f"
-                          : "#e74c3c",
-                    }}
-                  >
-                    {report?.rpcStatus}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", marginTop: "2px" }}>
-                  <span>Host: {report?.rpcHost}</span>
-                  <span>{report?.rpcLatencyMs ? `${report.rpcLatencyMs} ms` : "timeout"}</span>
-                </div>
-                {report?.rpcError && (
-                  <div style={{ color: "#f87171", marginTop: "2px" }}>Error: {report.rpcError}</div>
-                )}
-              </div>
-
-              {/* Balances Comparison */}
-              <div
-                style={{
-                  background: "rgba(229, 160, 0, 0.06)",
-                  border: "1px solid rgba(229, 160, 0, 0.2)",
-                  padding: "8px 10px",
-                  borderRadius: "6px",
-                  marginTop: "4px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#94a3b8" }}>RPC Raw Balance:</span>
-                  <strong style={{ color: "#f8fafc" }}>
-                    {report?.rpcRawBalanceLuna !== null ? `${report?.rpcRawBalanceLuna} Luna` : "N/A"}
-                  </strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-                  <span style={{ color: "#94a3b8" }}>RPC Converted:</span>
-                  <strong style={{ color: "#2ecc71", fontSize: "13px" }}>
-                    {report?.rpcConvertedBalanceNim !== null ? `${report?.rpcConvertedBalanceNim} NIM` : "N/A"}
-                  </strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-                  <span style={{ color: "#94a3b8" }}>Frontend State:</span>
-                  <strong style={{ color: "#38bdf8", fontSize: "13px" }}>
-                    {report?.frontendStateBalanceNim !== null ? `${report?.frontendStateBalanceNim} NIM` : "0 NIM"}
-                  </strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
-                  <span style={{ color: "#94a3b8" }}>Balance UI Component:</span>
-                  <span
-                    style={{
-                      color: report?.balanceComponentState === "RENDERED" ? "#2ecc71" : "#e74c3c",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {report?.balanceComponentState}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Audit Trail Toggle */}
-            <div style={{ marginTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "8px" }}>
-              <button
-                onClick={() => setShowLogs(!showLogs)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#94a3b8",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  fontSize: "11px",
-                  padding: 0,
-                  width: "100%",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span>Boundary Audit Trail ({report?.auditLogs?.length || 0})</span>
-                {showLogs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-
-              {showLogs && (
-                <div
-                  style={{
-                    maxHeight: "130px",
-                    overflowY: "auto",
-                    background: "#050810",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: "4px",
-                    padding: "6px",
-                    marginTop: "6px",
-                    fontSize: "10px",
-                    color: "#cbd5e1",
-                    display: "grid",
-                    gap: "4px",
-                  }}
-                >
-                  {report?.auditLogs?.map((log, i) => (
-                    <div key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: "2px" }}>
-                      <span style={{ color: "#e5a000" }}>[{log.step}]</span> {log.message}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div
-            style={{
-              padding: "8px 14px",
-              background: "rgba(0,0,0,0.4)",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              display: "flex",
-              gap: "8px",
-            }}
-          >
-            <button
-              onClick={executeAudit}
-              disabled={isRunning}
-              style={{
-                flex: 1,
-                background: "rgba(229, 160, 0, 0.15)",
-                border: "1px solid #e5a000",
-                color: "#e5a000",
-                padding: "6px",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "4px",
-                fontSize: "11px",
-              }}
-            >
-              <RotateCw size={12} className={isRunning ? "spin" : ""} />
-              Re-Audit
-            </button>
-            <button
-              onClick={handleManualSync}
-              disabled={isRunning}
-              style={{
-                flex: 1,
-                background: "rgba(56, 189, 248, 0.15)",
-                border: "1px solid #38bdf8",
-                color: "#38bdf8",
-                padding: "6px",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "4px",
-                fontSize: "11px",
-              }}
-            >
-              <Shield size={12} />
-              Sync Pay
-            </button>
-          </div>
+          {renderDetailsContent()}
         </div>
       )}
     </aside>

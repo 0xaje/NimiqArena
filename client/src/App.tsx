@@ -55,7 +55,6 @@ function Router() {
 }
 
 import { NimiqWalletProvider } from "./lib/useNimiqWallet";
-import { NimiqForensicPanel } from "./components/dev/NimiqForensicPanel";
 
 export default function App() {
   useEffect(() => {
@@ -69,7 +68,6 @@ export default function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
-            <NimiqForensicPanel />
           </TooltipProvider>
         </NimiqWalletProvider>
       </ThemeProvider>
