@@ -363,8 +363,10 @@ export function applyCommand(
   // Check if player has other pieces that can legally move with remaining dice
   const otherPiecesCanMove = playerPieces.some((p, idx) => {
     if (idx === command.pieceIndex) return false;
-    if (p.position >= 0 && p.position < LUDO_HOME_ENTRY) return true;
-    if (p.position === -1 && remaining.includes(6)) return true;
+    if (p.position === -1) return remaining.includes(6);
+    if (p.position >= 0 && p.position < LUDO_HOME_ENTRY) {
+      return remaining.some(d => p.position + d <= LUDO_HOME_ENTRY);
+    }
     return false;
   });
   const isMultiDice = remaining.length === 2;
@@ -374,7 +376,12 @@ export function applyCommand(
   let dieToUse: number;
   let isCombinedMove = false;
 
-  if (command.dieValue !== undefined) {
+  // RULE: If this is the sole piece that can move and multiple dice remain,
+  // the piece MUST move the combined sum in a single leap (intermediate squares cannot capture).
+  if (isMultiDice && !otherPiecesCanMove && from >= 0 && from + remainingSum <= LUDO_HOME_ENTRY) {
+    isCombinedMove = true;
+    dieToUse = remainingSum;
+  } else if (command.dieValue !== undefined) {
     if (isMultiDice && command.dieValue === remainingSum) {
       isCombinedMove = true;
       dieToUse = remainingSum;
@@ -392,51 +399,45 @@ export function applyCommand(
       return reject("ILLEGAL_MOVE", "The move overshoots the home entry.");
     }
   } else {
-    // If this is the sole piece that can move and multiple dice remain, move the combined sum
-    if (isMultiDice && !otherPiecesCanMove && from >= 0 && from + remainingSum <= LUDO_HOME_ENTRY) {
-      isCombinedMove = true;
-      dieToUse = remainingSum;
-    } else {
-      // Auto-select valid die for this piece from remaining
-      const validDice = remaining.filter(d =>
-        from === -1 ? d === 6 : from + d <= LUDO_HOME_ENTRY
+    // Auto-select valid die for this piece from remaining
+    const validDice = remaining.filter(d =>
+      from === -1 ? d === 6 : from + d <= LUDO_HOME_ENTRY
+    );
+    if (validDice.length === 0) {
+      return reject(
+        "ILLEGAL_MOVE",
+        from === -1
+          ? "A piece can only leave base on a six."
+          : "The move overshoots the home entry."
       );
-      if (validDice.length === 0) {
-        return reject(
-          "ILLEGAL_MOVE",
-          from === -1
-            ? "A piece can only leave base on a six."
-            : "The move overshoots the home entry."
-        );
-      }
+    }
 
-      // Prioritize die that captures an opponent piece
-      let chosenDie = validDice[0];
-      if (validDice.length > 1 && from >= 0) {
-        for (const d of validDice) {
-          const testTo = from + d;
-          if (testTo < TRACK_CELLS_BEFORE_HOME) {
-            const testLanding = globalTrackPosition(command.playerId, testTo, command.pieceIndex, mode);
-            if (!LUDO_SAFE_SQUARES.has(testLanding)) {
-              const wouldCapture = snapshot.players.some(opp =>
-                opp.id !== command.playerId &&
-                opp.pieces.some(
-                  (oppP, oppIdx) =>
-                    oppP.position >= 0 &&
-                    oppP.position < TRACK_CELLS_BEFORE_HOME &&
-                    globalTrackPosition(opp.id, oppP.position, oppIdx, mode) === testLanding
-                )
-              );
-              if (wouldCapture) {
-                chosenDie = d;
-                break;
-              }
+    // Prioritize die that captures an opponent piece
+    let chosenDie = validDice[0];
+    if (validDice.length > 1 && from >= 0) {
+      for (const d of validDice) {
+        const testTo = from + d;
+        if (testTo < TRACK_CELLS_BEFORE_HOME) {
+          const testLanding = globalTrackPosition(command.playerId, testTo, command.pieceIndex, mode);
+          if (!LUDO_SAFE_SQUARES.has(testLanding)) {
+            const wouldCapture = snapshot.players.some(opp =>
+              opp.id !== command.playerId &&
+              opp.pieces.some(
+                (oppP, oppIdx) =>
+                  oppP.position >= 0 &&
+                  oppP.position < TRACK_CELLS_BEFORE_HOME &&
+                  globalTrackPosition(opp.id, oppP.position, oppIdx, mode) === testLanding
+              )
+            );
+            if (wouldCapture) {
+              chosenDie = d;
+              break;
             }
           }
         }
       }
-      dieToUse = chosenDie;
     }
+    dieToUse = chosenDie;
   }
 
   const to = from === -1 ? 0 : from + dieToUse;

@@ -308,10 +308,21 @@ export const LudoBoard2D: React.FC<LudoBoard2DProps> = React.memo(({
     const myPieces = players[yourSeat]?.pieces || [];
     const otherPiecesCanMove = myPieces.some((p, idx) => {
       if (idx === pieceIndex) return false;
-      if (p.position >= 0 && p.position < 57) return true;
-      if (p.position === -1 && dicePool.includes(6)) return true;
+      if (p.position === -1) return dicePool.includes(6);
+      if (p.position >= 0 && p.position < 56) {
+        return dicePool.some(d => p.position + d <= 56);
+      }
       return false;
     });
+
+    const isMultiDice = dicePool.length === 2;
+    const remainingSum = dicePool.reduce((a, b) => a + b, 0);
+
+    // Sole movable piece with 2 dice moves the combined sum in a single leap
+    if (isMultiDice && !otherPiecesCanMove && piece.position >= 0 && piece.position + remainingSum <= 56) {
+      onMovePiece(pieceIndex, remainingSum);
+      return;
+    }
 
     // On track: filter valid dice from pool
     const validDice = dicePool.filter(d => piece.position + d <= 56);

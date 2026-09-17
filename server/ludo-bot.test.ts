@@ -140,6 +140,53 @@ describe("Ludo AI Bot Heuristic Engine", () => {
     expect(move).not.toBeNull();
     expect(move?.pieceIndex).toBe(1); // Piece 1 chosen because piece 0 would land in immediate danger
   });
+
+  it("sole piece on track with dice [4, 2] selects combined leap 6, avoiding intermediate capture of opponent at 4", () => {
+    const snapshot = createLudoSnapshot("match-bot-sole-leap", "2p_single", 2);
+    // Bot (Player 1) piece 0 is at progress 0 (global (26 + 0) % 52 = 26)
+    snapshot.players[1].pieces[0].position = 0;
+    // Pieces 1, 2, 3 are in base (-1)
+    snapshot.players[1].pieces[1].position = -1;
+    snapshot.players[1].pieces[2].position = -1;
+    snapshot.players[1].pieces[3].position = -1;
+
+    // Opponent (Player 0) is sitting at global 30 (which is progress 4 for bot: (26 + 4) % 52 = 30)
+    snapshot.players[0].pieces[0].position = 30;
+
+    // Bot rolls [4, 2] = 6
+    snapshot.dice = 6;
+    snapshot.diceValues = [4, 2];
+    snapshot.remainingDice = [4, 2];
+
+    const move = selectBestBotMove(snapshot, 1, 6);
+    expect(move).not.toBeNull();
+    expect(move?.pieceIndex).toBe(0);
+    // Must select combined sum 6, NOT partial die 4!
+    expect(move?.dieValue).toBe(6);
+    expect(move?.reason).toContain("Leap forward combined roll");
+  });
+
+  it("can target opponent at 4 when another piece is outside and can be played with remaining die", () => {
+    const snapshot = createLudoSnapshot("match-bot-split-capture", "2p_single", 2);
+    // Bot (Player 1) piece 0 is at progress 0
+    snapshot.players[1].pieces[0].position = 0;
+    // Bot piece 1 is ALSO outside at progress 10
+    snapshot.players[1].pieces[1].position = 10;
+    // Opponent is sitting at global 30 (progress 4 for bot)
+    snapshot.players[0].pieces[0].position = 30;
+
+    // Bot rolls [4, 2] = 6
+    snapshot.dice = 6;
+    snapshot.diceValues = [4, 2];
+    snapshot.remainingDice = [4, 2];
+
+    const move = selectBestBotMove(snapshot, 1, 6);
+    expect(move).not.toBeNull();
+    expect(move?.pieceIndex).toBe(0);
+    // Can select die 4 to capture opponent because piece 1 can use remaining die 2
+    expect(move?.dieValue).toBe(4);
+    expect(move?.reason).toContain("Capture opponent piece");
+  });
 });
 
 describe("Solo Practice Match Router", () => {

@@ -40,50 +40,75 @@ export function selectBestBotMove(
   const opponentId: LudoPlayerId = (botPlayerId === 0 ? 1 : 0) as LudoPlayerId;
   const opponentPlayer = snapshot.players[opponentId];
 
-  const availableDice = snapshot.remainingDice && snapshot.remainingDice.length > 0
-    ? Array.from(new Set(snapshot.remainingDice))
+  const remaining = snapshot.remainingDice && snapshot.remainingDice.length > 0
+    ? snapshot.remainingDice
     : [dice];
+  const isMultiDice = remaining.length === 2;
+  const remainingSum = remaining.reduce((a, b) => a + b, 0);
 
+  // Check if player has other pieces that can legally move with the available dice
+  const otherPiecesCanMove = (targetIdx: number) =>
+    botPlayer.pieces.some((p, idx) => {
+      if (idx === targetIdx) return false;
+      if (p.position === -1) return remaining.includes(6);
+      if (p.position >= 0 && p.position < LUDO_HOME_ENTRY) {
+        return remaining.some(d => p.position + d <= LUDO_HOME_ENTRY);
+      }
+      return false;
+    });
+
+  const availableDice = Array.from(new Set(remaining));
   const validChoices: BotMoveChoice[] = [];
 
-  for (const currentDie of availableDice) {
-    botPlayer.pieces.forEach((piece, pieceIndex) => {
-      const from = piece.position;
-      if (from >= LUDO_HOME_ENTRY) return; // Already finished in home goal
+  botPlayer.pieces.forEach((piece, pieceIndex) => {
+    const from = piece.position;
+    if (from >= LUDO_HOME_ENTRY) return; // Already finished in home goal
 
-      if (from === -1) {
-        if (currentDie === 6) {
-          let score = 300;
-          const entryGlobalPos = getPieceGlobalStart(botPlayerId, pieceIndex, mode as any);
+    if (from === -1) {
+      if (remaining.includes(6)) {
+        let score = 300;
+        const entryGlobalPos = getPieceGlobalStart(botPlayerId, pieceIndex, mode as any);
 
-          // Check if opponent is sitting on starting square
-          const capturesOpponent = opponentPlayer?.pieces.some(
-            (oppPiece, oppIdx) =>
-              oppPiece.position >= 0 &&
-              oppPiece.position < LUDO_TRACK_LENGTH &&
-              getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === entryGlobalPos
-          );
-          if (capturesOpponent) score += 1200;
+        // Check if opponent is sitting on starting square
+        const capturesOpponent = opponentPlayer?.pieces.some(
+          (oppPiece, oppIdx) =>
+            oppPiece.position >= 0 &&
+            oppPiece.position < LUDO_TRACK_LENGTH &&
+            getGlobalTrackPos(opponentId, oppPiece.position, oppIdx, mode) === entryGlobalPos
+        );
+        if (capturesOpponent) score += 1200;
 
-          validChoices.push({
-            pieceIndex,
-            dieValue: 6,
-            score,
-            reason: capturesOpponent
-              ? "Exit base with immediate capture & goal"
-              : "Deploy piece from base",
-          });
-        }
-        return;
+        validChoices.push({
+          pieceIndex,
+          dieValue: 6,
+          score,
+          reason: capturesOpponent
+            ? "Exit base with immediate capture & goal"
+            : "Deploy piece from base",
+        });
       }
+      return;
+    }
 
+    // Piece is on track (from >= 0)
+    // RULE: If this is the sole piece that can move and multiple dice remain,
+    // it MUST move the combined sum in a single leap! It cannot split into intermediate partial-dice moves.
+    const mustMoveCombined = isMultiDice && !otherPiecesCanMove(pieceIndex) && from + remainingSum <= LUDO_HOME_ENTRY;
+
+    const candidateDice = mustMoveCombined
+      ? [remainingSum]
+      : availableDice;
+
+    for (const currentDie of candidateDice) {
       const to = from + currentDie;
       if (to > LUDO_HOME_ENTRY) {
-        return; // Overshoots home goal
+        continue; // Overshoots home goal
       }
 
       let score = 50 + to;
-      let reason = "Advance piece on track";
+      let reason = mustMoveCombined
+        ? `Leap forward combined roll of ${currentDie}`
+        : "Advance piece on track";
 
       // 0. Threat Escape Check: is piece currently in danger on the track?
       if (from < LUDO_TRACK_LENGTH) {
@@ -157,8 +182,8 @@ export function selectBestBotMove(
       }
 
       validChoices.push({ pieceIndex, dieValue: currentDie, score, reason });
-    });
-  }
+    }
+  });
 
   if (validChoices.length === 0) return null;
 

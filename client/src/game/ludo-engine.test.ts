@@ -511,9 +511,59 @@ describe("ludo engine", () => {
       expect(moveRes.snapshot.players[1].pieces[0].position).toBe(31);
     });
 
+    it("forces combined leap of 7 when only one piece is outside even if dieValue 5 is passed, bypassing opponent at 5 without capture", () => {
+      const snapshot = createLudoSnapshot("match-sole-forced-leap", "2p_single", 2);
+      snapshot.players[0].pieces[0].position = 0; // Sole piece on track
+      // Opponent at global track 5 (position 31 for Player 1)
+      snapshot.players[1].pieces[0].position = 31;
+
+      let rollIdx = 0;
+      const dice = [5, 2];
+      const rollRes = applyCommand(
+        snapshot,
+        {
+          kind: "roll",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: 0,
+          nonce: "roll-5-2",
+        },
+        () => dice[rollIdx++]
+      );
+
+      expect(rollRes.ok).toBe(true);
+      if (!rollRes.ok) return;
+
+      // Even if dieValue: 5 is passed, the engine enforces combined leap (7) because no other piece can move
+      const moveRes = applyCommand(
+        rollRes.snapshot,
+        {
+          kind: "move",
+          matchId: snapshot.matchId,
+          playerId: 0,
+          expectedVersion: rollRes.snapshot.version,
+          nonce: "move-sole-dieval",
+          pieceIndex: 0,
+          dieValue: 5,
+        },
+        () => 1
+      );
+
+      expect(moveRes.ok).toBe(true);
+      if (!moveRes.ok) return;
+
+      // Sole piece leaped over 5 directly to 7!
+      expect(moveRes.snapshot.players[0].pieces[0].position).toBe(7);
+      // Opponent at step 5 was NOT captured! Remains at 31!
+      expect(moveRes.snapshot.players[1].pieces[0].position).toBe(31);
+      // Both dice were consumed by the combined leap
+      expect(moveRes.snapshot.remainingDice).toEqual([]);
+    });
+
     it("captures only ONE opponent piece when landing on a tile with multiple stacked opponent pieces", () => {
       const snapshot = createLudoSnapshot("match-stacked-capture", "2p_single", 2);
       snapshot.players[0].pieces[0].position = 0; // Moving piece
+      snapshot.players[0].pieces[1].position = 20; // Another playable piece outside to permit splitting dice
       // Opponent has TWO pieces on global track 5 (position 31 for Player 1)
       snapshot.players[1].pieces[0].position = 31;
       snapshot.players[1].pieces[1].position = 31;
