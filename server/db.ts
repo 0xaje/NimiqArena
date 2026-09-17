@@ -133,6 +133,7 @@ async function ensureTablesExist(db: ReturnType<typeof drizzle>) {
       \`evmAddress\` varchar(64),
       \`avatar\` varchar(255),
       \`welcomeClaimed\` boolean NOT NULL DEFAULT false,
+      \`isAnonymous\` boolean NOT NULL DEFAULT false,
       \`createdAt\` timestamp NOT NULL DEFAULT (now()),
       \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
       \`lastSignedIn\` timestamp NOT NULL DEFAULT (now()),
@@ -328,6 +329,7 @@ async function synchronizeSchemaMigrations(db: ReturnType<typeof drizzle>) {
         { name: "evmAddress", definition: "varchar(64) NULL" },
         { name: "avatar", definition: "varchar(255) NULL" },
         { name: "welcomeClaimed", definition: "boolean NOT NULL DEFAULT false" },
+        { name: "isAnonymous", definition: "boolean NOT NULL DEFAULT false" },
         { name: "lastSignedIn", definition: "timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP" },
       ],
       matches: [
@@ -493,6 +495,11 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     } else if (user.openId === ENV.ownerOpenId) {
       values.role = "admin";
       updateSet.role = "admin";
+    }
+
+    if (user.isAnonymous !== undefined) {
+      values.isAnonymous = user.isAnonymous;
+      updateSet.isAnonymous = user.isAnonymous;
     }
 
     if (!values.lastSignedIn) {

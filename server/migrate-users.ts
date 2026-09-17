@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { getDb } from "./db";
 import { sql } from "drizzle-orm";
 
@@ -16,6 +17,7 @@ async function main() {
     sql`ALTER TABLE \`users\` ADD COLUMN \`evmAddress\` varchar(64) NULL`,
     sql`ALTER TABLE \`users\` ADD COLUMN \`avatar\` varchar(255) NULL`,
     sql`ALTER TABLE \`users\` ADD COLUMN \`welcomeClaimed\` boolean NOT NULL DEFAULT false`,
+    sql`ALTER TABLE \`users\` ADD COLUMN \`isAnonymous\` boolean NOT NULL DEFAULT false`,
     sql`CREATE INDEX \`users_referral_code_idx\` ON \`users\` (\`referralCode\`)`
   ];
 
